@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>KGK Jet India ERP</title>
+
+  <style>
+    :root{
+      --bg:#eef4ff; --card:#ffffff; --primary:#1a73e8;
+      --text:#0f172a; --muted:#64748b; --border:#e5e7eb;
+      --shadow: 0 10px 25px rgba(0,0,0,.08); --radius: 14px;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;font-family:"Segoe UI",system-ui,-apple-system,Arial;background:var(--bg);color:var(--text);}
+    .app{display:grid;grid-template-columns:260px 1fr;min-height:100vh;}
+
+    .sidebar{background:#0b2a55;color:#fff;padding:18px;position:sticky;top:0;height:100vh;}
+    .brand{display:flex;align-items:center;gap:10px;padding:10px 10px 18px;border-bottom:1px solid rgba(255,255,255,.12);margin-bottom:14px;}
+    .logo{width:46px;height:46px;border-radius:14px;background:linear-gradient(135deg,#1a73e8,#2e7d32);display:flex;align-items:center;justify-content:center;font-weight:900;}
+    .brand h2{margin:0;font-size:16px;line-height:1.1}
+    .brand small{color:rgba(255,255,255,.7)}
+    .nav{margin-top:14px;display:flex;flex-direction:column;gap:10px;}
+    .nav button{border:none;background:rgba(255,255,255,.08);color:#fff;padding:12px;border-radius:12px;cursor:pointer;text-align:left;display:flex;align-items:center;gap:10px;font-size:14px;transition:.2s;}
+    .nav button:hover{background:rgba(255,255,255,.16)}
+    .nav button.active{background:rgba(26,115,232,.35);outline:1px solid rgba(26,115,232,.55);}
+    .sidebarFooter{position:absolute;left:18px;right:18px;bottom:18px;background:rgba(255,255,255,.08);border-radius:12px;padding:12px;font-size:13px;color:rgba(255,255,255,.85);}
+    .sidebarFooter b{color:#fff}
+
+    .main{padding:18px 18px 28px;}
+    .topbar{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);padding:14px 16px;display:flex;gap:14px;justify-content:space-between;align-items:center;}
+    .topbar .title{display:flex;flex-direction:column;}
+    .topbar h1{margin:0;font-size:18px}
+    .topbar .sub{color:var(--muted);font-size:13px}
+    .userBox{display:flex;align-items:center;gap:12px;}
+    .pill{padding:8px 10px;border-radius:999px;background:#f1f5ff;border:1px solid #dbe6ff;font-size:13px;}
+    .logout{background:#fff;border:1px solid var(--border);padding:8px 12px;border-radius:10px;cursor:pointer;}
+
+    .cards{margin-top:14px;display:grid;grid-template-columns:repeat(4,1fr);gap:12px;}
+    .card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);padding:14px;}
+    .card .kpi{font-size:22px;font-weight:800}
+    .card .label{color:var(--muted);font-size:13px}
+
+    .section{margin-top:14px;background:var(--card);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);padding:16px;display:none;}
+    .section.active{display:block;}
+    .sectionHeader{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;}
+    .sectionHeader h2{margin:0;font-size:16px}
+    .sectionHeader small{color:var(--muted)}
+
+    .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;}
+    label{font-size:12px;color:var(--muted);display:block;margin-bottom:6px}
+    input,select,textarea{width:100%;padding:10px;border:1px solid var(--border);border-radius:12px;font-size:14px;outline:none;background:#fff;}
+    textarea{min-height:90px;resize:vertical;}
+    .actions{margin-top:12px;display:flex;gap:10px;justify-content:flex-end;}
+    .btn{border:none;padding:10px 14px;border-radius:12px;cursor:pointer;font-weight:700;}
+    .btn.primary{background:var(--primary);color:#fff;}
+    .btn.gray{background:#f1f5f9;border:1px solid var(--border);}
+
+    .tableWrap{overflow:auto;border:1px solid var(--border);border-radius:12px;}
+    table{width:100%;border-collapse:collapse;font-size:13px;min-width:900px;}
+    thead th{position:sticky;top:0;background:#0b2a55;color:#fff;padding:10px;text-align:left;white-space:nowrap;}
+    tbody td{border-top:1px solid var(--border);padding:10px;white-space:nowrap;}
+
+    .searchRow{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:10px;}
+    .searchRow input{flex:1;min-width:260px;}
+    .hint{color:var(--muted);font-size:12px;margin-top:6px;}
+    .err{color:#b91c1c;font-weight:700;}
+
+    .suggestBox{
+      position:absolute; display:none; background:#fff; border:1px solid #e5e7eb; border-radius:12px;
+      box-shadow:0 18px 40px rgba(0,0,0,.12); width:520px; max-width:100%; max-height:240px; overflow:auto;
+      z-index:9998; left:0; top:44px;
+    }
+    .suggestItem{padding:10px 12px;cursor:pointer;border-bottom:1px solid #f1f5f9;}
+    .suggestItem:hover{background:#f8fafc;}
+
+    @media (max-width:1100px){
+      .cards{grid-template-columns:repeat(2,1fr)}
+      .grid{grid-template-columns:repeat(2,1fr)}
+    }
+    @media (max-width:800px){
+      .app{grid-template-columns:1fr}
+      .sidebar{height:auto;position:relative}
+      .cards{grid-template-columns:1fr}
+      .grid{grid-template-columns:1fr}
+      table{min-width:650px}
+      .sidebarFooter{position:relative;left:0;right:0;bottom:0;margin-top:12px;}
+    }
+  </style>
+</head>
+
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="logo">KGK</div>
+        <div>
+          <h2>KGK Jet India</h2>
+          <small>Service ERP</small>
+        </div>
+      </div>
+
+      <div class="nav">
+        <button id="btnDashboard" class="active" onclick="showSection('dashboardSection', this)">🏠 Dashboard</button>
+        <button id="btnWsr" onclick="showSection('wsrSection', this)">🧾 WSR Report</button>
+        <button id="btnReport" onclick="showSection('reportSection', this); loadReport();">📋 Report View</button>
+        <button id="btnMaster" onclick="showSection('masterSection', this); openMaster();">📄 Master Installbase View</button>
+      </div>
+
+      <div class="sidebarFooter">
+        <div><b id="sbEngineer">Engineer</b></div>
+        <div>Team: <span id="sbZone">-</span></div>
+      </div>
+    </aside>
+
+    <main class="main">
+      <div class="topbar">
+        <div class="title">
+          <h1>Service Dashboard</h1>
+          <div class="sub">KGK SERVICE TEAM LOGIN ERP</div>
+        </div>
+
+        <div class="userBox">
+          <div class="pill">👤 <b id="engName">-</b></div>
+          <div class="pill">📍 Zone: <b id="zoneName">-</b></div>
+          <button class="logout" onclick="logout()">Logout</button>
+        </div>
+      </div>
+
+      <div class="cards">
+        <div class="card">
+          <div class="kpi" id="kpiTotal">—</div>
+          <div class="label">Total InstallBase</div>
+        </div>
+        <div class="card">
+          <div class="kpi" id="kpiMonth">—</div>
+          <div class="label">This Month Cluster Plan</div>
+        </div>
+        <div class="card">
+          <div class="kpi" id="kpiPending">0</div>
+          <div class="label">Breakdown Task Pending</div>
+        </div>
+        <div class="card">
+          <div class="kpi" id="kpiCustomers">—</div>
+          <div class="label">Total Customers</div>
+        </div>
+      </div>
+
+      <section id="dashboardSection" class="section active">
+        <div class="sectionHeader">
+          <h2>Overview</h2>
+          <small>Welcome to KGK Service Team ERP</small>
+        </div>
+        <div style="color:var(--muted); line-height:1.6">
+          ✅ Use left menu to open WSR Form, Report View, Master InstallBase.<br>
+          ✅ Engineer and Zone are loaded automatically from Login.
+        </div>
+      </section>
+
+      <!-- MASTER -->
+      <section id="masterSection" class="section">
+        <div class="sectionHeader">
+          <h2>Master InstallBase</h2>
+          <small id="masterHint">—</small>
+        </div>
+
+        <div style="position:relative; margin:0 0 10px;">
+          <div class="searchRow">
+            <input id="masterSearch" placeholder="Search (Customer / Serial / Engineer / Zone...)" autocomplete="off">
+            <button class="btn gray" onclick="masterDoSearch()">🔎 Search</button>
+            <button class="btn gray" onclick="masterClear()">✖ Clear</button>
+            <button class="btn gray" onclick="openMaster()">🔄 Refresh</button>
+          </div>
+          <div id="masterSuggest" class="suggestBox"></div>          
+          <div id="masterErr" class="err"></div>
+        </div>
+
+        <div id="masterTable"></div>
+      </section>
+
+      <!-- WSR FORM -->
+      <section id="wsrSection" class="section">
+        <div class="sectionHeader">
+          <h2>WSR Report Form</h2>
+          <small>Submit service activity</small>
+        </div>
+
+        <form id="wsrForm">
+          <div class="grid">
+            <div><label>Zone</label><input id="wsr_zone" name="zone" readonly></div>
+            <div><label>Engineer</label><input id="wsr_engineer" name="engineerName" readonly></div>
+            <div><label>Month/Year</label><input name="monthYear" placeholder="MMM-YY" required></div>
+
+            <div><label>Service Report No</label><input name="serviceReportNo"></div>
+            <div><label>Customer Name</label><input name="customerName"></div>
+            <div><label>Location</label><input name="location"></div>
+
+            <div><label>Contact Person</label><input name="contactPerson"></div>
+            <div><label>Designation</label><input name="designation"></div>
+            <div><label>Contact Number</label><input name="contactNumber"></div>
+
+            <div><label>Email</label><input name="email"></div>
+            <div><label>Call Logged Date</label><input type="date" name="callLoggedDate"></div>
+            <div><label>Problem Reported</label><input name="problemReported"></div>
+
+            <div><label>Machine Status</label><input name="machineStatus"></div>
+
+            <div>
+              <label>Visit Code 1</label>
+              <select name="visitCode1" required>
+                <option value="">--Select--</option>
+                <option value="NA">NA</option>
+                <option value="CLUSTER">CLUSTER</option>
+                <option value="BREAKDOWN">BREAKDOWN</option>
+                <option value="SALES SUPPORTS">SALES SUPPORTS</option>
+                <option value="OTHERS TEC">OTHERS TEC</option>
+              </select>
+            </div>
+
+            <div>
+              <label>Visit Code 2</label>
+              <select name="visitCode2">
+                <option value="">--Select--</option>
+                <option value="CLUSTER">CLUSTER</option>
+                <option value="BREAKDOWN">BREAKDOWN</option>
+                <option value="SALES SUPPORTS">SALES SUPPORTS</option>
+                <option value="OTHERS TEC">OTHERS TEC</option>
+              </select>
+            </div>
+
+            <div><label>Ink Type</label><input name="inkType"></div>
+            <div><label>Visit Date</label><input type="date" name="visitDate"></div>
+
+            <div><label>Action Taken</label><textarea name="actionTaken"></textarea></div>
+            <div><label>Remarks</label><textarea name="remarks"></textarea></div>
+          </div>
+
+          <div class="actions">
+            <button type="button" class="btn gray" onclick="document.getElementById('wsrForm').reset(); refillReadonly();">Clear</button>
+            <button type="submit" class="btn primary">Submit WSR</button>
+          </div>
+        </form>
+      </section>
+
+      <!-- REPORT -->
+      <section id="reportSection" class="section">
+        <div class="sectionHeader">
+          <h2>Report View</h2>
+          <small>dbo.WSR table view</small>
+        </div>
+
+        <div style="position:relative; margin:0 0 10px;">
+          <div class="searchRow">
+            <input id="reportSearch" placeholder="Search report (customer / report no / engineer / zone...)" autocomplete="off">
+            <button class="btn gray" onclick="reportDoSearch()">🔎 Search</button>
+            <button class="btn gray" onclick="reportClear()">✖ Clear</button>
+            <button class="btn gray" onclick="loadReport()">🔄 Refresh</button>
+          </div>
+          <div id="reportSuggest" class="suggestBox"></div>
+          <div id="reportErr" class="err"></div>
+        </div>
+
+        <div id="reportWrap" class="tableWrap">
+          <table id="dataTable">
+            <thead></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+<script>
+const SERVER_ENGINEER = "{{ engineer|e }}";
+const SERVER_ZONE = "{{ zone|e }}";
+const SERVER_ROLENAME = "{{ role|e }}";
+const SERVER_TEAM = "{{ team|e }}";
+
+function showSection(id, btn){
+  document.querySelectorAll(".section").forEach(s=>s.classList.remove("active"));
+  const sec = document.getElementById(id);
+  if (sec) sec.classList.add("active");
+
+  document.querySelectorAll(".nav button").forEach(b=>b.classList.remove("active"));
+  if(btn) btn.classList.add("active");
+}
+
+function refillReadonly(){
+  const e1 = document.getElementById("wsr_engineer");
+  const z1 = document.getElementById("wsr_zone");
+  if (e1) e1.value = SERVER_ENGINEER || "";
+  if (z1) z1.value = SERVER_ZONE || "";
+}
+
+function logout(){
+  window.location.href = "/logout";
+}
+
+function loadKpis(){
+  fetch("/api/kpi")
+    .then(r => r.json())
+    .then(k => {
+      if (k.error) return;
+      document.getElementById("kpiTotal").textContent = k.installbase_total ?? 0;
+      document.getElementById("kpiCustomers").textContent = k.customers ?? 0;
+      document.getElementById("kpiMonth").textContent = k.this_month_reports ?? 0;
+      document.getElementById("kpiPending").textContent = k.pending ?? 0;
+    })
+    .catch(()=>{});
+}
+
+function escapeHtml(v){
+  if (v === null || v === undefined) return "";
+  return String(v)
+    .replaceAll("&","&amp;")
+    .replaceAll("<","&lt;")
+    .replaceAll(">","&gt;")
+    .replaceAll('"',"&quot;")
+    .replaceAll("'","&#039;");
+}
+
+function renderTable(columns, rows) {
+  if (!rows || rows.length === 0) return "<div>No data found</div>";
+
+  const th = columns.map(c => `<th>${escapeHtml(c)}</th>`).join("");
+  const body = rows.map(r => {
+    const tds = columns.map(c => `<td>${escapeHtml(r[c])}</td>`).join("");
+    return `<tr>${tds}</tr>`;
+  }).join("");
+
+  return `
+    <div style="overflow:auto; max-height:70vh; border:1px solid #e5e7eb; border-radius:12px;">
+      <table style="width:100%; border-collapse:collapse;">
+        <thead><tr>${th}</tr></thead>
+        <tbody>${body}</tbody>
+      </table>
+    </div>
+  `;
+}
+
+/* ================= MASTER ================= */
+async function openMaster(){
+  const hint = document.getElementById("masterHint");
+  const holder = document.getElementById("masterTable");
+  const errBox = document.getElementById("masterErr");
+  errBox.textContent = "";
+
+  hint.textContent = "Loading...";
+  holder.innerHTML = "Loading...";
+
+  const q = (document.getElementById("masterSearch").value || "").trim();
+
+  try {
+    const res = await fetch("/api/master/installbase?limit=2000&q=" + encodeURIComponent(q));
+    const data = await res.json();
+
+    if (!res.ok) {
+      hint.textContent = "Error";
+      errBox.textContent = data.error || "Error";
+      holder.innerHTML = "";
+      return;
+    }
+
+    hint.textContent = `Rows: ${(data.rows||[]).length}`;
+    holder.innerHTML = renderTable(data.columns || [], data.rows || []);
+    loadKpis();
+  } catch (e) {
+    hint.textContent = "Network error";
+    errBox.textContent = String(e);
+    holder.innerHTML = "";
+  }
+}
+
+function masterDoSearch(){ openMaster(); }
+function masterClear(){
+  document.getElementById("masterSearch").value = "";
+  hideSuggest("masterSuggest");
+  openMaster();
+}
+
+/* master suggestions */
+const msInput = () => document.getElementById("masterSearch");
+msInput().addEventListener("input", async (e)=>{
+  const q = (e.target.value || "").trim();
+  if (q.length < 2){ hideSuggest("masterSuggest"); return; }
+  const box = document.getElementById("masterSuggest");
+  try{
+    const res = await fetch("/api/master/installbase/suggest?q=" + encodeURIComponent(q));
+    const data = await res.json();
+    const items = data.items || [];
+    if (!items.length){ hideSuggest("masterSuggest"); return; }
+    box.innerHTML = items.map(v => `<div class="suggestItem" data-v="${escapeHtml(v)}">${escapeHtml(v)}</div>`).join("");
+    box.style.display = "block";
+  }catch{
+    hideSuggest("masterSuggest");
+  }
+});
+document.getElementById("masterSuggest").addEventListener("click", (e)=>{
+  const it = e.target.closest(".suggestItem");
+  if (!it) return;
+  msInput().value = it.getAttribute("data-v") || "";
+  hideSuggest("masterSuggest");
+  openMaster();
+});
+
+/* ================= REPORT ================= */
+function reportDoSearch(){ loadReport(); }
+function reportClear(){
+  document.getElementById("reportSearch").value = "";
+  hideSuggest("reportSuggest");
+  loadReport();
+}
+
+async function loadReport(){
+  const errBox = document.getElementById("reportErr");
+  errBox.textContent = "";
+  const q = (document.getElementById("reportSearch").value || "").trim();
+
+  try{
+    const res = await fetch("/api/report?limit=2000&q=" + encodeURIComponent(q));
+    const data = await res.json();
+    if (!res.ok || data.error){
+      errBox.textContent = data.error || "Report load error";
+      return;
+    }
+
+    const thead = document.querySelector("#dataTable thead");
+    const tbody = document.querySelector("#dataTable tbody");
+    thead.innerHTML = "";
+    tbody.innerHTML = "";
+
+    const cols = data.columns || [];
+    const rows = data.rows || [];
+
+    if (!cols.length) return;
+
+    const trh = document.createElement("tr");
+    cols.forEach(h=>{
+      const th = document.createElement("th");
+      th.textContent = h;
+      trh.appendChild(th);
+    });
+    thead.appendChild(trh);
+
+    rows.forEach(r=>{
+      const tr = document.createElement("tr");
+      cols.forEach(c=>{
+        const td = document.createElement("td");
+        td.textContent = (r[c] === null || r[c] === undefined) ? "" : r[c];
+        tr.appendChild(td);
+      });
+      tbody.appendChild(tr);
+    });
+  }catch(e){
+    errBox.textContent = String(e);
+  }
+}
+
+/* report suggestions */
+const rsInput = () => document.getElementById("reportSearch");
+rsInput().addEventListener("input", async (e)=>{
+  const q = (e.target.value || "").trim();
+  if (q.length < 2){ hideSuggest("reportSuggest"); return; }
+  const box = document.getElementById("reportSuggest");
+  try{
+    const res = await fetch("/api/report/suggest?q=" + encodeURIComponent(q));
+    const data = await res.json();
+    const items = data.items || [];
+    if (!items.length){ hideSuggest("reportSuggest"); return; }
+    box.innerHTML = items.map(v => `<div class="suggestItem" data-v="${escapeHtml(v)}">${escapeHtml(v)}</div>`).join("");
+    box.style.display = "block";
+  }catch{
+    hideSuggest("reportSuggest");
+  }
+});
+document.getElementById("reportSuggest").addEventListener("click", (e)=>{
+  const it = e.target.closest(".suggestItem");
+  if (!it) return;
+  rsInput().value = it.getAttribute("data-v") || "";
+  hideSuggest("reportSuggest");
+  loadReport();
+});
+
+/* generic hide */
+function hideSuggest(id){
+  const box = document.getElementById(id);
+  box.style.display = "none";
+  box.innerHTML = "";
+}
+document.addEventListener("click", (e)=>{
+  if (!e.target.closest("#masterSearch") && !e.target.closest("#masterSuggest")) hideSuggest("masterSuggest");
+  if (!e.target.closest("#reportSearch") && !e.target.closest("#reportSuggest")) hideSuggest("reportSuggest");
+});
+
+/* ================= WSR SUBMIT ================= */
+document.getElementById("wsrForm").addEventListener("submit", function(e){
+  e.preventDefault();
+  const form = e.target;
+  const data = Object.fromEntries(new FormData(form).entries());
+
+  data.engineerName = SERVER_ENGINEER || "";
+  data.zone = SERVER_ZONE || "";
+
+  fetch("/api/wsr", {
+    method: "POST",
+    headers: {"Content-Type":"application/json"},
+    body: JSON.stringify(data)
+  })
+  .then(r => r.json())
+  .then(res => {
+    alert(res.message || "Saved");
+    if (res.ok){
+      form.reset();
+      refillReadonly();
+      loadReport();
+    }
+  })
+  .catch(()=> alert("Error saving WSR"));
+});
+
+/* INIT */
+window.onload = function(){
+  document.getElementById("engName").textContent = SERVER_ENGINEER || "-";
+  document.getElementById("zoneName").textContent = SERVER_ZONE || "-";
+  document.getElementById("sbEngineer").textContent = SERVER_ROLENAME || "-";
+  document.getElementById("sbZone").textContent = SERVER_TEAM || "-";
+
+  refillReadonly();
+  loadKpis();
+};
+</script>
+
+</body>
+</html>

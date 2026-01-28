@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Login – KGK JET INDIA</title>
+  <style>
+    body {font-family:'Segoe UI',sans-serif;background:#d0e7ff;display:flex;justify-content:center;align-items:center;height:100vh;}
+    .login-container {background:#fff;padding:30px 40px;border-radius:12px;box-shadow:0 0 15px rgba(0,0,0,0.1);width:320px;text-align:center;position:relative;}
+    h2{color:#1a73e8;margin-bottom:10px;}
+    h3{color:#1a73e8;margin-bottom:20px;}
+    input{width:100%;padding:10px;margin:8px 0;border-radius:8px;border:1px solid #ccc;outline:none;}
+    input:focus{border-color:#1a73e8;}
+    button{width:100%;background:#1a73e8;color:#fff;border:none;padding:10px;border-radius:8px;cursor:pointer;font-size:16px;}
+    button:hover{background:#155ab6;}
+    #errorMessage{color:red;margin-top:10px;}
+    #loaderOverlay{display:none;position:absolute;inset:0;background:rgba(255,255,255,0.9);justify-content:center;align-items:center;border-radius:12px;flex-direction:column;z-index:100;}
+    .spinner{border:5px solid #f3f3f3;border-top:5px solid #1a73e8;border-radius:50%;width:40px;height:40px;animation:spin 1s linear infinite;}
+    @keyframes spin{0%{transform:rotate(0deg);}100%{transform:rotate(360deg);}}
+    .loading-text{margin-top:10px;color:#1a73e8;font-weight:500;}
+  </style>
+</head>
+
+<body>
+  <div class="login-container">
+    <h2>Welcome KGK Jet India</h2>
+    <h3>Login Service Engineer</h3>
+
+    <form id="loginForm" method="POST" action="/login">
+      <input type="text" name="username" id="username" placeholder="Username" required>
+      <input type="password" name="password" id="password" placeholder="Password" required>
+      <button id="loginBtn" type="submit">Login</button>
+    </form>
+
+    <div id="errorMessage">{% if error %}{{ error }}{% endif %}</div>
+
+    <div id="loaderOverlay">
+      <div class="spinner"></div>
+      <div class="loading-text">Please wait... verifying login</div>
+    </div>
+  </div>
+
+<script>
+document.getElementById("loginForm").addEventListener("submit", function(){
+  document.getElementById("loaderOverlay").style.display="flex";
+  document.getElementById("loginBtn").style.display="none";
+});
+</script>
+
+</body>
+</html>
