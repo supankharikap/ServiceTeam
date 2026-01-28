@@ -20,7 +20,7 @@ def _must_env(name: str) -> str:
     return v
 
 def get_conn():
-    server = _must_env("AZURE_SQL_SERVER")   # e.g. kgkerpdb-1.database.windows.net
+    server = _must_env("AZURE_SQL_SERVER")   # e.g. kgkerpdb.database.windows.net
     db     = _must_env("AZURE_SQL_DB")       # e.g. kgkerdb
     user   = _must_env("AZURE_SQL_USER")
     pwd    = _must_env("AZURE_SQL_PASSWORD")
