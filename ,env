@@ -1,0 +1,5 @@
+AZURE_SQL_SERVER=kgkerpdb.database.windows.net
+AZURE_SQL_DB=kgkerdb
+AZURE_SQL_USER=kgkadmin
+AZURE_SQL_PASSWORD=Supan@123
+FLASK_SECRET_KEY=change-me-123
