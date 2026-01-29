@@ -104,10 +104,10 @@
         <button id="btnDashboard" class="active" onclick="showSection('dashboardSection', this)">🏠 Dashboard</button>
         <button id="btnWsr" onclick="showSection('wsrSection', this)">🧾 WSR Report</button>
         <button id="btnReport" onclick="showSection('reportSection', this); loadReport();">📋 Report View</button>
-        <button id="btnMaster" onclick="showSection('masterSection', this); openMaster();">📄 Master Installbase View</button>
-        <button id="btnMaster" onclick="showSection('masterSection', this); openMaster();">✅ Master Installbase Update</button>
-        <button id="btnMaster" onclick="showSection('masterSection', this); openMaster();">✅ Breakdown Login</button>
-        <button id="btnMaster" onclick="showSection('masterSection', this); openMaster();">✅ Weekly Plan</button>
+        <button onclick="showSection('masterSection', this); openMaster();">📄 Master Installbase View</button>
+        <button onclick="showSection('masterSection', this); openMaster();">✅ Master Installbase Update</button>
+        <button onclick="showSection('masterSection', this); openMaster();">✅ Breakdown Login</button>
+        <button onclick="showSection('masterSection', this); openMaster();">✅ Weekly Plan</button>
       </div>
 
       <div class="sidebarFooter">
@@ -174,7 +174,7 @@
             <button class="btn gray" onclick="masterClear()">✖ Clear</button>
             <button class="btn gray" onclick="openMaster()">🔄 Refresh</button>
           </div>
-          <div id="masterSuggest" class="suggestBox"></div>          
+          <div id="masterSuggest" class="suggestBox"></div>
           <div id="masterErr" class="err"></div>
         </div>
 
@@ -195,7 +195,14 @@
             <div><label>Month/Year</label><input name="monthYear" placeholder="MMM-YY" required></div>
 
             <div><label>Service Report No</label><input name="serviceReportNo"></div>
-            <div><label>Customer Name</label><input name="customerName"></div>
+
+            <!-- ✅ Customer Name with InstallBase Suggestions -->
+            <div style="position:relative;">
+              <label>Customer Name</label>
+              <input id="customerNameInput" name="customerName" autocomplete="off" placeholder="Type customer name...">
+              <div id="customerSuggest" class="suggestBox" style="width:100%; top:70px;"></div>
+            </div>
+
             <div><label>Location</label><input name="location"></div>
 
             <div><label>Contact Person</label><input name="contactPerson"></div>
@@ -208,9 +215,10 @@
 
             <div><label>Machine Status</label><input name="machineStatus"></div>
 
+            <!-- ✅ Visit Code 1 + Dependent Visit Code 2 -->
             <div>
               <label>Visit Code 1</label>
-              <select name="visitCode1" required>
+              <select id="visitCode1" name="visitCode1" required>
                 <option value="">--Select--</option>
                 <option value="NA">NA</option>
                 <option value="CLUSTER">CLUSTER</option>
@@ -222,12 +230,8 @@
 
             <div>
               <label>Visit Code 2</label>
-              <select name="visitCode2">
+              <select id="visitCode2" name="visitCode2">
                 <option value="">--Select--</option>
-                <option value="CLUSTER">CLUSTER</option>
-                <option value="BREAKDOWN">BREAKDOWN</option>
-                <option value="SALES SUPPORTS">SALES SUPPORTS</option>
-                <option value="OTHERS TEC">OTHERS TEC</option>
               </select>
             </div>
 
@@ -239,7 +243,7 @@
           </div>
 
           <div class="actions">
-            <button type="button" class="btn gray" onclick="document.getElementById('wsrForm').reset(); refillReadonly();">Clear</button>
+            <button type="button" class="btn gray" onclick="document.getElementById('wsrForm').reset(); refillReadonly(); resetVisitCode2();">Clear</button>
             <button type="submit" class="btn primary">Submit WSR</button>
           </div>
         </form>
@@ -340,6 +344,97 @@ function renderTable(columns, rows) {
       </table>
     </div>
   `;
+}
+
+/* ================= VISIT CODE 1 -> VISIT CODE 2 (DEPENDENT DROPDOWN) ================= */
+const visit2Map = {
+  "CLUSTER": ["Gen PM", "Filter PM", "Courtesy"],
+  "BREAKDOWN": ["First Visit", "Carryover", "Repeat Visit"],
+  "SALES SUPPORTS": ["Demo Install", "Demo Carryover", "Site Survey", "Sampling", "Exhibition", "Demo in Office"],
+  "OTHERS TEC": [
+    // Special Application
+    "Line Study", "First Visit", "Carryover Visit",
+    // Training
+    "Onsite", "Other Venue", "KGK Office",
+    // Refurbishment
+    "KGK Workshop",
+    // Other Visit
+    "S/W Upgrade", "Courtesy", "Sales Contract", "Order Followup", "Payment Followup"
+  ],
+  "NA": []
+};
+
+function fillVisitCode2(list){
+  const v2 = document.getElementById("visitCode2");
+  if (!v2) return;
+  v2.innerHTML = `<option value="">--Select--</option>`;
+  (list || []).forEach(text => {
+    const opt = document.createElement("option");
+    opt.value = text;
+    opt.textContent = text;
+    v2.appendChild(opt);
+  });
+}
+function resetVisitCode2(){
+  fillVisitCode2([]);
+}
+function initVisitCodeDependency(){
+  const v1 = document.getElementById("visitCode1");
+  if (!v1) return;
+
+  v1.addEventListener("change", () => {
+    const val = v1.value;
+    if (!val || val === "NA") {
+      resetVisitCode2();
+      return;
+    }
+    fillVisitCode2(visit2Map[val] || []);
+  });
+
+  // page load (edit mode)
+  if (v1.value) {
+    fillVisitCode2(visit2Map[v1.value] || []);
+  }
+}
+
+/* ================= CUSTOMER SUGGEST (InstallBase) ================= */
+function initCustomerSuggest(){
+  const input = document.getElementById("customerNameInput");
+  const box = document.getElementById("customerSuggest");
+  if (!input || !box) return;
+
+  let timer = null;
+
+  input.addEventListener("input", (e) => {
+    const q = (e.target.value || "").trim();
+    if (q.length < 2) { hideSuggest("customerSuggest"); return; }
+
+    clearTimeout(timer);
+    timer = setTimeout(async () => {
+      try{
+        // Uses same endpoint as Master suggestion
+        const res = await fetch("/api/master/installbase/suggest?q=" + encodeURIComponent(q));
+        const data = await res.json();
+        const items = data.items || [];
+
+        if (!items.length){ hideSuggest("customerSuggest"); return; }
+
+        box.innerHTML = items
+          .map(v => `<div class="suggestItem" data-v="${escapeHtml(v)}">${escapeHtml(v)}</div>`)
+          .join("");
+        box.style.display = "block";
+      }catch{
+        hideSuggest("customerSuggest");
+      }
+    }, 200);
+  });
+
+  box.addEventListener("click", (e) => {
+    const it = e.target.closest(".suggestItem");
+    if (!it) return;
+    input.value = it.getAttribute("data-v") || "";
+    hideSuggest("customerSuggest");
+  });
 }
 
 /* ================= MASTER ================= */
@@ -488,12 +583,14 @@ document.getElementById("reportSuggest").addEventListener("click", (e)=>{
 /* generic hide */
 function hideSuggest(id){
   const box = document.getElementById(id);
+  if (!box) return;
   box.style.display = "none";
   box.innerHTML = "";
 }
 document.addEventListener("click", (e)=>{
   if (!e.target.closest("#masterSearch") && !e.target.closest("#masterSuggest")) hideSuggest("masterSuggest");
   if (!e.target.closest("#reportSearch") && !e.target.closest("#reportSuggest")) hideSuggest("reportSuggest");
+  if (!e.target.closest("#customerNameInput") && !e.target.closest("#customerSuggest")) hideSuggest("customerSuggest");
 });
 
 /* ================= WSR SUBMIT ================= */
@@ -516,6 +613,7 @@ document.getElementById("wsrForm").addEventListener("submit", function(e){
     if (res.ok){
       form.reset();
       refillReadonly();
+      resetVisitCode2();
       loadReport();
     }
   })
@@ -531,6 +629,9 @@ window.onload = function(){
 
   refillReadonly();
   loadKpis();
+
+  initVisitCodeDependency();  // ✅ Visit Code 2 dependent
+  initCustomerSuggest();      // ✅ Customer suggestion from InstallBase
 };
 </script>
 
