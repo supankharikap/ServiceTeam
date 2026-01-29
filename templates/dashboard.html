@@ -20,10 +20,14 @@
     .logo{width:46px;height:46px;border-radius:14px;background:linear-gradient(135deg,#1a73e8,#2e7d32);display:flex;align-items:center;justify-content:center;font-weight:900;}
     .brand h2{margin:0;font-size:16px;line-height:1.1}
     .brand small{color:rgba(255,255,255,.7)}
+
     .nav{margin-top:14px;display:flex;flex-direction:column;gap:10px;}
     .nav button{border:none;background:rgba(255,255,255,.08);color:#fff;padding:12px;border-radius:12px;cursor:pointer;text-align:left;display:flex;align-items:center;gap:10px;font-size:14px;transition:.2s;}
     .nav button:hover{background:rgba(255,255,255,.16)}
     .nav button.active{background:rgba(26,115,232,.35);outline:1px solid rgba(26,115,232,.55);}
+
+    .nav button.is-disabled{opacity:.45;pointer-events:none;cursor:not-allowed;}
+
     .sidebarFooter{position:absolute;left:18px;right:18px;bottom:18px;background:rgba(255,255,255,.08);border-radius:12px;padding:12px;font-size:13px;color:rgba(255,255,255,.85);}
     .sidebarFooter b{color:#fff}
 
@@ -63,7 +67,6 @@
 
     .searchRow{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:10px;}
     .searchRow input{flex:1;min-width:260px;}
-    .hint{color:var(--muted);font-size:12px;margin-top:6px;}
     .err{color:#b91c1c;font-weight:700;}
 
     .suggestBox{
@@ -101,13 +104,26 @@
       </div>
 
       <div class="nav">
-        <button id="btnDashboard" class="active" onclick="showSection('dashboardSection', this)">🏠 Dashboard</button>
-        <button id="btnWsr" onclick="showSection('wsrSection', this)">🧾 WSR Report</button>
-        <button id="btnReport" onclick="showSection('reportSection', this); loadReport();">📋 Report View</button>
-        <button onclick="showSection('masterSection', this); openMaster();">📄 Master Installbase View</button>
-        <button onclick="showSection('masterSection', this); openMaster();">✅ Master Installbase Update</button>
-        <button onclick="showSection('masterSection', this); openMaster();">✅ Breakdown Login</button>
-        <button onclick="showSection('masterSection', this); openMaster();">✅ Weekly Plan</button>
+        <button id="btnDashboard" class="active" data-roles="Admin,Manager,Team Leader,User"
+                onclick="showSection('dashboardSection', this)">🏠 Dashboard</button>
+
+        <button id="btnWsr" data-roles="Manager,Team Leader,User"
+                onclick="showSection('wsrSection', this)">🧾 WSR Report</button>
+
+        <button id="btnReport" data-roles="Admin,Manager,Team Leader,User"
+                onclick="showSection('reportSection', this); loadReport();">📋 Report View</button>
+
+        <button id="btnMasterView" data-roles="Admin,Manager,Team Leader,User"
+                onclick="showSection('masterSection', this); openMaster();">📄 Master Installbase View</button>
+
+        <button id="btnMasterUpdate" data-roles="Admin,Manager" type="button" onclick="window.open('/installbase/update','_blank','noopener');"> Master Installbase Update</button>
+
+
+        <button id="btnBreakdown" data-roles="Admin,Manager,Team Leader,user"
+                onclick="showSection('breakdownSection', this); openBreakdown();">✅ Breakdown Login</button>
+
+        <button id="btnWeeklyPlan" data-roles="Admin,Manager,Team Leader,User"
+                onclick="showSection('weeklyPlanSection', this); openWeeklyPlan();">✅ Weekly Plan</button>
       </div>
 
       <div class="sidebarFooter">
@@ -155,12 +171,12 @@
           <small>Welcome to KGK Service Team ERP</small>
         </div>
         <div style="color:var(--muted); line-height:1.6">
+          ✅ View pending tasks.<br>
           ✅ Use left menu to open WSR Form, Report View, Master InstallBase.<br>
-          ✅ Engineer and Zone are loaded automatically from Login.
+          ✅ Updating is in progress.
         </div>
       </section>
 
-      <!-- MASTER -->
       <section id="masterSection" class="section">
         <div class="sectionHeader">
           <h2>Master InstallBase</h2>
@@ -181,7 +197,6 @@
         <div id="masterTable"></div>
       </section>
 
-      <!-- WSR FORM -->
       <section id="wsrSection" class="section">
         <div class="sectionHeader">
           <h2>WSR Report Form</h2>
@@ -190,156 +205,177 @@
 
         <form id="wsrForm">
           <div class="grid">
-          <div><label>Zone</label><input id="wsr_zone" name="zone" readonly></div>
-          <div><label>Engineer</label><input id="wsr_engineer" name="engineerName" readonly></div>
-          <div><label>Month/Year</label><input name="monthYear" placeholder="MMM-YY" required></div>
+            <div><label>Zone</label><input id="wsr_zone" name="zone" readonly></div>
+            <div><label>Engineer</label><input id="wsr_engineer" name="engineerName" readonly></div>
+            <div>
+              <label>Month/Year</label>
+              <input type="month" id="monthYearPick" required>
+               <input type="hidden" name="monthYear" id="monthYearText">
+            </div>
 
-          <div><label>Service Report No</label><input name="serviceReportNo"></div>
+            <div><label>Service Report No</label><input name="serviceReportNo"></div>
 
-          <!-- Customer Name suggest -->
-          <div style="position:relative;">
-          <label>Customer Name</label>
-          <input id="customerNameInput" name="customerName" autocomplete="off" placeholder="Type customer name...">
-          <div id="customerSuggest" class="suggestBox" style="width:100%; top:70px;"></div>
+            <div style="position:relative;">
+              <label>Customer Name</label>
+              <input id="wsrCustomer" name="customerName" autocomplete="off">
+              <div id="customerSuggest" class="suggestBox" style="top:calc(100% + 6px); width:100%;"></div>
+            </div>
+
+            <div><label>Location</label><input name="location"></div>
+
+            <div><label>Contact Person</label><input name="contactPerson"></div>
+            <div><label>Designation</label><input name="designation"></div>
+            <div><label>Contact Number</label><input name="contactNumber"></div>
+
+            <div><label>Email</label><input name="email"></div>
+            <div><label>Call Logged Date</label><input type="date" name="callLoggedDate"></div>
+            <div><label>Problem Reported</label><input name="problemReported"></div>
+
+            <div><label>Machine Status</label><input name="machineStatus"></div>
+
+            <div>
+              <label>Visit Code 1</label>
+              <select id="visitCode1" name="visitCode1" required>
+                <option value="">--Select--</option>
+                <option value="NA">NA</option>
+                <option value="CLUSTER">CLUSTER</option>
+                <option value="BREAKDOWN">BREAKDOWN</option>
+                <option value="SALES SUPPORTS">SALES SUPPORTS</option>
+                <option value="OTHERS TEC">OTHERS TEC</option>
+              </select>
+            </div>
+
+            <div>
+              <label>Visit Code 2</label>
+              <select id="visitCode2" name="visitCode2">
+                <option value="">--Select--</option>
+              </select>
+            </div>
+
+            <div><label>Ink Type</label><input name="inkType"></div>
+            <div><label>Visit Date</label><input type="date" name="visitDate"></div>
+
+            <div><label>Action Taken</label><textarea name="actionTaken"></textarea></div>
+            <div><label>Remarks</label><textarea name="remarks"></textarea></div>
           </div>
-
-          <div><label>Location</label><input name="location"></div>
-
-          <div><label>Contact Person</label><input name="contactPerson"></div>
-          <div><label>Designation</label><input name="designation"></div>
-          <div><label>Contact Number</label><input name="contactNumber"></div>
-
-          <div><label>Email</label><input name="email"></div>
-          <div><label>Call Logged Date</label><input type="date" name="callLoggedDate"></div>
-          <div><label>Problem Reported</label><input name="problemReported"></div>
-
-          <div><label>Machine Status</label><input name="machineStatus"></div>
-
-          <div>
-          <label>Visit Code 1</label>
-          <select id="visitCode1" name="visitCode1" required>
-          <option value="">--Select--</option>
-          <option value="NA">NA</option>
-          <option value="CLUSTER">CLUSTER</option>
-          <option value="BREAKDOWN">BREAKDOWN</option>
-          <option value="SALES SUPPORTS">SALES SUPPORTS</option>
-          <option value="OTHERS ">OTHERS TEC</option>
-          </select>
-         </div>
-
-         <div>
-         <label>Visit Code 2</label>
-         <select id="visitCode2" name="visitCode2">
-         <option value="">--Select--</option>
-         </select>
-         </div>
-
-          <!-- Machine details (Excel headers) -->
-         <div><label>Printer Model</label><input name="printerModel"></div>
-         <div><label>M/C No</label><input name="mcNo"></div>
-         <div><label>Serial No</label><input name="serialNo"></div>
-
-         <div><label>Ink Type</label><input name="inkType"></div>
-         <div><label>Turn on Time (Hrs)</label><input name="turnOnTime" type="number" step="0.1" placeholder="e.g. 120.5"></div>
-         <div><label>Print on Time (Hrs)</label><input name="printOnTime" type="number" step="0.1" placeholder="e.g. 85.0"></div>
-
-         <div><label>Visit Date</label><input type="date" name="visitDate"></div>
-
-         <!-- Travel time -->
-         <div><label>Travel Start (HH:MM)</label><input id="travelStart" name="travelStart" type="time"></div>
-         <div><label>Travel End (HH:MM)</label><input id="travelEnd" name="travelEnd" type="time"></div>
-         <div><label>TRAVEL TIME</label><input id="travelTime" name="travelTime" readonly placeholder="auto"></div>
-
-         <!-- Work time -->
-         <div><label>Work Start (HH:MM)</label><input id="workStart" name="workStart" type="time"></div>
-         <div><label>Work End (HH:MM)</label><input id="workEnd" name="workEnd" type="time"></div>
-         <div><label>WORK TIME</label><input id="workTime" name="workTime" readonly placeholder="auto"></div>
-
-         <!-- Action / remarks -->
-         <div style="grid-column:1/-1;">
-         <label>Action Taken (in brief)</label>
-         <textarea name="actionTaken"></textarea>
-         </div>
-
-         <!-- Consumables -->
-         <div><label>INK (Qty)</label><input name="ink" type="number" step="0.01" placeholder="0.00"></div>
-         <div><label>Solvent (Qty)</label><input name="solvent" type="number" step="0.01" placeholder="0.00"></div>
-         <div><label>CNC (Qty)</label><input name="cnc" type="number" step="0.01" placeholder="0.00"></div>
-
-         <div><label>Filter Kit Due Date/Hrs</label><input name="filterKitDue" placeholder="Due date / hrs"></div>
-          <div><label>Customer Feedback</label><input name="customerFeedback"></div>
-
-         <div>
-          <label>Call Status</label>
-          <select name="callStatus">
-          <option value="">--Select--</option>
-          <option value="OPEN">OPEN</option>
-          <option value="CLOSED">CLOSED</option>
-          <option value="PENDING">PENDING</option>
-         </select>
-          </div>
-
-          <div>
-          <label>Re-visit Required</label>
-          <select name="revisitRequired">
-          <option value="">--Select--</option>
-          <option value="YES">YES</option>
-          <option value="NO">NO</option>
-          </select>
-          </div>
-
-          <div style="grid-column:1/-1;">
-          <label>Service Engineer Remarks</label>
-          <textarea name="serviceEngineerRemarks"></textarea>
-          </div>
-
-          <div style="grid-column:1/-1;">
-          <label>Service Manager Remarks</label>
-          <textarea name="serviceManagerRemarks"></textarea>
-          </div>
-          </div>
+          
 
           <div class="actions">
-          <button type="button" class="btn gray" onclick="document.getElementById('wsrForm').reset(); refillReadonly(); resetVisitCode2();">Clear</button>
-          <button type="submit" class="btn primary">Submit WSR</button>
+            <button type="button" class="btn gray" onclick="document.getElementById('wsrForm').reset(); refillReadonly();">Clear</button>
+            <button type="submit" class="btn primary">Submit WSR</button>
           </div>
         </form>
       </section>
 
-      <!-- REPORT -->
       <section id="reportSection" class="section">
         <div class="sectionHeader">
-          <h2>Report View</h2>
+          <h2>Report View</h2>          
           <small>dbo.WSR table view</small>
-        </div>
+        </div>           
 
         <div style="position:relative; margin:0 0 10px;">
           <div class="searchRow">
-            <input id="reportSearch" placeholder="Search report (customer / report no / engineer / zone...)" autocomplete="off">
-            <button class="btn gray" onclick="reportDoSearch()">🔎 Search</button>
-            <button class="btn gray" onclick="reportClear()">✖ Clear</button>
-            <button class="btn gray" onclick="loadReport()">🔄 Refresh</button>
+            <input id="reportSearch"
+            placeholder="Search report (customer / MMM-YY / engineer / zone...)"
+            autocomplete="off">
+            <div style="display:flex; gap:10px; justify-content:flex-end;">
+              <button class="btn gray" onclick="reportDoSearch()">🔎 Search</button>
+              <button class="btn gray" onclick="reportClear()">✖ Clear</button>
+              <button class="btn gray" onclick="loadReport()">🔄 Refresh</button>
+             </div>
+            </div>
+            <div id="reportSuggest" class="suggestBox"></div>
+            <div id="reportErr" class="err"></div>
           </div>
-          <div id="reportSuggest" class="suggestBox"></div>
-          <div id="reportErr" class="err"></div>
-        </div>
-
-        <div id="reportWrap" class="tableWrap">
-          <table id="dataTable">
-            <thead></thead>
-            <tbody></tbody>
-          </table>
-        </div>
-      </section>
-
-    </main>
-  </div>
-
+          <div id="reportWrap" class="tableWrap">
+            <table id="dataTable">
+              <thead></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+          <!-- ✅ Buttons moved BELOW the table -->      
+      </div>
+    </section>
+    <section id="breakdownSection" class="section">
+      <div class="sectionHeader">
+        <h2>Breakdown Login</h2>
+        <small>Coming soon</small>
+      </div>
+      <div style="color:var(--muted); line-height:1.6">
+        ✅ Breakdown module will be added here.
+      </div>
+    </section>
+    <section id="weeklyPlanSection" class="section">
+      <div class="sectionHeader">
+        <h2>Weekly Plan</h2>
+        <small>Coming soon</small>
+      </div>
+      <div style="color:var(--muted); line-height:1.6">
+        ✅ Weekly plan module will be added here.
+      </div>
+    </section>
+  </main>
+</div>
 <script>
 const SERVER_ENGINEER = "{{ engineer|e }}";
 const SERVER_ZONE = "{{ zone|e }}";
 const SERVER_ROLENAME = "{{ role|e }}";
 const SERVER_TEAM = "{{ team|e }}";
+
+function setupMonthYear(){
+  const pick = document.getElementById("monthYearPick");
+  const out  = document.getElementById("monthYearText");
+  if (!pick || !out) return;
+
+  const d = new Date();
+  const mm = String(d.getMonth()+1).padStart(2,"0");
+  const yy = d.getFullYear();
+  pick.value = `${yy}-${mm}`;
+  out.value = formatMMMYY(pick.value);
+
+  pick.addEventListener("change", ()=>{
+    out.value = formatMMMYY(pick.value);
+  });
+}
+
+function formatMMMYY(yyyy_mm){
+  if (!yyyy_mm) return "";
+  const [y,m] = yyyy_mm.split("-");
+  const months = ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"];
+  const mon = months[(parseInt(m,10)||1)-1] || "JAN";
+  const yy = String(y).slice(-2);
+  return `${mon}-${yy}`;
+}
+
+
+
+/* ✅ ROLE ACCESS */
+function applyRoleAccess(role){
+  const userRole = (role || "").trim().toLowerCase();
+  const HIDE_UNAUTHORIZED = true;
+
+  document.querySelectorAll("[data-roles]").forEach(btn=>{
+    const allowedRoles = (btn.getAttribute("data-roles") || "")
+      .split(",")
+      .map(x => x.trim().toLowerCase())
+      .filter(Boolean);
+
+    const allowed = allowedRoles.includes(userRole);
+
+    if (allowed){
+      btn.style.display = "";
+      btn.classList.remove("is-disabled");
+      btn.disabled = false;
+    } else {
+      if (HIDE_UNAUTHORIZED){
+        btn.style.display = "none";
+      } else {
+        btn.classList.add("is-disabled");
+        btn.disabled = true;
+      }
+    }
+  });
+}
 
 function showSection(id, btn){
   document.querySelectorAll(".section").forEach(s=>s.classList.remove("active"));
@@ -357,9 +393,7 @@ function refillReadonly(){
   if (z1) z1.value = SERVER_ZONE || "";
 }
 
-function logout(){
-  window.location.href = "/logout";
-}
+function logout(){ window.location.href = "/logout"; }
 
 function loadKpis(){
   fetch("/api/kpi")
@@ -384,6 +418,147 @@ function escapeHtml(v){
     .replaceAll("'","&#039;");
 }
 
+/* ✅ Visit Code 1 -> Visit Code 2 */
+const visitCode2Map = {
+  "NA": ["NA"],
+  "CLUSTER": ["Gen PM", "Filter PM", "Courtesy"],
+  "BREAKDOWN": ["First Visit", "Carryover", "Repeat Visit"],
+  "SALES SUPPORTS": ["Demo Install", "Demo Carryover", "Site Survey", "Sampling", "Exhibition", "Demo in Office"],
+  "OTHERS TEC": ["S/W Upgrade", "Courtesy", "Sales Contract", "Order Followup", "Payment Followup"]
+};
+
+function fillVisitCode2(){
+  const v1 = document.getElementById("visitCode1");
+  const v2 = document.getElementById("visitCode2");
+  if (!v1 || !v2) return;
+
+  const list = visitCode2Map[v1.value] || [];
+  v2.innerHTML = `<option value="">--Select--</option>` +
+    list.map(x=>`<option value="${escapeHtml(x)}">${escapeHtml(x)}</option>`).join("");
+}
+
+document.addEventListener("change", (e)=>{
+  if (e.target && e.target.id === "visitCode1") fillVisitCode2();
+});
+
+
+/* ================= ✅ CUSTOMER AUTOSUGGEST + AUTO FILL ================= */
+let csTimer = null;
+
+function setValByName(name, val){
+  const el = document.querySelector(`[name="${name}"]`);
+  if (el) el.value = (val ?? "");
+}
+
+async function fillWsrFromInstallbase(customer){
+  if (!customer) return;
+
+  try{
+    const res = await fetch("/api/installbase/rows?customer=" + encodeURIComponent(customer));
+    const data = await res.json();
+    if (!res.ok || !data.ok) return;
+
+    const row = (data.rows && data.rows.length) ? data.rows[0] : null;
+    if (!row) return;
+
+    // ✅ Fill upto Email
+    setValByName("location", row.location || "");
+    setValByName("contactPerson", row.contact_person || "");
+    setValByName("designation", row.designation || "");
+    setValByName("contactNumber", row.contact_no || "");
+    setValByName("email", row.email || "");
+
+    // optional (if you want)
+    setValByName("machineStatus", row.mc_status || row.active_status || "");
+    setValByName("inkType", row.ink_type || "");
+  }catch(e){
+    console.log("fillWsrFromInstallbase error:", e);
+  }
+}
+
+async function fetchCustomerSuggest(q){
+  const res = await fetch("/api/installbase/customer_suggest?q=" + encodeURIComponent(q || ""));
+  const data = await res.json();
+  return (data.items || []).slice(0, 12);
+}
+
+function renderCustomerSuggest(items){
+  const box = document.getElementById("customerSuggest");
+  if (!box) return;
+
+  if (!items || !items.length){
+    hideSuggest("customerSuggest");
+    return;
+  }
+
+  box.innerHTML = items
+    .map(v => `<div class="suggestItem" data-v="${escapeHtml(v)}">${escapeHtml(v)}</div>`)
+    .join("");
+
+  box.style.display = "block";
+}
+
+function setupCustomerSuggest(){
+  const inp = document.getElementById("wsrCustomer");
+  const box = document.getElementById("customerSuggest");
+  if (!inp || !box) return;
+
+  async function updateSuggest(){
+    const q = (inp.value || "").trim();
+    try{
+      const items = await fetchCustomerSuggest(q); // ✅ empty allowed -> show list
+      renderCustomerSuggest(items);
+    }catch{
+      hideSuggest("customerSuggest");
+    }
+  }
+
+  function scheduleUpdate(){
+    clearTimeout(csTimer);
+    csTimer = setTimeout(updateSuggest, 150);
+  }
+
+  // ✅ click/focus -> show first list
+  inp.addEventListener("focus", ()=>{ scheduleUpdate(); });
+
+  // ✅ typing -> filter
+  inp.addEventListener("input", ()=>{ scheduleUpdate(); });
+
+  // ✅ Enter -> select first item
+  inp.addEventListener("keydown", (e)=>{
+    if (e.key === "Enter"){
+      const first = box.querySelector(".suggestItem");
+      if (first){
+        e.preventDefault();
+        const v = first.getAttribute("data-v") || "";
+        inp.value = v;
+        hideSuggest("customerSuggest");
+        fillWsrFromInstallbase(v);
+      }
+    }
+  });
+
+  // ✅ click select + autofill
+  box.addEventListener("click", (e)=>{
+    const it = e.target.closest(".suggestItem");
+    if (!it) return;
+    const v = it.getAttribute("data-v") || "";
+    inp.value = v;
+    hideSuggest("customerSuggest");
+    fillWsrFromInstallbase(v);
+  });
+
+  // ✅ if user types full name then blur -> fill
+  inp.addEventListener("blur", ()=>{
+    setTimeout(()=>{
+      const v = (inp.value || "").trim();
+      if (v) fillWsrFromInstallbase(v);
+    }, 200);
+  });
+}
+
+
+/* ================= MASTER ================= */
 function renderTable(columns, rows) {
   if (!rows || rows.length === 0) return "<div>No data found</div>";
 
@@ -403,158 +578,6 @@ function renderTable(columns, rows) {
   `;
 }
 
-/* ================= VISIT CODE 1 -> VISIT CODE 2 (DEPENDENT DROPDOWN) ================= */
-const visit2Map = {
-  "CLUSTER": ["Gen PM", "Filter PM", "Courtesy"],
-  "BREAKDOWN": ["First Visit", "Carryover", "Repeat Visit"],
-  "SALES SUPPORTS": ["Demo Install", "Demo Carryover", "Site Survey", "Sampling", "Exhibition", "Demo in Office"],
-  "OTHERS ": [
-    // Special Application
-    "Line Study", "First Visit", "Carryover Visit",
-    // Training
-    "Onsite", "Other Venue", "KGK Office",
-    // Refurbishment
-    "KGK Workshop",
-    // Other Visit
-    "S/W Upgrade", "Courtesy", "Sales Contract", "Order Followup", "Payment Followup"
-  ],
-  "NA": []
-};
-
-function fillVisitCode2(list){
-  const v2 = document.getElementById("visitCode2");
-  if (!v2) return;
-  v2.innerHTML = `<option value="">--Select--</option>`;
-  (list || []).forEach(text => {
-    const opt = document.createElement("option");
-    opt.value = text;
-    opt.textContent = text;
-    v2.appendChild(opt);
-  });
-}
-function resetVisitCode2(){
-  fillVisitCode2([]);
-}
-function initVisitCodeDependency(){
-  const v1 = document.getElementById("visitCode1");
-  if (!v1) return;
-
-  v1.addEventListener("change", () => {
-    const val = v1.value;
-    if (!val || val === "NA") {
-      resetVisitCode2();
-      return;
-    }
-    fillVisitCode2(visit2Map[val] || []);
-  });
-
-  // page load (edit mode)
-  if (v1.value) {
-    fillVisitCode2(visit2Map[v1.value] || []);
-  }
-}
-
-/* ================= CUSTOMER SUGGEST (InstallBase) ================= */
-
-// helper: WSR form ke field ko safely set karo
-function setWsrField(name, value){
-  const form = document.getElementById("wsrForm");
-  if (!form) return;
-  const el = form.querySelector(`[name="${name}"]`);
-  if (!el) return;
-  el.value = (value ?? "");
-}
-
-// InstallBase details fill
-async function fillCustomerDetails(customerName){
-  const customer = (customerName || "").trim();
-  if (!customer) return;
-
-  try{
-    const res = await fetch("/api/installbase/details?customer=" + encodeURIComponent(customer));
-    const j = await res.json();
-
-    if (!res.ok || !j.ok || !j.found) return;
-
-    const d = j.data || {};
-
-    // form fields (aapke form me jo-jo exist hai)
-    setWsrField("location", d.location);
-    setWsrField("contactPerson", d.contact_person);
-    setWsrField("designation", d.designation);
-    setWsrField("contactNumber", d.contact_no);
-    setWsrField("email", d.email);
-    setWsrField("inkType", d.ink_type);
-
-    // machine status preference
-    setWsrField("machineStatus", d.mc_status || d.active_status);
-
-  }catch(e){
-    console.log("details error", e);
-  }
-}
-
-function initCustomerSuggest(){
-  const input = document.getElementById("customerNameInput");
-  const box = document.getElementById("customerSuggest");
-  if (!input || !box) return;
-
-  let timer = null;
-
-  input.addEventListener("input", (e) => {
-    const q = (e.target.value || "").trim();
-    if (q.length < 2) { hideSuggest("customerSuggest"); return; }
-
-    clearTimeout(timer);
-    timer = setTimeout(async () => {
-      try{
-        // ✅ customer-only suggestions (BEST)
-        const res = await fetch("/api/installbase/customer_suggest?q=" + encodeURIComponent(q));
-        const data = await res.json();
-        const items = data.items || [];
-
-        if (!items.length){ hideSuggest("customerSuggest"); return; }
-
-        box.innerHTML = items
-          .map(v => `<div class="suggestItem" data-v="${escapeHtml(v)}">${escapeHtml(v)}</div>`)
-          .join("");
-        box.style.display = "block";
-      }catch{
-        hideSuggest("customerSuggest");
-      }
-    }, 200);
-  });
-
-  // click suggestion => set customer + autofill
-  box.addEventListener("click", async (e) => {
-    const it = e.target.closest(".suggestItem");
-    if (!it) return;
-
-    const val = it.getAttribute("data-v") || "";
-    input.value = val;
-    hideSuggest("customerSuggest");
-
-    await fillCustomerDetails(val);
-  });
-
-  // agar user manually type karke bahar click kare
-  input.addEventListener("blur", () => {
-    const val = (input.value || "").trim();
-    if (val.length >= 2) fillCustomerDetails(val);
-  });
-
-  // Enter press => autofill
-  input.addEventListener("keydown", (e) => {
-    if (e.key === "Enter"){
-      e.preventDefault();
-      const val = (input.value || "").trim();
-      if (val) fillCustomerDetails(val);
-      hideSuggest("customerSuggest");
-    }
-  });
-}
-
-/* ================= MASTER ================= */
 async function openMaster(){
   const hint = document.getElementById("masterHint");
   const holder = document.getElementById("masterTable");
@@ -595,39 +618,28 @@ function masterClear(){
 }
 
 /* master suggestions */
-/* master suggestions (SAFE) */
-const msInput = () => document.getElementById("masterSearch");
-const _ms = msInput();
-
-if (_ms){
-  _ms.addEventListener("input", async (e)=>{
-    const q = (e.target.value || "").trim();
-    if (q.length < 2){ hideSuggest("masterSuggest"); return; }
-    const box = document.getElementById("masterSuggest");
-    try{
-      const res = await fetch("/api/master/installbase/suggest?q=" + encodeURIComponent(q));
-      const data = await res.json();
-      const items = data.items || [];
-      if (!items.length){ hideSuggest("masterSuggest"); return; }
-      box.innerHTML = items.map(v => `<div class="suggestItem" data-v="${escapeHtml(v)}">${escapeHtml(v)}</div>`).join("");
-      box.style.display = "block";
-    }catch{
-      hideSuggest("masterSuggest");
-    }
-  });
-}
-// ✅ master suggestion click => set value + search
-const masterSuggestBox = document.getElementById("masterSuggest");
-if (masterSuggestBox){
-  masterSuggestBox.addEventListener("click", (e)=>{
-    const it = e.target.closest(".suggestItem");
-    if (!it) return;
-
-    msInput().value = it.getAttribute("data-v") || "";
+document.getElementById("masterSearch").addEventListener("input", async (e)=>{
+  const q = (e.target.value || "").trim();
+  if (q.length < 2){ hideSuggest("masterSuggest"); return; }
+  const box = document.getElementById("masterSuggest");
+  try{
+    const res = await fetch("/api/master/installbase/suggest?q=" + encodeURIComponent(q));
+    const data = await res.json();
+    const items = data.items || [];
+    if (!items.length){ hideSuggest("masterSuggest"); return; }
+    box.innerHTML = items.map(v => `<div class="suggestItem" data-v="${escapeHtml(v)}">${escapeHtml(v)}</div>`).join("");
+    box.style.display = "block";
+  }catch{
     hideSuggest("masterSuggest");
-    openMaster();
-  });
-}
+  }
+});
+document.getElementById("masterSuggest").addEventListener("click", (e)=>{
+  const it = e.target.closest(".suggestItem");
+  if (!it) return;
+  document.getElementById("masterSearch").value = it.getAttribute("data-v") || "";
+  hideSuggest("masterSuggest");
+  openMaster();
+});
 
 
 /* ================= REPORT ================= */
@@ -658,7 +670,6 @@ async function loadReport(){
 
     const cols = data.columns || [];
     const rows = data.rows || [];
-
     if (!cols.length) return;
 
     const trh = document.createElement("tr");
@@ -684,8 +695,7 @@ async function loadReport(){
 }
 
 /* report suggestions */
-const rsInput = () => document.getElementById("reportSearch");
-rsInput().addEventListener("input", async (e)=>{
+document.getElementById("reportSearch").addEventListener("input", async (e)=>{
   const q = (e.target.value || "").trim();
   if (q.length < 2){ hideSuggest("reportSuggest"); return; }
   const box = document.getElementById("reportSuggest");
@@ -703,10 +713,11 @@ rsInput().addEventListener("input", async (e)=>{
 document.getElementById("reportSuggest").addEventListener("click", (e)=>{
   const it = e.target.closest(".suggestItem");
   if (!it) return;
-  rsInput().value = it.getAttribute("data-v") || "";
+  document.getElementById("reportSearch").value = it.getAttribute("data-v") || "";
   hideSuggest("reportSuggest");
   loadReport();
 });
+
 
 /* generic hide */
 function hideSuggest(id){
@@ -715,13 +726,18 @@ function hideSuggest(id){
   box.style.display = "none";
   box.innerHTML = "";
 }
+
 document.addEventListener("click", (e)=>{
   if (!e.target.closest("#masterSearch") && !e.target.closest("#masterSuggest")) hideSuggest("masterSuggest");
   if (!e.target.closest("#reportSearch") && !e.target.closest("#reportSuggest")) hideSuggest("reportSuggest");
-  if (!e.target.closest("#customerNameInput") && !e.target.closest("#customerSuggest")) hideSuggest("customerSuggest");
+  if (!e.target.closest("#wsrCustomer") && !e.target.closest("#customerSuggest")) hideSuggest("customerSuggest");
 });
 
-/* ================= WSR SUBMIT ================= */
+/* BREAKDOWN / WEEKLY */
+function openBreakdown(){ }
+function openWeeklyPlan(){ }
+
+/* WSR SUBMIT */
 document.getElementById("wsrForm").addEventListener("submit", function(e){
   e.preventDefault();
   const form = e.target;
@@ -741,7 +757,6 @@ document.getElementById("wsrForm").addEventListener("submit", function(e){
     if (res.ok){
       form.reset();
       refillReadonly();
-      resetVisitCode2();
       loadReport();
     }
   })
@@ -755,51 +770,13 @@ window.onload = function(){
   document.getElementById("sbEngineer").textContent = SERVER_ROLENAME || "-";
   document.getElementById("sbZone").textContent = SERVER_TEAM || "-";
 
-
-  function parseHHMM(t){
-  if (!t) return null;
-  const [h,m] = t.split(":").map(Number);
-  if (Number.isNaN(h) || Number.isNaN(m)) return null;
-  return h*60 + m;
-}
-function fmtHHMM(mins){
-  const h = Math.floor(mins/60);
-  const m = mins % 60;
-  return String(h).padStart(2,"0") + ":" + String(m).padStart(2,"0");
-}
-function calcDuration(start, end){
-  const s = parseHHMM(start), e = parseHHMM(end);
-  if (s === null || e === null) return "";
-  let diff = e - s;
-  if (diff < 0) diff += 24*60; // if next day
-  return fmtHHMM(diff);
-}
-function initTimeAutoCalc(){
-  const ts = document.getElementById("travelStart");
-  const te = document.getElementById("travelEnd");
-  const tt = document.getElementById("travelTime");
-
-  const ws = document.getElementById("workStart");
-  const we = document.getElementById("workEnd");
-  const wt = document.getElementById("workTime");
-
-  function updTravel(){ if(tt) tt.value = calcDuration(ts?.value, te?.value); }
-  function updWork(){ if(wt) wt.value = calcDuration(ws?.value, we?.value); }
-
-  ts?.addEventListener("input", updTravel);
-  te?.addEventListener("input", updTravel);
-  ws?.addEventListener("input", updWork);
-  we?.addEventListener("input", updWork);
-
-}
-
   refillReadonly();
+  setupMonthYear();
+
   loadKpis();
-
-  initVisitCodeDependency();  // ✅ Visit Code 2 dependent
-  initCustomerSuggest();      // ✅ Customer suggestion from InstallBase
-  initTimeAutoCalc();
-
+  applyRoleAccess(SERVER_ROLENAME);
+  fillVisitCode2();
+  setupCustomerSuggest();   // ✅ no 2-char wait now
 };
 </script>
 

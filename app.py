@@ -3,13 +3,17 @@ import os
 import pyodbc
 from dotenv import load_dotenv
 from pathlib import Path
-from datetime import datetime, date, timedelta
+from datetime import datetime, date
 
 # Load .env from project root
 load_dotenv(Path(__file__).resolve().parent / ".env")
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("FLASK_SECRET_KEY", "change-me")
+
+# ---- cookie settings (important for https/codespaces) ----
+app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
+app.config["SESSION_COOKIE_SECURE"] = True  # keep True for https deployments
 
 
 # ===================== DB HELPERS =====================
@@ -19,9 +23,10 @@ def _must_env(name: str) -> str:
         raise RuntimeError(f"Missing env var: {name}. Check your .env file.")
     return v
 
+
 def get_conn():
-    server = _must_env("AZURE_SQL_SERVER")   # e.g. kgkerpdb.database.windows.net
-    db     = _must_env("AZURE_SQL_DB")       # e.g. kgkerdb
+    server = _must_env("AZURE_SQL_SERVER")
+    db     = _must_env("AZURE_SQL_DB")
     user   = _must_env("AZURE_SQL_USER")
     pwd    = _must_env("AZURE_SQL_PASSWORD")
 
@@ -33,6 +38,7 @@ def get_conn():
         "Encrypt=yes;TrustServerCertificate=no;Connection Timeout=30;"
     )
     return pyodbc.connect(conn_str)
+
 
 def _table_columns(schema_table: str):
     if "." not in schema_table:
@@ -50,42 +56,36 @@ def _table_columns(schema_table: str):
         """, (schema, table))
         return [r[0] for r in cur.fetchall()]
 
+
 def _norm(s: str) -> str:
     return "".join(ch.lower() for ch in str(s) if ch.isalnum())
 
+
 def _col_index(cols):
-    # normalize => actual
     return {_norm(c): c for c in cols}
 
+
 def _find_col(cols, aliases=None, must_contain=None):
-    """
-    Find actual column name from table columns.
-    - aliases: list of possible names (space/underscore variations)
-    - must_contain: list of tokens that must exist in normalized col (fuzzy)
-    """
     aliases = aliases or []
     idx = _col_index(cols)
 
-    # exact alias match by normalization
     for a in aliases:
         na = _norm(a)
         if na in idx:
             return idx[na]
 
-    # fuzzy contains-all match
     if must_contain:
         tokens = [_norm(t) for t in must_contain if t]
         for c in cols:
             nc = _norm(c)
-            ok = all(t in nc for t in tokens)
-            if ok:
+            if all(t in nc for t in tokens):
                 return c
-
     return None
 
+
 def _qcol(c: str) -> str:
-    # safe bracket quoting for spaces etc.
     return f"[{c}]"
+
 
 def _json_safe(v):
     if v is None:
@@ -93,6 +93,29 @@ def _json_safe(v):
     if isinstance(v, (datetime, date)):
         return v.isoformat()
     return str(v)
+
+
+def _parse_iso_date(v):
+    """HTML <input type="date"> => YYYY-MM-DD"""
+    if v is None:
+        return None
+    s = str(v).strip()
+    if not s:
+        return None
+    try:
+        return datetime.strptime(s, "%Y-%m-%d").date()
+    except Exception:
+        return None
+
+
+def _json_err(msg, code=400):
+    return jsonify({"error": msg}), code
+
+
+def _require_login_json():
+    if "user" not in session:
+        return jsonify({"error": "unauthorized"}), 401
+    return None
 
 
 # ===================== AUTH =====================
@@ -106,9 +129,11 @@ def get_user(username: str):
         """, (username,))
         return cur.fetchone()
 
+
 @app.get("/")
 def home():
     return render_template("login.html", error=None)
+
 
 @app.post("/login")
 def login_post():
@@ -126,13 +151,7 @@ def login_post():
     if not row:
         return render_template("login.html", error="Invalid user or inactive!")
 
-    db_username = row[0]
-    db_fullname = row[1]
-    db_zone     = row[2]
-    db_role     = row[3]
-    db_team     = row[4]
-    db_pass     = row[5]
-    db_active   = row[6]
+    db_username, db_fullname, db_zone, db_role, db_team, db_pass, db_active = row
 
     if db_active in (0, False, None):
         return render_template("login.html", error="Invalid user or inactive!")
@@ -148,6 +167,7 @@ def login_post():
 
     return redirect(url_for("dashboard"))
 
+
 @app.get("/dashboard")
 def dashboard():
     if "user" not in session:
@@ -161,10 +181,18 @@ def dashboard():
         team=session.get("team", "")
     )
 
+
 @app.get("/logout")
 def logout():
     session.clear()
     return redirect(url_for("home"))
+
+
+@app.get("/installbase/update")
+def installbase_update():
+    if "user" not in session:
+        return redirect(url_for("home"))
+    return render_template("installbaseForm.html")
 
 
 # ===================== SCOPES =====================
@@ -172,12 +200,8 @@ def _is_manager_like(role: str) -> bool:
     r = (role or "").strip().lower()
     return ("manager" in r) or ("team leader" in r) or ("teamleader" in r) or ("team_leader" in r)
 
+
 def _installbase_scope_where(install_cols):
-    """
-    Admin         => all rows
-    Manager/TL    => zone only
-    User/others   => zone + (service_eng OR sales_eng) == engineer
-    """
     role = (session.get("role") or "").strip().lower()
     zone = (session.get("zone") or "").strip()
     eng  = (session.get("engineer") or "").strip()
@@ -192,19 +216,16 @@ def _installbase_scope_where(install_cols):
     where = []
     params = []
 
-    # Manager-like => zone only
     if _is_manager_like(role):
         if zone and zone_col:
             where.append(f"{_qcol(zone_col)} = ?")
             params.append(zone)
         return (" WHERE " + " AND ".join(where)) if where else "", params
 
-    # User => zone + own engineer (service or sales)
     if zone and zone_col:
         where.append(f"{_qcol(zone_col)} = ?")
         params.append(zone)
 
-    # engineer filter
     if eng and (svc_col or sales_col):
         if svc_col and sales_col:
             where.append(f"({_qcol(svc_col)} = ? OR {_qcol(sales_col)} = ?)")
@@ -218,12 +239,8 @@ def _installbase_scope_where(install_cols):
 
     return (" WHERE " + " AND ".join(where)) if where else "", params
 
+
 def _wsr_scope_where(wsr_cols):
-    """
-    Admin         => all
-    Manager/TL    => zone only
-    User/others   => zone + engineer
-    """
     role = (session.get("role") or "").strip().lower()
     zone = (session.get("zone") or "").strip()
     eng  = (session.get("engineer") or "").strip()
@@ -250,11 +267,6 @@ def _wsr_scope_where(wsr_cols):
 
 # ===================== SEARCH BUILDERS =====================
 def _build_token_search_where(q: str, cols: list, preferred_cols: list):
-    """
-    multi-word search:
-    "east supan cij" => AND across tokens, OR across columns
-    Always uses CAST([col] AS NVARCHAR(MAX)) LIKE ?
-    """
     q = (q or "").strip()
     if not q:
         return "", []
@@ -263,7 +275,6 @@ def _build_token_search_where(q: str, cols: list, preferred_cols: list):
     if not tokens:
         return "", []
 
-    # keep only existing columns (by normalization)
     idx = _col_index(cols)
     actual_search_cols = []
     for pc in preferred_cols:
@@ -271,7 +282,6 @@ def _build_token_search_where(q: str, cols: list, preferred_cols: list):
         if k in idx:
             actual_search_cols.append(idx[k])
 
-    # fallback if preferred not found: use all columns (but capped)
     if not actual_search_cols:
         actual_search_cols = cols[:30]
 
@@ -290,31 +300,33 @@ def _build_token_search_where(q: str, cols: list, preferred_cols: list):
 # ===================== KPI =====================
 @app.get("/api/kpi")
 def api_kpi():
-    if "user" not in session:
-        return jsonify({"error": "unauthorized"}), 401
+    need = _require_login_json()
+    if need: return need
 
     install_cols = _table_columns("dbo.InstallBase")
     if not install_cols:
-        return jsonify({"error": "dbo.InstallBase not found"}), 400
+        return _json_err("dbo.InstallBase not found", 400)
 
     where_sql, params = _installbase_scope_where(install_cols)
 
     try:
         with get_conn() as conn:
             cur = conn.cursor()
-
             cur.execute(f"SELECT COUNT(*) FROM dbo.InstallBase{where_sql}", params)
             installbase_total = int(cur.fetchone()[0])
 
-            # customer column auto detect
-            cust_col = _find_col(install_cols, aliases=["CUSTOMER_NAME","CUSTOMER NAME","CustomerName","Customer Name"], must_contain=["customer","name"])
+            cust_col = _find_col(
+                install_cols,
+                aliases=["CUSTOMER_NAME","CUSTOMER NAME","CustomerName","Customer Name"],
+                must_contain=["customer","name"]
+            )
             customers = 0
             if cust_col:
                 cur.execute(f"SELECT COUNT(DISTINCT {_qcol(cust_col)}) FROM dbo.InstallBase{where_sql}", params)
                 customers = int(cur.fetchone()[0])
 
     except Exception as e:
-        return jsonify({"error": f"InstallBase KPI error: {e}"}), 500
+        return _json_err(f"InstallBase KPI error: {e}", 500)
 
     return jsonify({
         "installbase_total": installbase_total,
@@ -327,23 +339,21 @@ def api_kpi():
 # ===================== MASTER INSTALLBASE =====================
 @app.get("/api/master/installbase")
 def api_master_installbase():
-    if "user" not in session:
-        return jsonify({"error": "unauthorized"}), 401
+    need = _require_login_json()
+    if need: return need
 
     limit = int(request.args.get("limit", "500"))
     limit = max(1, min(limit, 5000))
-
     q = (request.args.get("q") or "").strip()
 
     cols = _table_columns("dbo.InstallBase")
     if not cols:
-        return jsonify({"error": "dbo.InstallBase not found"}), 400
+        return _json_err("dbo.InstallBase not found", 400)
 
     base_where, base_params = _installbase_scope_where(cols)
 
     preferred = [
         "ZONE","SALES_ENGR","SERVICE_ENGR","Cluster_No","CUSTOMER_NAME","Location","Machine_Type","Model","Serial_No",
-        # also allow space variants:
         "SALES ENGR","SERVICE ENGR","CLUSTER NO","CUSTOMER NAME","SERIAL NO"
     ]
     search_where, search_params = _build_token_search_where(q, cols, preferred)
@@ -381,17 +391,13 @@ def api_master_installbase():
         return jsonify({"columns": cols, "rows": out_rows})
 
     except Exception as e:
-        return jsonify({"error": f"InstallBase API error: {e}"}), 500
+        return _json_err(f"InstallBase API error: {e}", 500)
 
 
 @app.get("/api/master/installbase/suggest")
 def api_master_installbase_suggest():
-    """
-    Suggestions for master search box.
-    Returns top distinct matches from key columns.
-    """
-    if "user" not in session:
-        return jsonify({"error": "unauthorized"}), 401
+    need = _require_login_json()
+    if need: return jsonify({"items": []}), 401
 
     q = (request.args.get("q") or "").strip()
     if len(q) < 2:
@@ -403,13 +409,16 @@ def api_master_installbase_suggest():
 
     base_where, base_params = _installbase_scope_where(cols)
 
-    # key columns auto detect
-    zone_col = _find_col(cols, aliases=["ZONE"], must_contain=["zone"])
-    cust_col = _find_col(cols, aliases=["CUSTOMER_NAME","CUSTOMER NAME"], must_contain=["customer","name"])
-    serial_col = _find_col(cols, aliases=["Serial_No","SERIAL NO","Serial No"], must_contain=["serial"])
-    svc_col = _find_col(cols, aliases=["SERVICE_ENGR","SERVICE ENGR"], must_contain=["service","engr"])
+    # suggest from main columns
+    zone_col   = _find_col(cols, aliases=["ZONE","Zone"], must_contain=["zone"])
+    svc_col    = _find_col(cols, aliases=["SERVICE_ENGR","SERVICE ENGR"], must_contain=["service","engr"])
+    sales_col  = _find_col(cols, aliases=["SALES_ENGR","SALES ENGR"], must_contain=["sales","engr"])
+    cust_col   = _find_col(cols, aliases=["CUSTOMER_NAME","CUSTOMER NAME","CustomerName","Customer Name"], must_contain=["customer","name"])
+    serial_col = _find_col(cols, aliases=["Serial No.","Serial No","Serial_No","SERIAL NO","SerialNo"], must_contain=["serial"])
+    cluster_col= _find_col(cols, aliases=["Cluster_No","CLUSTER NO","Cluster No"], must_contain=["cluster"])
+    loc_col    = _find_col(cols, aliases=["LOCATION","Location"], must_contain=["location"])
 
-    key_cols = [c for c in [cust_col, serial_col, svc_col, zone_col] if c]
+    key_cols = [c for c in [cust_col, serial_col, loc_col, svc_col, sales_col, zone_col, cluster_col] if c]
 
     items = []
     seen = set()
@@ -417,9 +426,11 @@ def api_master_installbase_suggest():
     try:
         with get_conn() as conn:
             cur = conn.cursor()
+
             for c in key_cols:
                 where_parts = []
                 params = []
+
                 if base_where:
                     where_parts.append(base_where.replace(" WHERE ", "", 1))
                     params += base_params
@@ -435,16 +446,19 @@ def api_master_installbase_suggest():
                     ORDER BY v
                 """
                 cur.execute(sql, params)
+
                 for (v,) in cur.fetchall():
                     vv = (v or "").strip()
                     if not vv:
                         continue
-                    if vv.lower() in seen:
+                    k = vv.lower()
+                    if k in seen:
                         continue
-                    seen.add(vv.lower())
+                    seen.add(k)
                     items.append(vv)
                     if len(items) >= 12:
                         break
+
                 if len(items) >= 12:
                     break
 
@@ -453,19 +467,14 @@ def api_master_installbase_suggest():
 
     return jsonify({"items": items})
 
-# ===================== INSTALLBASE (WSR AUTOFILL + CUSTOMER SUGGEST) =====================
 
+# ===================== INSTALLBASE SUGGESTS =====================
 @app.get("/api/installbase/customer_suggest")
 def api_installbase_customer_suggest():
-    """
-    WSR form ke liye Customer Name suggestions (datalist).
-    """
-    if "user" not in session:
-        return jsonify({"items": []}), 401
+    need = _require_login_json()
+    if need: return jsonify({"items": []}), 401
 
     q = (request.args.get("q") or "").strip()
-    if len(q) < 2:
-        return jsonify({"items": []})
 
     cols = _table_columns("dbo.InstallBase")
     if not cols:
@@ -483,23 +492,22 @@ def api_installbase_customer_suggest():
 
     where_parts = []
     params = []
-
     if base_where:
         where_parts.append(base_where.replace(" WHERE ", "", 1))
         params += base_params
 
-    where_parts.append(f"CAST({_qcol(cust_col)} AS NVARCHAR(200)) LIKE ?")
-    params.append(f"%{q}%")
+    if q:
+        where_parts.append(f"CAST({_qcol(cust_col)} AS NVARCHAR(200)) LIKE ?")
+        params.append(f"%{q}%")
 
-    where_sql = " WHERE " + " AND ".join(where_parts)
+    where_sql = " WHERE " + " AND ".join(where_parts) if where_parts else ""
 
     sql = f"""
-        SELECT DISTINCT TOP 12 CAST({_qcol(cust_col)} AS NVARCHAR(200)) AS v
+        SELECT DISTINCT TOP 30 CAST({_qcol(cust_col)} AS NVARCHAR(200)) AS v
         FROM dbo.InstallBase
         {where_sql}
         ORDER BY v
     """
-
     try:
         with get_conn() as conn:
             cur = conn.cursor()
@@ -511,87 +519,202 @@ def api_installbase_customer_suggest():
         return jsonify({"items": []})
 
 
-@app.get("/api/installbase/details")
-def api_installbase_details():
-    """
-    WSR form auto-fill:
-    customer select होते ही location/contact/email/ink/machine-status etc return करेगा.
-    """
-    if "user" not in session:
-        return jsonify({"ok": False, "message": "unauthorized"}), 401
+@app.get("/api/installbase/serial_suggest")
+def api_installbase_serial_suggest():
+    need = _require_login_json()
+    if need: return jsonify({"items": []}), 401
 
-    customer = (request.args.get("customer") or "").strip()
-    if not customer:
-        return jsonify({"ok": False, "message": "customer is required"}), 400
+    q = (request.args.get("q") or "").strip()
 
     cols = _table_columns("dbo.InstallBase")
     if not cols:
-        return jsonify({"ok": False, "message": "dbo.InstallBase not found"}), 400
+        return jsonify({"items": []})
 
-    # detect needed columns safely
-    id_col      = _find_col(cols, aliases=["ID", "Id"], must_contain=["id"])
-    cust_col    = _find_col(cols, aliases=["CUSTOMER_NAME","CUSTOMER NAME","CustomerName","Customer Name"], must_contain=["customer","name"])
-    loc_col     = _find_col(cols, aliases=["LOCATION","Location"], must_contain=["location"])
-    cp_col      = _find_col(cols, aliases=["Contact Person1","ContactPerson1","CONTACT_PERSON1"], must_contain=["contact","person"])
-    des_col     = _find_col(cols, aliases=["Designation","DESIGNATION"], must_contain=["designation"])
-    cn_col      = _find_col(cols, aliases=["Contact No.","Contact No","ContactNo","Contact Number","ContactNumber"], must_contain=["contact","no"])
-    email_col   = _find_col(cols, aliases=["Email Id","Email","EMAIL"], must_contain=["email"])
-    ink_col     = _find_col(cols, aliases=["Ink type","InkType"], must_contain=["ink"])
-    active_col  = _find_col(cols, aliases=["Active Status","ActiveStatus"], must_contain=["active","status"])
-    mc_col = _find_col(cols,aliases=["Mc Status","McStatus","Machine Status","MachineStatus"],must_contain=["mc","status"]) or _find_col(cols,aliases=["Machine Status","MachineStatus"], must_contain=["machine","status"])
+    serial_col = _find_col(cols, aliases=["Serial No.","Serial No","Serial_No","SERIAL NO","SerialNo"], must_contain=["serial"])
+    if not serial_col:
+        return jsonify({"items": []})
 
-    model_col   = _find_col(cols, aliases=["Model","MODEL"], must_contain=["model"])
-    serial_col  = _find_col(cols, aliases=["Serial No.","Serial No","Serial_No","SERIAL NO"], must_contain=["serial"])
-    mtype_col   = _find_col(cols, aliases=["Machine Type","Machine_Type"], must_contain=["machine","type"])
-
-    if not cust_col:
-        return jsonify({"ok": False, "message": "Customer column not found in InstallBase"}), 400
-
-    # apply same scope rules (Admin/Manager/User)
     base_where, base_params = _installbase_scope_where(cols)
 
     where_parts = []
     params = []
-
     if base_where:
         where_parts.append(base_where.replace(" WHERE ", "", 1))
         params += base_params
 
-    where_parts.append(f"{_qcol(cust_col)} = ?")
+    if q:
+        where_parts.append(f"CAST({_qcol(serial_col)} AS NVARCHAR(200)) LIKE ?")
+        params.append(f"%{q}%")
+
+    where_sql = " WHERE " + " AND ".join(where_parts) if where_parts else ""
+
+    sql = f"""
+        SELECT DISTINCT TOP 30 CAST({_qcol(serial_col)} AS NVARCHAR(200)) AS v
+        FROM dbo.InstallBase
+        {where_sql}
+        ORDER BY v
+    """
+    try:
+        with get_conn() as conn:
+            cur = conn.cursor()
+            cur.execute(sql, params)
+            items = [(r[0] or "").strip() for r in cur.fetchall()]
+            items = [x for x in items if x]
+        return jsonify({"items": items})
+    except Exception:
+        return jsonify({"items": []})
+
+
+@app.get("/api/installbase/by-serial")
+def api_installbase_by_serial():
+    """Autofill for selected serial: returns keys matching your HTML ids."""
+    need = _require_login_json()
+    if need: return jsonify({"ok": False, "row": None}), 401
+
+    serial = (request.args.get("serial") or "").strip()
+    if not serial:
+        return jsonify({"ok": True, "row": None})
+
+    cols = _table_columns("dbo.InstallBase")
+    if not cols:
+        return jsonify({"ok": False, "row": None, "message": "dbo.InstallBase not found"}), 400
+
+    serial_col = _find_col(cols, aliases=["Serial No.","Serial No","Serial_No","SERIAL NO","SerialNo"], must_contain=["serial"])
+    cust_col   = _find_col(cols, aliases=["CUSTOMER NAME","CUSTOMER_NAME","Customer Name","CustomerName"], must_contain=["customer","name"])
+    loc_col    = _find_col(cols, aliases=["LOCATION","Location"], must_contain=["location"])
+    state_col  = _find_col(cols, aliases=["STATE","State"], must_contain=["state"])
+    addr_col   = _find_col(cols, aliases=["Address","ADDRESS"], must_contain=["address"])
+    model_col  = _find_col(cols, aliases=["Model","MODEL"], must_contain=["model"])
+    ink_col    = _find_col(cols, aliases=["Ink type","InkType","INK TYPE"], must_contain=["ink"])
+
+    if not serial_col:
+        return jsonify({"ok": False, "row": None, "message": "Serial column not found"}), 400
+
+    base_where, base_params = _installbase_scope_where(cols)
+
+    where_parts = []
+    params = []
+    if base_where:
+        where_parts.append(base_where.replace(" WHERE ", "", 1))
+        params += base_params
+
+    where_parts.append(f"{_qcol(serial_col)} = ?")
+    params.append(serial)
+
+    where_sql = " WHERE " + " AND ".join(where_parts)
+
+    def sel(col, alias):
+        return f"{_qcol(col)} AS {alias}" if col else f"'' AS {alias}"
+
+    sql = f"""
+        SELECT TOP 1
+          {sel(cust_col,'customer_name')},
+          {sel(serial_col,'serial_no')},
+          {sel(loc_col,'location')},
+          {sel(state_col,'state')},
+          {sel(addr_col,'address')},
+          {sel(model_col,'model')},
+          {sel(ink_col,'ink_type')}
+        FROM dbo.InstallBase
+        {where_sql}
+    """
+
+    try:
+        with get_conn() as conn:
+            cur = conn.cursor()
+            cur.execute(sql, params)
+            row = cur.fetchone()
+            if not row:
+                return jsonify({"ok": True, "row": None})
+
+            keys = [d[0] for d in cur.description]
+            out = {keys[i]: _json_safe(row[i]) for i in range(len(keys))}
+        return jsonify({"ok": True, "row": out})
+    except Exception as e:
+        return jsonify({"ok": False, "row": None, "message": str(e)}), 500
+
+
+@app.get("/api/installbase/rows")
+def api_installbase_rows():
+    need = _require_login_json()
+    if need: return jsonify({"ok": False, "rows": []}), 401
+
+    customer = (request.args.get("customer") or "").strip()
+    if not customer:
+        return jsonify({"ok": True, "rows": []})
+
+    cols = _table_columns("dbo.InstallBase")
+    if not cols:
+        return jsonify({"ok": False, "rows": [], "message": "dbo.InstallBase not found"}), 400
+
+    cust_col = _find_col(cols, aliases=["CUSTOMER_NAME","CUSTOMER NAME","CustomerName","Customer Name"], must_contain=["customer","name"])
+    if not cust_col:
+        return jsonify({"ok": False, "rows": [], "message": "Customer column not found"}), 400
+
+    # columns for your installbaseForm + WSR autofill
+    zone_col    = _find_col(cols, aliases=["ZONE","Zone"], must_contain=["zone"])
+    sales_col   = _find_col(cols, aliases=["SALES_ENGR","SALES ENGR"], must_contain=["sales","engr"])
+    svc_col     = _find_col(cols, aliases=["SERVICE_ENGR","SERVICE ENGR"], must_contain=["service","engr"])
+    cluster_col = _find_col(cols, aliases=["Cluster_No","CLUSTER NO","Cluster No"], must_contain=["cluster"])
+    loc_col     = _find_col(cols, aliases=["LOCATION","Location"], must_contain=["location"])
+    state_col   = _find_col(cols, aliases=["STATE","State"], must_contain=["state"])
+    addr_col    = _find_col(cols, aliases=["Address","ADDRESS"], must_contain=["address"])
+    mtype_col   = _find_col(cols, aliases=["Machine_Type","MACHINE TYPE","Machine Type"], must_contain=["machine","type"])
+    model_col   = _find_col(cols, aliases=["Model","MODEL"], must_contain=["model"])
+    serial_col  = _find_col(cols, aliases=["Serial No.","Serial No","Serial_No","SERIAL NO","SerialNo"], must_contain=["serial"])
+    ink_col     = _find_col(cols, aliases=["Ink type","InkType","INK TYPE"], must_contain=["ink"])
+    active_col  = _find_col(cols, aliases=["Active Status","ActiveStatus"], must_contain=["active","status"])
+    mc_status_col = _find_col(cols, aliases=["Mc Status","McStatus","Machine Status","MachineStatus"], must_contain=["status"])
+
+    # WSR autofill extra
+    cp_col   = _find_col(cols, aliases=["Contact Person","ContactPerson"], must_contain=["contact","person"])
+    des_col  = _find_col(cols, aliases=["Designation"], must_contain=["designation"])
+    cn_col   = _find_col(cols, aliases=["Contact No","ContactNumber","Contact Number"], must_contain=["contact","no"])
+    email_col= _find_col(cols, aliases=["Email","Email Id"], must_contain=["email"])
+
+    base_where, base_params = _installbase_scope_where(cols)
+
+    where_parts = []
+    params = []
+    if base_where:
+        where_parts.append(base_where.replace(" WHERE ", "", 1))
+        params += base_params
+
+    where_parts.append(
+        f"UPPER(LTRIM(RTRIM(CAST({_qcol(cust_col)} AS NVARCHAR(200))))) = UPPER(?)"
+    )
     params.append(customer)
 
     where_sql = " WHERE " + " AND ".join(where_parts)
 
-    # build select list
-    select_cols = []
-    keys = []
+    def sel(col, alias):
+        return f"{_qcol(col)} AS {alias}" if col else f"'' AS {alias}"
 
-    def add(key, col):
-        if col:
-            keys.append(key)
-            select_cols.append(_qcol(col))
+    select_sql = ", ".join([
+        sel(cust_col, "customer_name"),
+        sel(serial_col, "serial_no"),
+        sel(zone_col, "zone"),
+        sel(sales_col, "sales_engr"),
+        sel(svc_col, "service_engr"),
+        sel(cluster_col, "cluster_no"),
+        sel(loc_col, "location"),
+        sel(state_col, "state"),
+        sel(addr_col, "address"),
+        sel(mtype_col, "machine_type"),
+        sel(model_col, "model"),
+        sel(ink_col, "ink_type"),
+        sel(active_col, "active_status"),
+        sel(mc_status_col, "mc_status"),
+        sel(cp_col, "contact_person"),
+        sel(des_col, "designation"),
+        sel(cn_col, "contact_no"),
+        sel(email_col, "email"),
+    ])
 
-    add("id", id_col)
-    add("customer_name", cust_col)
-    add("location", loc_col)
-    add("contact_person", cp_col)
-    add("designation", des_col)
-    add("contact_no", cn_col)
-    add("email", email_col)
-    add("ink_type", ink_col)
-    add("active_status", active_col)
-    add("mc_status", mc_col)
-    add("model", model_col)
-    add("serial_no", serial_col)
-    add("machine_type", mtype_col)
-
-    if not select_cols:
-        return jsonify({"ok": False, "message": "No usable columns to return"}), 400
-
-    order_by = f" ORDER BY {_qcol(id_col)} DESC" if id_col else ""
+    order_by = f" ORDER BY {(_qcol(serial_col) if serial_col else _qcol(cust_col))}"
 
     sql = f"""
-        SELECT TOP (1) {", ".join(select_cols)}
+        SELECT TOP (500) {select_sql}
         FROM dbo.InstallBase
         {where_sql}
         {order_by}
@@ -601,25 +724,131 @@ def api_installbase_details():
         with get_conn() as conn:
             cur = conn.cursor()
             cur.execute(sql, params)
-            row = cur.fetchone()
+            data_cols = [d[0] for d in cur.description]
+            fetched = cur.fetchall()
 
-        if not row:
-            return jsonify({"ok": True, "found": False, "data": {}}), 200
+        out_rows = []
+        for r in fetched:
+            obj = {}
+            for i, c in enumerate(data_cols):
+                obj[c] = _json_safe(r[i])
+            out_rows.append(obj)
 
-        data = {}
-        for i, k in enumerate(keys):
-            data[k] = _json_safe(row[i])
+        return jsonify({"ok": True, "rows": out_rows})
+    except Exception as e:
+        return jsonify({"ok": False, "rows": [], "message": str(e)}), 500
 
-        return jsonify({"ok": True, "found": True, "data": data})
+
+# ===================== INSTALLBASE SAVE (ONLY ONCE) =====================
+@app.post("/api/installbase/save")
+def api_installbase_save():
+    if "user" not in session:
+        return jsonify({"ok": False, "message": "Unauthorized"}), 401
+
+    payload = request.get_json(force=True) or {}
+
+    cols = _table_columns("dbo.InstallBase")
+    if not cols:
+        return jsonify({"ok": False, "message": "dbo.InstallBase not found"}), 400
+
+    serial_col = _find_col(cols, aliases=["Serial No.","Serial No","Serial_No","SERIAL NO","SerialNo"], must_contain=["serial"])
+    cust_col   = _find_col(cols, aliases=["CUSTOMER NAME","CUSTOMER_NAME","Customer Name","CustomerName"], must_contain=["customer","name"])
+
+    if not serial_col:
+        return jsonify({"ok": False, "message": "Serial column not found"}), 400
+
+    serial = (payload.get("serial_no") or "").strip()
+    customer = (payload.get("customer_name") or "").strip()
+
+    if not serial:
+        return jsonify({"ok": False, "message": "Serial No required"}), 400
+    if cust_col and not customer:
+        return jsonify({"ok": False, "message": "Customer Name required"}), 400
+
+    idx = _col_index(cols)
+
+    date_keys = {
+        "invoice_date","installed_on","amc_invoice_date","amc_from","amc_to","amc_due_date",
+        "filter_invoice_date","next_filter_due_date","cluster_visit_plan","actual_visit","next_ter2_plan"
+    }
+
+    def _maybe_date(key, val):
+        if key in date_keys:
+            return _parse_iso_date(val)
+        return val
+
+    try:
+        with get_conn() as conn:
+            cur = conn.cursor()
+
+            cur.execute(f"SELECT 1 FROM dbo.InstallBase WHERE {_qcol(serial_col)} = ?", (serial,))
+            exists = cur.fetchone() is not None
+
+            if exists:
+                set_parts = []
+                params = []
+
+                for k, v in payload.items():
+                    nk = _norm(k)
+                    if nk not in idx:
+                        continue
+                    dbcol = idx[nk]
+                    if dbcol == serial_col:
+                        continue
+
+                    v = _maybe_date(k, v)
+                    set_parts.append(f"{_qcol(dbcol)} = ?")
+                    params.append(v)
+
+                if not set_parts:
+                    return jsonify({"ok": True, "action": "updated", "message": "Nothing to update."})
+
+                params.append(serial)
+                sql = f"UPDATE dbo.InstallBase SET {', '.join(set_parts)} WHERE {_qcol(serial_col)} = ?"
+                cur.execute(sql, params)
+                conn.commit()
+                return jsonify({"ok": True, "action": "updated", "message": f"Updated: {serial}"})
+
+            # INSERT
+            insert_cols = [_qcol(serial_col)]
+            insert_vals = ["?"]
+            insert_params = [serial]
+
+            if cust_col:
+                insert_cols.append(_qcol(cust_col))
+                insert_vals.append("?")
+                insert_params.append(customer)
+
+            for k, v in payload.items():
+                nk = _norm(k)
+                if nk not in idx:
+                    continue
+                dbcol = idx[nk]
+                if dbcol in (serial_col, cust_col):
+                    continue
+
+                v = _maybe_date(k, v)
+                if v in (None, ""):
+                    continue
+
+                insert_cols.append(_qcol(dbcol))
+                insert_vals.append("?")
+                insert_params.append(v)
+
+            sql = f"INSERT INTO dbo.InstallBase ({', '.join(insert_cols)}) VALUES ({', '.join(insert_vals)})"
+            cur.execute(sql, insert_params)
+            conn.commit()
+            return jsonify({"ok": True, "action": "inserted", "message": f"Inserted: {serial}"})
 
     except Exception as e:
-        return jsonify({"ok": False, "message": f"details error: {e}"}), 500
+        return jsonify({"ok": False, "message": f"Save error: {e}"}), 500
 
-# ===================== REPORT VIEW (WSR) =====================
+
+# ===================== REPORT VIEW (WSR TABLE VIEW) =====================
 @app.get("/api/report")
 def api_report():
-    if "user" not in session:
-        return jsonify({"error": "unauthorized"}), 401
+    need = _require_login_json()
+    if need: return need
 
     limit = int(request.args.get("limit", "500"))
     limit = max(1, min(limit, 5000))
@@ -631,10 +860,7 @@ def api_report():
 
     base_where, base_params = _wsr_scope_where(cols)
 
-    preferred = [
-        "Zone","EngineerName","Engineer Name","CustomerName","Customer Name","Location","ServiceReportNo","Serial_No","Model","Machine_Type",
-        "VisitDate","MMM-YY","MMM_YY"
-    ]
+    preferred = ["Zone","EngineerName","CustomerName","Location","MMM-YY","Serial","Model","VisitDate"]
     search_where, search_params = _build_token_search_where(q, cols, preferred)
 
     where_parts = []
@@ -671,13 +897,13 @@ def api_report():
         return jsonify({"columns": cols, "rows": out_rows})
 
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return _json_err(str(e), 500)
 
 
 @app.get("/api/report/suggest")
 def api_report_suggest():
-    if "user" not in session:
-        return jsonify({"error": "unauthorized"}), 401
+    need = _require_login_json()
+    if need: return jsonify({"items": []}), 401
 
     q = (request.args.get("q") or "").strip()
     if len(q) < 2:
@@ -689,12 +915,12 @@ def api_report_suggest():
 
     base_where, base_params = _wsr_scope_where(cols)
 
-    zone_col = _find_col(cols, aliases=["Zone","ZONE"], must_contain=["zone"])
-    eng_col  = _find_col(cols, aliases=["EngineerName","Engineer Name"], must_contain=["engineer","name"])
-    cust_col = _find_col(cols, aliases=["CustomerName","Customer Name"], must_contain=["customer","name"])
-    rep_col  = _find_col(cols, aliases=["ServiceReportNo","Service report No","Service report No."], must_contain=["report"])
+    zone_col  = _find_col(cols, aliases=["Zone","ZONE"], must_contain=["zone"])
+    eng_col   = _find_col(cols, aliases=["EngineerName","Engineer Name"], must_contain=["engineer","name"])
+    cust_col  = _find_col(cols, aliases=["CustomerName","Customer Name"], must_contain=["customer","name"])
+    month_col = _find_col(cols, aliases=["MonthYear","Month Year","MMM-YY","MMM_YY","MMM YY"], must_contain=["month"])
 
-    key_cols = [c for c in [cust_col, rep_col, eng_col, zone_col] if c]
+    key_cols = [c for c in [month_col, cust_col, eng_col, zone_col] if c]
 
     items = []
     seen = set()
@@ -702,9 +928,11 @@ def api_report_suggest():
     try:
         with get_conn() as conn:
             cur = conn.cursor()
+
             for c in key_cols:
                 where_parts = []
                 params = []
+
                 if base_where:
                     where_parts.append(base_where.replace(" WHERE ", "", 1))
                     params += base_params
@@ -720,18 +948,22 @@ def api_report_suggest():
                     ORDER BY v
                 """
                 cur.execute(sql, params)
+
                 for (v,) in cur.fetchall():
                     vv = (v or "").strip()
                     if not vv:
                         continue
-                    if vv.lower() in seen:
+                    k = vv.lower()
+                    if k in seen:
                         continue
-                    seen.add(vv.lower())
+                    seen.add(k)
                     items.append(vv)
                     if len(items) >= 12:
                         break
+
                 if len(items) >= 12:
                     break
+
     except Exception:
         return jsonify({"items": []})
 
@@ -752,6 +984,7 @@ def _parse_date(v):
             pass
     return None
 
+
 @app.post("/api/wsr")
 def api_wsr():
     if "user" not in session:
@@ -762,26 +995,27 @@ def api_wsr():
     if not cols:
         return jsonify({"ok": False, "message": "dbo.WSR table not found"}), 400
 
-    # find real db columns (space/underscore auto)
     zone_col = _find_col(cols, aliases=["Zone","ZONE"], must_contain=["zone"])
     eng_col  = _find_col(cols, aliases=["EngineerName","Engineer Name"], must_contain=["engineer","name"])
     month_col= _find_col(cols, aliases=["MonthYear","MMM-YY","MMM_YY","MMM YY"], must_contain=["mmm"])
     rep_col  = _find_col(cols, aliases=["ServiceReportNo","Service report No","Service report No."], must_contain=["report"])
     cust_col = _find_col(cols, aliases=["CustomerName","Customer Name"], must_contain=["customer","name"])
     loc_col  = _find_col(cols, aliases=["Location"], must_contain=["location"])
+
     cp_col   = _find_col(cols, aliases=["ContactPerson","Contact Person"], must_contain=["contact","person"])
     des_col  = _find_col(cols, aliases=["Designation"], must_contain=["designation"])
     cn_col   = _find_col(cols, aliases=["ContactNumber","Contact No","Contact No."], must_contain=["contact","no"])
     email_col= _find_col(cols, aliases=["Email","Email Id"], must_contain=["email"])
     call_col = _find_col(cols, aliases=["CallLoggedDate","Call Logged Date"], must_contain=["call","date"])
     prob_col = _find_col(cols, aliases=["ProblemReported","Problem Reported"], must_contain=["problem"])
-    ms_col   = _find_col(cols, aliases=["MachineStatus","Machine Status"], must_contain=["machine","status"])
+    ms_col   = _find_col(cols, aliases=["MachineStatus","Machine Status","Mc Status","McStatus"], must_contain=["status"])
+
     vc1_col  = _find_col(cols, aliases=["VisitCode1","Visit Code 1"], must_contain=["visit","code","1"])
     vc2_col  = _find_col(cols, aliases=["VisitCode2","Visit Code 2"], must_contain=["visit","code","2"])
     ink_col  = _find_col(cols, aliases=["InkType","Ink type"], must_contain=["ink"])
     visit_col= _find_col(cols, aliases=["VisitDate","Visit Date"], must_contain=["visit","date"])
     act_col  = _find_col(cols, aliases=["ActionTaken","Action Taken"], must_contain=["action"])
-    rem_col  = _find_col(cols, aliases=["Remarks"], must_contain=["remark"])
+    rem_col  = _find_col(cols, aliases=["Remarks","Remark"], must_contain=["remark"])
 
     mapping = [
         ("zone", zone_col),
@@ -814,14 +1048,13 @@ def api_wsr():
             continue
         val = payload.get(key)
 
-        if dbcol == call_col or dbcol == visit_col:
+        if dbcol in (call_col, visit_col):
             val = _parse_date(val)
 
         insert_cols.append(_qcol(dbcol))
         insert_vals.append("?")
         params.append(val)
 
-    # optional CreatedAt column
     created_col = _find_col(cols, aliases=["CreatedAt","Created At"], must_contain=["created"])
     if created_col:
         insert_cols.append(_qcol(created_col))
