@@ -453,6 +453,167 @@ def api_master_installbase_suggest():
 
     return jsonify({"items": items})
 
+# ===================== INSTALLBASE (WSR AUTOFILL + CUSTOMER SUGGEST) =====================
+
+@app.get("/api/installbase/customer_suggest")
+def api_installbase_customer_suggest():
+    """
+    WSR form ke liye Customer Name suggestions (datalist).
+    """
+    if "user" not in session:
+        return jsonify({"items": []}), 401
+
+    q = (request.args.get("q") or "").strip()
+    if len(q) < 2:
+        return jsonify({"items": []})
+
+    cols = _table_columns("dbo.InstallBase")
+    if not cols:
+        return jsonify({"items": []})
+
+    cust_col = _find_col(
+        cols,
+        aliases=["CUSTOMER_NAME", "CUSTOMER NAME", "CustomerName", "Customer Name"],
+        must_contain=["customer", "name"]
+    )
+    if not cust_col:
+        return jsonify({"items": []})
+
+    base_where, base_params = _installbase_scope_where(cols)
+
+    where_parts = []
+    params = []
+
+    if base_where:
+        where_parts.append(base_where.replace(" WHERE ", "", 1))
+        params += base_params
+
+    where_parts.append(f"CAST({_qcol(cust_col)} AS NVARCHAR(200)) LIKE ?")
+    params.append(f"%{q}%")
+
+    where_sql = " WHERE " + " AND ".join(where_parts)
+
+    sql = f"""
+        SELECT DISTINCT TOP 12 CAST({_qcol(cust_col)} AS NVARCHAR(200)) AS v
+        FROM dbo.InstallBase
+        {where_sql}
+        ORDER BY v
+    """
+
+    try:
+        with get_conn() as conn:
+            cur = conn.cursor()
+            cur.execute(sql, params)
+            items = [(r[0] or "").strip() for r in cur.fetchall()]
+            items = [x for x in items if x]
+        return jsonify({"items": items})
+    except Exception:
+        return jsonify({"items": []})
+
+
+@app.get("/api/installbase/details")
+def api_installbase_details():
+    """
+    WSR form auto-fill:
+    customer select होते ही location/contact/email/ink/machine-status etc return करेगा.
+    """
+    if "user" not in session:
+        return jsonify({"ok": False, "message": "unauthorized"}), 401
+
+    customer = (request.args.get("customer") or "").strip()
+    if not customer:
+        return jsonify({"ok": False, "message": "customer is required"}), 400
+
+    cols = _table_columns("dbo.InstallBase")
+    if not cols:
+        return jsonify({"ok": False, "message": "dbo.InstallBase not found"}), 400
+
+    # detect needed columns safely
+    id_col      = _find_col(cols, aliases=["ID", "Id"], must_contain=["id"])
+    cust_col    = _find_col(cols, aliases=["CUSTOMER_NAME","CUSTOMER NAME","CustomerName","Customer Name"], must_contain=["customer","name"])
+    loc_col     = _find_col(cols, aliases=["LOCATION","Location"], must_contain=["location"])
+    cp_col      = _find_col(cols, aliases=["Contact Person1","ContactPerson1","CONTACT_PERSON1"], must_contain=["contact","person"])
+    des_col     = _find_col(cols, aliases=["Designation","DESIGNATION"], must_contain=["designation"])
+    cn_col      = _find_col(cols, aliases=["Contact No.","Contact No","ContactNo","Contact Number","ContactNumber"], must_contain=["contact","no"])
+    email_col   = _find_col(cols, aliases=["Email Id","Email","EMAIL"], must_contain=["email"])
+    ink_col     = _find_col(cols, aliases=["Ink type","InkType"], must_contain=["ink"])
+    active_col  = _find_col(cols, aliases=["Active Status","ActiveStatus"], must_contain=["active","status"])
+    mc_col = _find_col(cols,aliases=["Mc Status","McStatus","Machine Status","MachineStatus"],must_contain=["mc","status"]) or _find_col(cols,aliases=["Machine Status","MachineStatus"], must_contain=["machine","status"])
+
+    model_col   = _find_col(cols, aliases=["Model","MODEL"], must_contain=["model"])
+    serial_col  = _find_col(cols, aliases=["Serial No.","Serial No","Serial_No","SERIAL NO"], must_contain=["serial"])
+    mtype_col   = _find_col(cols, aliases=["Machine Type","Machine_Type"], must_contain=["machine","type"])
+
+    if not cust_col:
+        return jsonify({"ok": False, "message": "Customer column not found in InstallBase"}), 400
+
+    # apply same scope rules (Admin/Manager/User)
+    base_where, base_params = _installbase_scope_where(cols)
+
+    where_parts = []
+    params = []
+
+    if base_where:
+        where_parts.append(base_where.replace(" WHERE ", "", 1))
+        params += base_params
+
+    where_parts.append(f"{_qcol(cust_col)} = ?")
+    params.append(customer)
+
+    where_sql = " WHERE " + " AND ".join(where_parts)
+
+    # build select list
+    select_cols = []
+    keys = []
+
+    def add(key, col):
+        if col:
+            keys.append(key)
+            select_cols.append(_qcol(col))
+
+    add("id", id_col)
+    add("customer_name", cust_col)
+    add("location", loc_col)
+    add("contact_person", cp_col)
+    add("designation", des_col)
+    add("contact_no", cn_col)
+    add("email", email_col)
+    add("ink_type", ink_col)
+    add("active_status", active_col)
+    add("mc_status", mc_col)
+    add("model", model_col)
+    add("serial_no", serial_col)
+    add("machine_type", mtype_col)
+
+    if not select_cols:
+        return jsonify({"ok": False, "message": "No usable columns to return"}), 400
+
+    order_by = f" ORDER BY {_qcol(id_col)} DESC" if id_col else ""
+
+    sql = f"""
+        SELECT TOP (1) {", ".join(select_cols)}
+        FROM dbo.InstallBase
+        {where_sql}
+        {order_by}
+    """
+
+    try:
+        with get_conn() as conn:
+            cur = conn.cursor()
+            cur.execute(sql, params)
+            row = cur.fetchone()
+
+        if not row:
+            return jsonify({"ok": True, "found": False, "data": {}}), 200
+
+        data = {}
+        for i, k in enumerate(keys):
+            data[k] = _json_safe(row[i])
+
+        return jsonify({"ok": True, "found": True, "data": data})
+
+    except Exception as e:
+        return jsonify({"ok": False, "message": f"details error: {e}"}), 500
 
 # ===================== REPORT VIEW (WSR) =====================
 @app.get("/api/report")

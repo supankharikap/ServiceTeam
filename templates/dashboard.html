@@ -190,61 +190,118 @@
 
         <form id="wsrForm">
           <div class="grid">
-            <div><label>Zone</label><input id="wsr_zone" name="zone" readonly></div>
-            <div><label>Engineer</label><input id="wsr_engineer" name="engineerName" readonly></div>
-            <div><label>Month/Year</label><input name="monthYear" placeholder="MMM-YY" required></div>
+          <div><label>Zone</label><input id="wsr_zone" name="zone" readonly></div>
+          <div><label>Engineer</label><input id="wsr_engineer" name="engineerName" readonly></div>
+          <div><label>Month/Year</label><input name="monthYear" placeholder="MMM-YY" required></div>
 
-            <div><label>Service Report No</label><input name="serviceReportNo"></div>
+          <div><label>Service Report No</label><input name="serviceReportNo"></div>
 
-            <!-- ✅ Customer Name with InstallBase Suggestions -->
-            <div style="position:relative;">
-              <label>Customer Name</label>
-              <input id="customerNameInput" name="customerName" autocomplete="off" placeholder="Type customer name...">
-              <div id="customerSuggest" class="suggestBox" style="width:100%; top:70px;"></div>
-            </div>
+          <!-- Customer Name suggest -->
+          <div style="position:relative;">
+          <label>Customer Name</label>
+          <input id="customerNameInput" name="customerName" autocomplete="off" placeholder="Type customer name...">
+          <div id="customerSuggest" class="suggestBox" style="width:100%; top:70px;"></div>
+          </div>
 
-            <div><label>Location</label><input name="location"></div>
+          <div><label>Location</label><input name="location"></div>
 
-            <div><label>Contact Person</label><input name="contactPerson"></div>
-            <div><label>Designation</label><input name="designation"></div>
-            <div><label>Contact Number</label><input name="contactNumber"></div>
+          <div><label>Contact Person</label><input name="contactPerson"></div>
+          <div><label>Designation</label><input name="designation"></div>
+          <div><label>Contact Number</label><input name="contactNumber"></div>
 
-            <div><label>Email</label><input name="email"></div>
-            <div><label>Call Logged Date</label><input type="date" name="callLoggedDate"></div>
-            <div><label>Problem Reported</label><input name="problemReported"></div>
+          <div><label>Email</label><input name="email"></div>
+          <div><label>Call Logged Date</label><input type="date" name="callLoggedDate"></div>
+          <div><label>Problem Reported</label><input name="problemReported"></div>
 
-            <div><label>Machine Status</label><input name="machineStatus"></div>
+          <div><label>Machine Status</label><input name="machineStatus"></div>
 
-            <!-- ✅ Visit Code 1 + Dependent Visit Code 2 -->
-            <div>
-              <label>Visit Code 1</label>
-              <select id="visitCode1" name="visitCode1" required>
-                <option value="">--Select--</option>
-                <option value="NA">NA</option>
-                <option value="CLUSTER">CLUSTER</option>
-                <option value="BREAKDOWN">BREAKDOWN</option>
-                <option value="SALES SUPPORTS">SALES SUPPORTS</option>
-                <option value="OTHERS TEC">OTHERS TEC</option>
-              </select>
-            </div>
+          <div>
+          <label>Visit Code 1</label>
+          <select id="visitCode1" name="visitCode1" required>
+          <option value="">--Select--</option>
+          <option value="NA">NA</option>
+          <option value="CLUSTER">CLUSTER</option>
+          <option value="BREAKDOWN">BREAKDOWN</option>
+          <option value="SALES SUPPORTS">SALES SUPPORTS</option>
+          <option value="OTHERS ">OTHERS TEC</option>
+          </select>
+         </div>
 
-            <div>
-              <label>Visit Code 2</label>
-              <select id="visitCode2" name="visitCode2">
-                <option value="">--Select--</option>
-              </select>
-            </div>
+         <div>
+         <label>Visit Code 2</label>
+         <select id="visitCode2" name="visitCode2">
+         <option value="">--Select--</option>
+         </select>
+         </div>
 
-            <div><label>Ink Type</label><input name="inkType"></div>
-            <div><label>Visit Date</label><input type="date" name="visitDate"></div>
+          <!-- Machine details (Excel headers) -->
+         <div><label>Printer Model</label><input name="printerModel"></div>
+         <div><label>M/C No</label><input name="mcNo"></div>
+         <div><label>Serial No</label><input name="serialNo"></div>
 
-            <div><label>Action Taken</label><textarea name="actionTaken"></textarea></div>
-            <div><label>Remarks</label><textarea name="remarks"></textarea></div>
+         <div><label>Ink Type</label><input name="inkType"></div>
+         <div><label>Turn on Time (Hrs)</label><input name="turnOnTime" type="number" step="0.1" placeholder="e.g. 120.5"></div>
+         <div><label>Print on Time (Hrs)</label><input name="printOnTime" type="number" step="0.1" placeholder="e.g. 85.0"></div>
+
+         <div><label>Visit Date</label><input type="date" name="visitDate"></div>
+
+         <!-- Travel time -->
+         <div><label>Travel Start (HH:MM)</label><input id="travelStart" name="travelStart" type="time"></div>
+         <div><label>Travel End (HH:MM)</label><input id="travelEnd" name="travelEnd" type="time"></div>
+         <div><label>TRAVEL TIME</label><input id="travelTime" name="travelTime" readonly placeholder="auto"></div>
+
+         <!-- Work time -->
+         <div><label>Work Start (HH:MM)</label><input id="workStart" name="workStart" type="time"></div>
+         <div><label>Work End (HH:MM)</label><input id="workEnd" name="workEnd" type="time"></div>
+         <div><label>WORK TIME</label><input id="workTime" name="workTime" readonly placeholder="auto"></div>
+
+         <!-- Action / remarks -->
+         <div style="grid-column:1/-1;">
+         <label>Action Taken (in brief)</label>
+         <textarea name="actionTaken"></textarea>
+         </div>
+
+         <!-- Consumables -->
+         <div><label>INK (Qty)</label><input name="ink" type="number" step="0.01" placeholder="0.00"></div>
+         <div><label>Solvent (Qty)</label><input name="solvent" type="number" step="0.01" placeholder="0.00"></div>
+         <div><label>CNC (Qty)</label><input name="cnc" type="number" step="0.01" placeholder="0.00"></div>
+
+         <div><label>Filter Kit Due Date/Hrs</label><input name="filterKitDue" placeholder="Due date / hrs"></div>
+          <div><label>Customer Feedback</label><input name="customerFeedback"></div>
+
+         <div>
+          <label>Call Status</label>
+          <select name="callStatus">
+          <option value="">--Select--</option>
+          <option value="OPEN">OPEN</option>
+          <option value="CLOSED">CLOSED</option>
+          <option value="PENDING">PENDING</option>
+         </select>
+          </div>
+
+          <div>
+          <label>Re-visit Required</label>
+          <select name="revisitRequired">
+          <option value="">--Select--</option>
+          <option value="YES">YES</option>
+          <option value="NO">NO</option>
+          </select>
+          </div>
+
+          <div style="grid-column:1/-1;">
+          <label>Service Engineer Remarks</label>
+          <textarea name="serviceEngineerRemarks"></textarea>
+          </div>
+
+          <div style="grid-column:1/-1;">
+          <label>Service Manager Remarks</label>
+          <textarea name="serviceManagerRemarks"></textarea>
+          </div>
           </div>
 
           <div class="actions">
-            <button type="button" class="btn gray" onclick="document.getElementById('wsrForm').reset(); refillReadonly(); resetVisitCode2();">Clear</button>
-            <button type="submit" class="btn primary">Submit WSR</button>
+          <button type="button" class="btn gray" onclick="document.getElementById('wsrForm').reset(); refillReadonly(); resetVisitCode2();">Clear</button>
+          <button type="submit" class="btn primary">Submit WSR</button>
           </div>
         </form>
       </section>
@@ -351,7 +408,7 @@ const visit2Map = {
   "CLUSTER": ["Gen PM", "Filter PM", "Courtesy"],
   "BREAKDOWN": ["First Visit", "Carryover", "Repeat Visit"],
   "SALES SUPPORTS": ["Demo Install", "Demo Carryover", "Site Survey", "Sampling", "Exhibition", "Demo in Office"],
-  "OTHERS TEC": [
+  "OTHERS ": [
     // Special Application
     "Line Study", "First Visit", "Carryover Visit",
     // Training
@@ -398,6 +455,45 @@ function initVisitCodeDependency(){
 }
 
 /* ================= CUSTOMER SUGGEST (InstallBase) ================= */
+
+// helper: WSR form ke field ko safely set karo
+function setWsrField(name, value){
+  const form = document.getElementById("wsrForm");
+  if (!form) return;
+  const el = form.querySelector(`[name="${name}"]`);
+  if (!el) return;
+  el.value = (value ?? "");
+}
+
+// InstallBase details fill
+async function fillCustomerDetails(customerName){
+  const customer = (customerName || "").trim();
+  if (!customer) return;
+
+  try{
+    const res = await fetch("/api/installbase/details?customer=" + encodeURIComponent(customer));
+    const j = await res.json();
+
+    if (!res.ok || !j.ok || !j.found) return;
+
+    const d = j.data || {};
+
+    // form fields (aapke form me jo-jo exist hai)
+    setWsrField("location", d.location);
+    setWsrField("contactPerson", d.contact_person);
+    setWsrField("designation", d.designation);
+    setWsrField("contactNumber", d.contact_no);
+    setWsrField("email", d.email);
+    setWsrField("inkType", d.ink_type);
+
+    // machine status preference
+    setWsrField("machineStatus", d.mc_status || d.active_status);
+
+  }catch(e){
+    console.log("details error", e);
+  }
+}
+
 function initCustomerSuggest(){
   const input = document.getElementById("customerNameInput");
   const box = document.getElementById("customerSuggest");
@@ -412,8 +508,8 @@ function initCustomerSuggest(){
     clearTimeout(timer);
     timer = setTimeout(async () => {
       try{
-        // Uses same endpoint as Master suggestion
-        const res = await fetch("/api/master/installbase/suggest?q=" + encodeURIComponent(q));
+        // ✅ customer-only suggestions (BEST)
+        const res = await fetch("/api/installbase/customer_suggest?q=" + encodeURIComponent(q));
         const data = await res.json();
         const items = data.items || [];
 
@@ -429,11 +525,32 @@ function initCustomerSuggest(){
     }, 200);
   });
 
-  box.addEventListener("click", (e) => {
+  // click suggestion => set customer + autofill
+  box.addEventListener("click", async (e) => {
     const it = e.target.closest(".suggestItem");
     if (!it) return;
-    input.value = it.getAttribute("data-v") || "";
+
+    const val = it.getAttribute("data-v") || "";
+    input.value = val;
     hideSuggest("customerSuggest");
+
+    await fillCustomerDetails(val);
+  });
+
+  // agar user manually type karke bahar click kare
+  input.addEventListener("blur", () => {
+    const val = (input.value || "").trim();
+    if (val.length >= 2) fillCustomerDetails(val);
+  });
+
+  // Enter press => autofill
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter"){
+      e.preventDefault();
+      const val = (input.value || "").trim();
+      if (val) fillCustomerDetails(val);
+      hideSuggest("customerSuggest");
+    }
   });
 }
 
@@ -478,29 +595,40 @@ function masterClear(){
 }
 
 /* master suggestions */
+/* master suggestions (SAFE) */
 const msInput = () => document.getElementById("masterSearch");
-msInput().addEventListener("input", async (e)=>{
-  const q = (e.target.value || "").trim();
-  if (q.length < 2){ hideSuggest("masterSuggest"); return; }
-  const box = document.getElementById("masterSuggest");
-  try{
-    const res = await fetch("/api/master/installbase/suggest?q=" + encodeURIComponent(q));
-    const data = await res.json();
-    const items = data.items || [];
-    if (!items.length){ hideSuggest("masterSuggest"); return; }
-    box.innerHTML = items.map(v => `<div class="suggestItem" data-v="${escapeHtml(v)}">${escapeHtml(v)}</div>`).join("");
-    box.style.display = "block";
-  }catch{
+const _ms = msInput();
+
+if (_ms){
+  _ms.addEventListener("input", async (e)=>{
+    const q = (e.target.value || "").trim();
+    if (q.length < 2){ hideSuggest("masterSuggest"); return; }
+    const box = document.getElementById("masterSuggest");
+    try{
+      const res = await fetch("/api/master/installbase/suggest?q=" + encodeURIComponent(q));
+      const data = await res.json();
+      const items = data.items || [];
+      if (!items.length){ hideSuggest("masterSuggest"); return; }
+      box.innerHTML = items.map(v => `<div class="suggestItem" data-v="${escapeHtml(v)}">${escapeHtml(v)}</div>`).join("");
+      box.style.display = "block";
+    }catch{
+      hideSuggest("masterSuggest");
+    }
+  });
+}
+// ✅ master suggestion click => set value + search
+const masterSuggestBox = document.getElementById("masterSuggest");
+if (masterSuggestBox){
+  masterSuggestBox.addEventListener("click", (e)=>{
+    const it = e.target.closest(".suggestItem");
+    if (!it) return;
+
+    msInput().value = it.getAttribute("data-v") || "";
     hideSuggest("masterSuggest");
-  }
-});
-document.getElementById("masterSuggest").addEventListener("click", (e)=>{
-  const it = e.target.closest(".suggestItem");
-  if (!it) return;
-  msInput().value = it.getAttribute("data-v") || "";
-  hideSuggest("masterSuggest");
-  openMaster();
-});
+    openMaster();
+  });
+}
+
 
 /* ================= REPORT ================= */
 function reportDoSearch(){ loadReport(); }
@@ -627,11 +755,51 @@ window.onload = function(){
   document.getElementById("sbEngineer").textContent = SERVER_ROLENAME || "-";
   document.getElementById("sbZone").textContent = SERVER_TEAM || "-";
 
+
+  function parseHHMM(t){
+  if (!t) return null;
+  const [h,m] = t.split(":").map(Number);
+  if (Number.isNaN(h) || Number.isNaN(m)) return null;
+  return h*60 + m;
+}
+function fmtHHMM(mins){
+  const h = Math.floor(mins/60);
+  const m = mins % 60;
+  return String(h).padStart(2,"0") + ":" + String(m).padStart(2,"0");
+}
+function calcDuration(start, end){
+  const s = parseHHMM(start), e = parseHHMM(end);
+  if (s === null || e === null) return "";
+  let diff = e - s;
+  if (diff < 0) diff += 24*60; // if next day
+  return fmtHHMM(diff);
+}
+function initTimeAutoCalc(){
+  const ts = document.getElementById("travelStart");
+  const te = document.getElementById("travelEnd");
+  const tt = document.getElementById("travelTime");
+
+  const ws = document.getElementById("workStart");
+  const we = document.getElementById("workEnd");
+  const wt = document.getElementById("workTime");
+
+  function updTravel(){ if(tt) tt.value = calcDuration(ts?.value, te?.value); }
+  function updWork(){ if(wt) wt.value = calcDuration(ws?.value, we?.value); }
+
+  ts?.addEventListener("input", updTravel);
+  te?.addEventListener("input", updTravel);
+  ws?.addEventListener("input", updWork);
+  we?.addEventListener("input", updWork);
+
+}
+
   refillReadonly();
   loadKpis();
 
   initVisitCodeDependency();  // ✅ Visit Code 2 dependent
   initCustomerSuggest();      // ✅ Customer suggestion from InstallBase
+  initTimeAutoCalc();
+
 };
 </script>
 
