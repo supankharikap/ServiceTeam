@@ -4,6 +4,7 @@ import pyodbc
 from dotenv import load_dotenv
 from pathlib import Path
 from datetime import datetime, date
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 # Load .env from project root
 load_dotenv(Path(__file__).resolve().parent / ".env")
@@ -11,9 +12,13 @@ load_dotenv(Path(__file__).resolve().parent / ".env")
 app = Flask(__name__)
 app.secret_key = os.environ.get("FLASK_SECRET_KEY", "change-me")
 
-# ---- cookie settings (important for https/codespaces) ----
+# ✅ Azure/Codespaces reverse-proxy => https detect + cookies work
+app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
+
+# ✅ Cookie settings (IMPORTANT)
 app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
-app.config["SESSION_COOKIE_SECURE"] = True  # keep True for https deployments
+# .env: COOKIE_SECURE=1 (Azure https), local test: COOKIE_SECURE=0
+app.config["SESSION_COOKIE_SECURE"] = (os.environ.get("COOKIE_SECURE", "1") == "1")
 
 
 # ===================== DB HELPERS =====================
@@ -192,6 +197,7 @@ def logout():
 def installbase_update():
     if "user" not in session:
         return redirect(url_for("home"))
+    # ✅ make sure file name matches in templates/
     return render_template("installbaseForm.html")
 
 
@@ -409,7 +415,6 @@ def api_master_installbase_suggest():
 
     base_where, base_params = _installbase_scope_where(cols)
 
-    # suggest from main columns
     zone_col   = _find_col(cols, aliases=["ZONE","Zone"], must_contain=["zone"])
     svc_col    = _find_col(cols, aliases=["SERVICE_ENGR","SERVICE ENGR"], must_contain=["service","engr"])
     sales_col  = _find_col(cols, aliases=["SALES_ENGR","SALES ENGR"], must_contain=["sales","engr"])
@@ -651,7 +656,6 @@ def api_installbase_rows():
     if not cust_col:
         return jsonify({"ok": False, "rows": [], "message": "Customer column not found"}), 400
 
-    # columns for your installbaseForm + WSR autofill
     zone_col    = _find_col(cols, aliases=["ZONE","Zone"], must_contain=["zone"])
     sales_col   = _find_col(cols, aliases=["SALES_ENGR","SALES ENGR"], must_contain=["sales","engr"])
     svc_col     = _find_col(cols, aliases=["SERVICE_ENGR","SERVICE ENGR"], must_contain=["service","engr"])
@@ -666,7 +670,6 @@ def api_installbase_rows():
     active_col  = _find_col(cols, aliases=["Active Status","ActiveStatus"], must_contain=["active","status"])
     mc_status_col = _find_col(cols, aliases=["Mc Status","McStatus","Machine Status","MachineStatus"], must_contain=["status"])
 
-    # WSR autofill extra
     cp_col   = _find_col(cols, aliases=["Contact Person","ContactPerson"], must_contain=["contact","person"])
     des_col  = _find_col(cols, aliases=["Designation"], must_contain=["designation"])
     cn_col   = _find_col(cols, aliases=["Contact No","ContactNumber","Contact Number"], must_contain=["contact","no"])
@@ -739,7 +742,7 @@ def api_installbase_rows():
         return jsonify({"ok": False, "rows": [], "message": str(e)}), 500
 
 
-# ===================== INSTALLBASE SAVE (ONLY ONCE) =====================
+# ===================== INSTALLBASE SAVE (UPSERT) =====================
 @app.post("/api/installbase/save")
 def api_installbase_save():
     if "user" not in session:
@@ -795,7 +798,6 @@ def api_installbase_save():
                     dbcol = idx[nk]
                     if dbcol == serial_col:
                         continue
-
                     v = _maybe_date(k, v)
                     set_parts.append(f"{_qcol(dbcol)} = ?")
                     params.append(v)
@@ -1047,7 +1049,6 @@ def api_wsr():
         if not dbcol:
             continue
         val = payload.get(key)
-
         if dbcol in (call_col, visit_col):
             val = _parse_date(val)
 
