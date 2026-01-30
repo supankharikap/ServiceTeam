@@ -12,78 +12,40 @@
       --shadow: 0 10px 25px rgba(0,0,0,.08);
     }
     *{box-sizing:border-box}
-    body{
-      margin:0;
-      font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;
-      background:var(--bg);
-      color:var(--text);
-    }
+    body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;background:var(--bg);color:var(--text);}
     .wrap{max-width:1200px;margin:24px auto;padding:0 16px;}
     .header{display:flex;gap:12px;align-items:center;justify-content:space-between;margin-bottom:14px;}
-    .title{font-size:20px;font-weight:800;}
+    .title{font-size:20px;font-weight:800;color:#000;}
     .sub{color:var(--muted);font-size:13px;margin-top:2px}
-    .card{
-      background:var(--card);
-      border:1px solid var(--border);
-      border-radius:var(--radius);
-      box-shadow:var(--shadow);
-      padding:16px;
-    }
-    fieldset{
-      border:1px solid var(--border);
-      border-radius:12px;
-      padding:12px;
-      margin:0 0 12px 0;
-    }
-
-    /* ✅ legend bold black */
-    legend{
-      padding:0 8px;
-      color:#000 !important;
-      font-weight:800 !important;
-      font-size:12px;
-      letter-spacing:.4px;
-      text-transform:uppercase;
-    }
-
+    .card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);padding:16px;}
+    fieldset{border:1px solid var(--border);border-radius:12px;padding:12px;margin:0 0 12px 0;}
+    legend{padding:0 8px;color:#000;font-weight:800;font-size:12px;letter-spacing:.4px;text-transform:uppercase;}
     .grid{display:grid;grid-template-columns:repeat(12,1fr);gap:10px;align-items:start;}
     .f{grid-column:span 3;}
     .f.span-6{grid-column:span 6;}
     .f.span-12{grid-column:span 12;}
 
-    /* ✅ label bold black */
+    /* ✅ ONLY LABEL: black + bold */
     label{
       display:block;
-      font-size:13.5px !important;
+      font-size:13.5px;
       color:#000 !important;
       font-weight:800 !important;
       margin:0 0 6px 2px;
     }
 
     input, textarea{
-      width:100%;
-      border:1px solid var(--border);
-      border-radius:12px;
-      padding:10px 12px;
-      outline:none;
-      background:#fff;
-      color:var(--text);
+      width:100%; border:1px solid var(--border); border-radius:12px;
+      padding:10px 12px; outline:none; background:#fff; color:var(--text);
       font-size:14px;
     }
     textarea{min-height:84px;resize:vertical}
-    input:focus, textarea:focus{
-      border-color:var(--primary);
-      box-shadow:0 0 0 4px rgba(26,115,232,.12);
-    }
+    input:focus, textarea:focus{border-color:var(--primary); box-shadow:0 0 0 4px rgba(26,115,232,.12);}
 
     .actions{display:flex;gap:10px;justify-content:flex-end;margin-top:10px;}
     .btn{
-      border:1px solid var(--border);
-      background:#fff;
-      padding:10px 14px;
-      border-radius:12px;
-      cursor:pointer;
-      font-weight:700;
+      border:1px solid var(--border); background:#fff; padding:10px 14px;
+      border-radius:12px; cursor:pointer; font-weight:700;
     }
     .btn.primary{background:var(--primary);border-color:var(--primary);color:#fff;}
 
@@ -91,7 +53,24 @@
       display:inline-flex;gap:8px;align-items:center;
       padding:6px 10px;border-radius:999px;border:1px solid var(--border);
       color:var(--muted);font-size:12px;background:#fff;
+      white-space:nowrap;
     }
+
+    /* ✅ Loading pill (shows when fetching/saving) */
+    .pill.loading{
+      border-color: var(--primary);
+      color: var(--primary);
+      font-weight: 800;
+    }
+    .pill.loading::before{
+      content:"";
+      width:12px;height:12px;border-radius:50%;
+      border:2px solid currentColor;
+      border-right-color: transparent;
+      display:inline-block;
+      animation: spin .8s linear infinite;
+    }
+    @keyframes spin{to{transform:rotate(360deg)}}
 
     @media (max-width: 980px){
       .f{grid-column:span 6;}
@@ -114,7 +93,11 @@
         <div class="title">InstallBase Entry Form</div>
         <div class="sub">Search by Customer / Serial, then update & save</div>
       </div>
-      <div class="pill" id="todayPill">📅 Today: —</div>
+
+      <div style="display:flex;gap:10px;align-items:center;">
+        <div class="pill" id="todayPill">📅 Today: —</div>
+        <div class="pill" id="loadingPill" style="display:none;">Loading…</div>
+      </div>
     </div>
 
     <form class="card" id="installbaseForm" autocomplete="off">
@@ -218,6 +201,20 @@
     const today = new Date();
     document.getElementById("todayPill").textContent = "📅 Today: " + today.toISOString().slice(0,10);
 
+    // Loading pill helpers
+    const loadingPill = document.getElementById("loadingPill");
+    function showLoading(text="Loading…"){
+      if(!loadingPill) return;
+      loadingPill.textContent = text;
+      loadingPill.style.display = "inline-flex";
+      loadingPill.classList.add("loading");
+    }
+    function hideLoading(){
+      if(!loadingPill) return;
+      loadingPill.style.display = "none";
+      loadingPill.classList.remove("loading");
+    }
+
     function debounce(fn, delay=250){
       let t; return (...args)=>{ clearTimeout(t); t=setTimeout(()=>fn(...args), delay); };
     }
@@ -238,6 +235,9 @@
     // ✅ Suggest loader
     async function loadSuggest(apiBase, q, datalistId){
       try{
+        // ✅ avoid too many calls (type at least 2 chars)
+        if((q || "").trim().length > 0 && (q || "").trim().length < 2) return;
+
         const data = await safeJson(apiBase + encodeURIComponent(q || ""));
         if(!data) return;
 
@@ -256,14 +256,14 @@
     const cust = document.getElementById("customer_name");
     cust.addEventListener("input", debounce(() => {
       loadSuggest("/api/installbase/customer_suggest?q=", cust.value.trim(), "dl_customer");
-    }, 250));
+    }, 350));
     cust.addEventListener("focus", () => loadSuggest("/api/installbase/customer_suggest?q=", "", "dl_customer"));
 
     // SERIAL suggest
     const serial = document.getElementById("serial_no");
     serial.addEventListener("input", debounce(() => {
       loadSuggest("/api/installbase/serial_suggest?q=", serial.value.trim(), "dl_serial");
-    }, 250));
+    }, 350));
     serial.addEventListener("focus", () => loadSuggest("/api/installbase/serial_suggest?q=", "", "dl_serial"));
 
     function setVal(id, v){
@@ -292,33 +292,43 @@
     // ✅ Load by CUSTOMER
     async function loadByCustomer(customer){
       if(!customer) return;
-      const data = await safeJson(`/api/installbase/rows?customer=${encodeURIComponent(customer)}`);
-      if(!data || !data.ok) return;
+      showLoading("Loading customer…");
+      try{
+        const data = await safeJson(`/api/installbase/rows?customer=${encodeURIComponent(customer)}`);
+        if(!data || !data.ok) return;
 
-      const rows = data.rows || [];
-      if(rows.length === 0) return;
+        const rows = data.rows || [];
+        if(rows.length === 0) return;
 
-      // fill first row
-      fillFromRow(rows[0]);
+        // fill first row
+        fillFromRow(rows[0]);
 
-      // set serial list for this customer
-      const dl = document.getElementById("dl_serial");
-      if(dl){
-        dl.innerHTML = rows
-          .map(r => (r.serial_no || "").trim())
-          .filter(v => v)
-          .map(v => `<option value="${v.replace(/"/g,'&quot;')}"></option>`)
-          .join("");
+        // set serial list for this customer
+        const dl = document.getElementById("dl_serial");
+        if(dl){
+          dl.innerHTML = rows
+            .map(r => (r.serial_no || "").trim())
+            .filter(v => v)
+            .map(v => `<option value="${v.replace(/"/g,'&quot;')}"></option>`)
+            .join("");
+        }
+      } finally {
+        hideLoading();
       }
     }
 
     // ✅ Load by SERIAL (autofill)
     async function loadBySerial(s){
       if(!s) return;
-      const data = await safeJson(`/api/installbase/by-serial?serial=${encodeURIComponent(s)}`);
-      if(!data || !data.ok || !data.row) return;
+      showLoading("Loading serial…");
+      try{
+        const data = await safeJson(`/api/installbase/by-serial?serial=${encodeURIComponent(s)}`);
+        if(!data || !data.ok || !data.row) return;
 
-      Object.entries(data.row).forEach(([k,v]) => setVal(k, v));
+        Object.entries(data.row).forEach(([k,v]) => setVal(k, v));
+      } finally {
+        hideLoading();
+      }
     }
 
     // events
@@ -339,6 +349,7 @@
         return;
       }
 
+      showLoading("Saving…");
       try{
         const r = await fetch("/api/installbase/save", {
           method: "POST",
@@ -356,6 +367,8 @@
       }catch(err){
         console.log(err);
         alert("Network error while saving.");
+      }finally{
+        hideLoading();
       }
     });
   </script>
