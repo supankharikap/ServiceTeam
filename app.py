@@ -481,6 +481,10 @@ def api_installbase_customer_suggest():
 
     q = (request.args.get("q") or "").strip()
 
+    # ✅ FAST: min 2 chars (blank/focus request band)
+    if len(q) < 2:
+        return jsonify({"items": []})
+
     cols = _table_columns("dbo.InstallBase")
     if not cols:
         return jsonify({"items": []})
@@ -501,14 +505,14 @@ def api_installbase_customer_suggest():
         where_parts.append(base_where.replace(" WHERE ", "", 1))
         params += base_params
 
-    if q:
-        where_parts.append(f"CAST({_qcol(cust_col)} AS NVARCHAR(200)) LIKE ?")
-        params.append(f"%{q}%")
+    # ✅ FAST: prefix match uses index (q%)
+    where_parts.append(f"CAST({_qcol(cust_col)} AS NVARCHAR(200)) LIKE ?")
+    params.append(f"{q}%")
 
     where_sql = " WHERE " + " AND ".join(where_parts) if where_parts else ""
 
     sql = f"""
-        SELECT DISTINCT TOP 30 CAST({_qcol(cust_col)} AS NVARCHAR(200)) AS v
+        SELECT DISTINCT TOP 20 CAST({_qcol(cust_col)} AS NVARCHAR(200)) AS v
         FROM dbo.InstallBase
         {where_sql}
         ORDER BY v
@@ -531,6 +535,10 @@ def api_installbase_serial_suggest():
 
     q = (request.args.get("q") or "").strip()
 
+    # ✅ FAST: min 2 chars
+    if len(q) < 2:
+        return jsonify({"items": []})
+
     cols = _table_columns("dbo.InstallBase")
     if not cols:
         return jsonify({"items": []})
@@ -547,14 +555,14 @@ def api_installbase_serial_suggest():
         where_parts.append(base_where.replace(" WHERE ", "", 1))
         params += base_params
 
-    if q:
-        where_parts.append(f"CAST({_qcol(serial_col)} AS NVARCHAR(200)) LIKE ?")
-        params.append(f"%{q}%")
+    # ✅ FAST: prefix match
+    where_parts.append(f"CAST({_qcol(serial_col)} AS NVARCHAR(200)) LIKE ?")
+    params.append(f"{q}%")
 
     where_sql = " WHERE " + " AND ".join(where_parts) if where_parts else ""
 
     sql = f"""
-        SELECT DISTINCT TOP 30 CAST({_qcol(serial_col)} AS NVARCHAR(200)) AS v
+        SELECT DISTINCT TOP 20 CAST({_qcol(serial_col)} AS NVARCHAR(200)) AS v
         FROM dbo.InstallBase
         {where_sql}
         ORDER BY v

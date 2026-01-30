@@ -76,6 +76,7 @@
     }
     .suggestItem{padding:10px 12px;cursor:pointer;border-bottom:1px solid #f1f5f9;}
     .suggestItem:hover{background:#f8fafc;}
+    .suggestItem.loading{cursor:default;color:var(--muted);font-weight:700;}
 
     @media (max-width:1100px){
       .cards{grid-template-columns:repeat(2,1fr)}
@@ -118,7 +119,6 @@
 
         <button id="btnMasterUpdate" data-roles="Admin,Manager" type="button" onclick="window.open('/installbase/update','_blank','noopener');"> Master Installbase Update</button>
 
-
         <button id="btnBreakdown" data-roles="Admin,Manager,Team Leader,user"
                 onclick="showSection('breakdownSection', this); openBreakdown();">✅ Breakdown Login</button>
 
@@ -136,7 +136,13 @@
       <div class="topbar">
         <div class="title">
           <h1>Service Dashboard</h1>
-          <div class="sub">KGK SERVICE TEAM LOGIN ERP</div>
+          <!-- ✅ ONLY ADD LOADING TEXT HERE (no layout change) -->
+          <div class="sub">
+            KGK SERVICE TEAM LOGIN ERP
+            <span id="globalLoadingText" style="display:none; margin-left:10px; font-weight:800; color:var(--primary);">
+              Loading...
+            </span>
+          </div>
         </div>
 
         <div class="userBox">
@@ -210,7 +216,7 @@
             <div>
               <label>Month/Year</label>
               <input type="month" id="monthYearPick" required>
-               <input type="hidden" name="monthYear" id="monthYearText">
+              <input type="hidden" name="monthYear" id="monthYearText">
             </div>
 
             <div><label>Service Report No</label><input name="serviceReportNo"></div>
@@ -258,7 +264,6 @@
             <div><label>Action Taken</label><textarea name="actionTaken"></textarea></div>
             <div><label>Remarks</label><textarea name="remarks"></textarea></div>
           </div>
-          
 
           <div class="actions">
             <button type="button" class="btn gray" onclick="document.getElementById('wsrForm').reset(); refillReadonly();">Clear</button>
@@ -269,58 +274,79 @@
 
       <section id="reportSection" class="section">
         <div class="sectionHeader">
-          <h2>Report View</h2>          
+          <h2>Report View</h2>
           <small>dbo.WSR table view</small>
-        </div>           
+        </div>
 
         <div style="position:relative; margin:0 0 10px;">
           <div class="searchRow">
             <input id="reportSearch"
-            placeholder="Search report (customer / MMM-YY / engineer / zone...)"
-            autocomplete="off">
+              placeholder="Search report (customer / MMM-YY / engineer / zone...)"
+              autocomplete="off">
             <div style="display:flex; gap:10px; justify-content:flex-end;">
               <button class="btn gray" onclick="reportDoSearch()">🔎 Search</button>
               <button class="btn gray" onclick="reportClear()">✖ Clear</button>
               <button class="btn gray" onclick="loadReport()">🔄 Refresh</button>
-             </div>
             </div>
-            <div id="reportSuggest" class="suggestBox"></div>
-            <div id="reportErr" class="err"></div>
           </div>
-          <div id="reportWrap" class="tableWrap">
-            <table id="dataTable">
-              <thead></thead>
-              <tbody></tbody>
-            </table>
-          </div>
-          <!-- ✅ Buttons moved BELOW the table -->      
-      </div>
-    </section>
-    <section id="breakdownSection" class="section">
-      <div class="sectionHeader">
-        <h2>Breakdown Login</h2>
-        <small>Coming soon</small>
-      </div>
-      <div style="color:var(--muted); line-height:1.6">
-        ✅ Breakdown module will be added here.
-      </div>
-    </section>
-    <section id="weeklyPlanSection" class="section">
-      <div class="sectionHeader">
-        <h2>Weekly Plan</h2>
-        <small>Coming soon</small>
-      </div>
-      <div style="color:var(--muted); line-height:1.6">
-        ✅ Weekly plan module will be added here.
-      </div>
-    </section>
-  </main>
-</div>
+          <div id="reportSuggest" class="suggestBox"></div>
+          <div id="reportErr" class="err"></div>
+        </div>
+
+        <div id="reportWrap" class="tableWrap">
+          <table id="dataTable">
+            <thead></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="breakdownSection" class="section">
+        <div class="sectionHeader">
+          <h2>Breakdown Login</h2>
+          <small>Coming soon</small>
+        </div>
+        <div style="color:var(--muted); line-height:1.6">
+          ✅ Breakdown module will be added here.
+        </div>
+      </section>
+
+      <section id="weeklyPlanSection" class="section">
+        <div class="sectionHeader">
+          <h2>Weekly Plan</h2>
+          <small>Coming soon</small>
+        </div>
+        <div style="color:var(--muted); line-height:1.6">
+          ✅ Weekly plan module will be added here.
+        </div>
+      </section>
+    </main>
+  </div>
+
 <script>
 const SERVER_ENGINEER = "{{ engineer|e }}";
 const SERVER_ZONE = "{{ zone|e }}";
 const SERVER_ROLENAME = "{{ role|e }}";
 const SERVER_TEAM = "{{ team|e }}";
+
+/* ✅ GLOBAL LOADING (only UI, no logic change) */
+const _gText = document.getElementById("globalLoadingText");
+let _loadingCount = 0;
+
+function showLoading(msg="Loading..."){
+  if(!_gText) return;
+  _loadingCount++;
+  _gText.textContent = msg;
+  _gText.style.display = "inline";
+}
+
+function hideLoading(){
+  if(!_gText) return;
+  _loadingCount = Math.max(0, _loadingCount - 1);
+  if(_loadingCount === 0){
+    _gText.style.display = "none";
+  }
+}
 
 function setupMonthYear(){
   const pick = document.getElementById("monthYearPick");
@@ -346,8 +372,6 @@ function formatMMMYY(yyyy_mm){
   const yy = String(y).slice(-2);
   return `${mon}-${yy}`;
 }
-
-
 
 /* ✅ ROLE ACCESS */
 function applyRoleAccess(role){
@@ -396,6 +420,7 @@ function refillReadonly(){
 function logout(){ window.location.href = "/logout"; }
 
 function loadKpis(){
+  showLoading("Loading KPI...");
   fetch("/api/kpi")
     .then(r => r.json())
     .then(k => {
@@ -405,7 +430,8 @@ function loadKpis(){
       document.getElementById("kpiMonth").textContent = k.this_month_reports ?? 0;
       document.getElementById("kpiPending").textContent = k.pending ?? 0;
     })
-    .catch(()=>{});
+    .catch(()=>{})
+    .finally(()=> hideLoading());
 }
 
 function escapeHtml(v){
@@ -441,7 +467,6 @@ document.addEventListener("change", (e)=>{
   if (e.target && e.target.id === "visitCode1") fillVisitCode2();
 });
 
-
 /* ================= ✅ CUSTOMER AUTOSUGGEST + AUTO FILL ================= */
 let csTimer = null;
 
@@ -453,6 +478,7 @@ function setValByName(name, val){
 async function fillWsrFromInstallbase(customer){
   if (!customer) return;
 
+  showLoading("Loading customer data...");
   try{
     const res = await fetch("/api/installbase/rows?customer=" + encodeURIComponent(customer));
     const data = await res.json();
@@ -468,17 +494,21 @@ async function fillWsrFromInstallbase(customer){
     setValByName("contactNumber", row.contact_no || "");
     setValByName("email", row.email || "");
 
-    // optional (if you want)
+    // optional
     setValByName("machineStatus", row.mc_status || row.active_status || "");
     setValByName("inkType", row.ink_type || "");
   }catch(e){
     console.log("fillWsrFromInstallbase error:", e);
+  }finally{
+    hideLoading();
   }
 }
 
 async function fetchCustomerSuggest(q){
+  showLoading("Loading suggestions...");
   const res = await fetch("/api/installbase/customer_suggest?q=" + encodeURIComponent(q || ""));
   const data = await res.json();
+  hideLoading();
   return (data.items || []).slice(0, 12);
 }
 
@@ -505,8 +535,11 @@ function setupCustomerSuggest(){
 
   async function updateSuggest(){
     const q = (inp.value || "").trim();
+    // show loading inside suggest box (UI only)
+    box.innerHTML = `<div class="suggestItem loading">Loading...</div>`;
+    box.style.display = "block";
     try{
-      const items = await fetchCustomerSuggest(q); // ✅ empty allowed -> show list
+      const items = await fetchCustomerSuggest(q); // empty allowed
       renderCustomerSuggest(items);
     }catch{
       hideSuggest("customerSuggest");
@@ -518,16 +551,12 @@ function setupCustomerSuggest(){
     csTimer = setTimeout(updateSuggest, 150);
   }
 
-  // ✅ click/focus -> show first list
   inp.addEventListener("focus", ()=>{ scheduleUpdate(); });
-
-  // ✅ typing -> filter
   inp.addEventListener("input", ()=>{ scheduleUpdate(); });
 
-  // ✅ Enter -> select first item
   inp.addEventListener("keydown", (e)=>{
     if (e.key === "Enter"){
-      const first = box.querySelector(".suggestItem");
+      const first = box.querySelector(".suggestItem:not(.loading)");
       if (first){
         e.preventDefault();
         const v = first.getAttribute("data-v") || "";
@@ -538,17 +567,15 @@ function setupCustomerSuggest(){
     }
   });
 
-  // ✅ click select + autofill
   box.addEventListener("click", (e)=>{
     const it = e.target.closest(".suggestItem");
-    if (!it) return;
+    if (!it || it.classList.contains("loading")) return;
     const v = it.getAttribute("data-v") || "";
     inp.value = v;
     hideSuggest("customerSuggest");
     fillWsrFromInstallbase(v);
   });
 
-  // ✅ if user types full name then blur -> fill
   inp.addEventListener("blur", ()=>{
     setTimeout(()=>{
       const v = (inp.value || "").trim();
@@ -556,7 +583,6 @@ function setupCustomerSuggest(){
     }, 200);
   });
 }
-
 
 /* ================= MASTER ================= */
 function renderTable(columns, rows) {
@@ -589,6 +615,7 @@ async function openMaster(){
 
   const q = (document.getElementById("masterSearch").value || "").trim();
 
+  showLoading("Loading master...");
   try {
     const res = await fetch("/api/master/installbase?limit=2000&q=" + encodeURIComponent(q));
     const data = await res.json();
@@ -607,6 +634,8 @@ async function openMaster(){
     hint.textContent = "Network error";
     errBox.textContent = String(e);
     holder.innerHTML = "";
+  } finally {
+    hideLoading();
   }
 }
 
@@ -620,8 +649,15 @@ function masterClear(){
 /* master suggestions */
 document.getElementById("masterSearch").addEventListener("input", async (e)=>{
   const q = (e.target.value || "").trim();
-  if (q.length < 2){ hideSuggest("masterSuggest"); return; }
   const box = document.getElementById("masterSuggest");
+
+  if (q.length < 2){ hideSuggest("masterSuggest"); return; }
+
+  // UI only
+  box.innerHTML = `<div class="suggestItem loading">Loading...</div>`;
+  box.style.display = "block";
+
+  showLoading("Loading suggestions...");
   try{
     const res = await fetch("/api/master/installbase/suggest?q=" + encodeURIComponent(q));
     const data = await res.json();
@@ -631,16 +667,18 @@ document.getElementById("masterSearch").addEventListener("input", async (e)=>{
     box.style.display = "block";
   }catch{
     hideSuggest("masterSuggest");
+  }finally{
+    hideLoading();
   }
 });
+
 document.getElementById("masterSuggest").addEventListener("click", (e)=>{
   const it = e.target.closest(".suggestItem");
-  if (!it) return;
+  if (!it || it.classList.contains("loading")) return;
   document.getElementById("masterSearch").value = it.getAttribute("data-v") || "";
   hideSuggest("masterSuggest");
   openMaster();
 });
-
 
 /* ================= REPORT ================= */
 function reportDoSearch(){ loadReport(); }
@@ -655,6 +693,7 @@ async function loadReport(){
   errBox.textContent = "";
   const q = (document.getElementById("reportSearch").value || "").trim();
 
+  showLoading("Loading report...");
   try{
     const res = await fetch("/api/report?limit=2000&q=" + encodeURIComponent(q));
     const data = await res.json();
@@ -691,14 +730,23 @@ async function loadReport(){
     });
   }catch(e){
     errBox.textContent = String(e);
+  }finally{
+    hideLoading();
   }
 }
 
 /* report suggestions */
 document.getElementById("reportSearch").addEventListener("input", async (e)=>{
   const q = (e.target.value || "").trim();
-  if (q.length < 2){ hideSuggest("reportSuggest"); return; }
   const box = document.getElementById("reportSuggest");
+
+  if (q.length < 2){ hideSuggest("reportSuggest"); return; }
+
+  // UI only
+  box.innerHTML = `<div class="suggestItem loading">Loading...</div>`;
+  box.style.display = "block";
+
+  showLoading("Loading suggestions...");
   try{
     const res = await fetch("/api/report/suggest?q=" + encodeURIComponent(q));
     const data = await res.json();
@@ -708,16 +756,18 @@ document.getElementById("reportSearch").addEventListener("input", async (e)=>{
     box.style.display = "block";
   }catch{
     hideSuggest("reportSuggest");
+  }finally{
+    hideLoading();
   }
 });
+
 document.getElementById("reportSuggest").addEventListener("click", (e)=>{
   const it = e.target.closest(".suggestItem");
-  if (!it) return;
+  if (!it || it.classList.contains("loading")) return;
   document.getElementById("reportSearch").value = it.getAttribute("data-v") || "";
   hideSuggest("reportSuggest");
   loadReport();
 });
-
 
 /* generic hide */
 function hideSuggest(id){
@@ -746,6 +796,7 @@ document.getElementById("wsrForm").addEventListener("submit", function(e){
   data.engineerName = SERVER_ENGINEER || "";
   data.zone = SERVER_ZONE || "";
 
+  showLoading("Saving WSR...");
   fetch("/api/wsr", {
     method: "POST",
     headers: {"Content-Type":"application/json"},
@@ -760,7 +811,8 @@ document.getElementById("wsrForm").addEventListener("submit", function(e){
       loadReport();
     }
   })
-  .catch(()=> alert("Error saving WSR"));
+  .catch(()=> alert("Error saving WSR"))
+  .finally(()=> hideLoading());
 });
 
 /* INIT */
@@ -776,7 +828,7 @@ window.onload = function(){
   loadKpis();
   applyRoleAccess(SERVER_ROLENAME);
   fillVisitCode2();
-  setupCustomerSuggest();   // ✅ no 2-char wait now
+  setupCustomerSuggest();
 };
 </script>
 
