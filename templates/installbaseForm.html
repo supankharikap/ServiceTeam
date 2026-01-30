@@ -1,0 +1,314 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>InstallBase Form</title>
+
+  <style>
+    :root{
+      --bg:#f5f7fb; --card:#fff; --text:#0f172a; --muted:#64748b;
+      --border:#e5e7eb; --primary:#1a73e8; --radius:14px;
+      --shadow: 0 10px 25px rgba(0,0,0,.08);
+    }
+    *{box-sizing:border-box}
+    body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;background:var(--bg);color:var(--text);}
+    .wrap{max-width:1200px;margin:24px auto;padding:0 16px;}
+    .header{display:flex;gap:12px;align-items:center;justify-content:space-between;margin-bottom:14px;}
+    .title{font-size:20px;font-weight:800;}
+    .sub{color:var(--muted);font-size:13px;margin-top:2px}
+    .card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);padding:16px;}
+    fieldset{border:1px solid var(--border);border-radius:12px;padding:12px;margin:0 0 12px 0;}
+    legend{padding:0 8px;color:var(--muted);font-weight:700;font-size:12px;letter-spacing:.4px;text-transform:uppercase;}
+    .grid{display:grid;grid-template-columns:repeat(12,1fr);gap:10px;align-items:start;}
+    .f{grid-column:span 3;}
+    .f.span-6{grid-column:span 6;}
+    .f.span-12{grid-column:span 12;}
+
+    label{display:block;font-size:12px;color:var(--muted);margin:0 0 6px 2px;}
+    input, textarea{
+      width:100%; border:1px solid var(--border); border-radius:12px;
+      padding:10px 12px; outline:none; background:#fff; color:var(--text);
+      font-size:14px;
+    }
+    textarea{min-height:84px;resize:vertical}
+    input:focus, textarea:focus{border-color:var(--primary); box-shadow:0 0 0 4px rgba(26,115,232,.12);}
+    .actions{display:flex;gap:10px;justify-content:flex-end;margin-top:10px;}
+    .btn{
+      border:1px solid var(--border); background:#fff; padding:10px 14px;
+      border-radius:12px; cursor:pointer; font-weight:700;
+    }
+    .btn.primary{background:var(--primary);border-color:var(--primary);color:#fff;}
+    .pill{
+      display:inline-flex;gap:8px;align-items:center;
+      padding:6px 10px;border-radius:999px;border:1px solid var(--border);
+      color:var(--muted);font-size:12px;background:#fff;
+    }
+
+    @media (max-width: 980px){
+      .f{grid-column:span 6;}
+      .f.span-6{grid-column:span 12;}
+    }
+    @media (max-width: 520px){
+      .f{grid-column:span 12;}
+      .header{flex-direction:column;align-items:flex-start}
+      .actions{justify-content:stretch}
+      .btn{width:100%}
+    }
+  </style>
+</head>
+
+<body>
+  <div class="wrap">
+    <div class="header">
+      <div>
+        <div class="title">InstallBase Entry Form</div>
+        <div class="sub">Search by Customer / Serial, then update & save</div>
+      </div>
+      <div class="pill" id="todayPill">📅 Today: —</div>
+    </div>
+
+    <form class="card" id="installbaseForm" autocomplete="off">
+      <!-- CUSTOMER + SERIAL -->
+      <fieldset>
+        <legend>Search / Update</legend>
+        <div class="grid">
+          <div class="f span-6">
+            <label for="customer_name">Customer Name *</label>
+            <input id="customer_name" name="customer_name" required list="dl_customer" placeholder="Type customer..." />
+            <datalist id="dl_customer"></datalist>
+          </div>
+
+          <div class="f span-6">
+            <label for="serial_no">Serial No *</label>
+            <input id="serial_no" name="serial_no" required list="dl_serial" placeholder="Type serial..." />
+            <datalist id="dl_serial"></datalist>
+          </div>
+        </div>
+      </fieldset>
+
+      <!-- BASIC -->
+      <fieldset>
+        <legend>Basic</legend>
+        <div class="grid">
+          <div class="f">
+            <label for="zone">ZONE</label>
+            <input id="zone" name="zone" type="text" />
+          </div>
+          <div class="f">
+            <label for="sales_engr">SALES ENGR</label>
+            <input id="sales_engr" name="sales_engr" type="text" />
+          </div>
+          <div class="f">
+            <label for="service_engr">SERVICE ENGR</label>
+            <input id="service_engr" name="service_engr" type="text" />
+          </div>
+          <div class="f">
+            <label for="cluster_no">Cluster No</label>
+            <input id="cluster_no" name="cluster_no" type="text" />
+          </div>
+        </div>
+      </fieldset>
+
+      <!-- CUSTOMER -->
+      <fieldset>
+        <legend>Customer</legend>
+        <div class="grid">
+          <div class="f">
+            <label for="location">LOCATION</label>
+            <input id="location" name="location" type="text" />
+          </div>
+          <div class="f">
+            <label for="state">STATE</label>
+            <input id="state" name="state" type="text" />
+          </div>
+          <div class="f span-12">
+            <label for="address">Address</label>
+            <textarea id="address" name="address"></textarea>
+          </div>
+        </div>
+      </fieldset>
+
+      <!-- MACHINE -->
+      <fieldset>
+        <legend>Machine</legend>
+        <div class="grid">
+          <div class="f">
+            <label for="machine_type">Machine Type</label>
+            <input id="machine_type" name="machine_type" type="text" />
+          </div>
+          <div class="f">
+            <label for="model">Model</label>
+            <input id="model" name="model" type="text" />
+          </div>
+          <div class="f">
+            <label for="ink_type">Ink type</label>
+            <input id="ink_type" name="ink_type" type="text" />
+          </div>
+          <div class="f">
+            <label for="active_status">Active Status</label>
+            <input id="active_status" name="active_status" type="text" placeholder="Active / Inactive" />
+          </div>
+          <div class="f">
+            <label for="mc_status">Mc Status</label>
+            <input id="mc_status" name="mc_status" type="text" />
+          </div>
+        </div>
+      </fieldset>
+
+      <!-- actions -->
+      <div class="actions">
+        <button class="btn" type="reset">Reset</button>
+        <button class="btn primary" type="submit">Save</button>
+      </div>
+    </form>
+  </div>
+
+  <script>
+    // Today pill
+    const today = new Date();
+    document.getElementById("todayPill").textContent = "📅 Today: " + today.toISOString().slice(0,10);
+
+    function debounce(fn, delay=250){
+      let t; return (...args)=>{ clearTimeout(t); t=setTimeout(()=>fn(...args), delay); };
+    }
+
+    // ✅ Safe JSON fetch (no crash even if 401/HTML)
+    async function safeJson(url){
+      const r = await fetch(url, {
+        method: "GET",
+        credentials: "include",
+        headers: {"Accept":"application/json"}
+      });
+      if(!r.ok) return null;
+      const ct = (r.headers.get("content-type") || "").toLowerCase();
+      if(!ct.includes("application/json")) return null;
+      return await r.json().catch(()=>null);
+    }
+
+    // ✅ Suggest loader
+    async function loadSuggest(apiBase, q, datalistId){
+      try{
+        const data = await safeJson(apiBase + encodeURIComponent(q || ""));
+        if(!data) return;
+
+        const dl = document.getElementById(datalistId);
+        if(!dl) return;
+
+        dl.innerHTML = (data.items || [])
+          .map(x => `<option value="${String(x).replace(/"/g,'&quot;')}"></option>`)
+          .join("");
+      }catch(e){
+        console.log("Suggest error:", e);
+      }
+    }
+
+    // CUSTOMER suggest
+    const cust = document.getElementById("customer_name");
+    cust.addEventListener("input", debounce(() => {
+      loadSuggest("/api/installbase/customer_suggest?q=", cust.value.trim(), "dl_customer");
+    }, 250));
+    cust.addEventListener("focus", () => loadSuggest("/api/installbase/customer_suggest?q=", "", "dl_customer"));
+
+    // SERIAL suggest
+    const serial = document.getElementById("serial_no");
+    serial.addEventListener("input", debounce(() => {
+      loadSuggest("/api/installbase/serial_suggest?q=", serial.value.trim(), "dl_serial");
+    }, 250));
+    serial.addEventListener("focus", () => loadSuggest("/api/installbase/serial_suggest?q=", "", "dl_serial"));
+
+    function setVal(id, v){
+      const el = document.getElementById(id);
+      if(el) el.value = (v ?? "");
+    }
+
+    // ✅ Fill from /api/installbase/rows (ONLY fields that exist in this HTML)
+    function fillFromRow(r){
+      setVal("customer_name", r.customer_name);
+      setVal("serial_no", r.serial_no);
+      setVal("zone", r.zone);
+      setVal("sales_engr", r.sales_engr);
+      setVal("service_engr", r.service_engr);
+      setVal("cluster_no", r.cluster_no);
+      setVal("location", r.location);
+      setVal("state", r.state);
+      setVal("address", r.address);
+      setVal("machine_type", r.machine_type);
+      setVal("model", r.model);
+      setVal("ink_type", r.ink_type);
+      setVal("active_status", r.active_status);
+      setVal("mc_status", r.mc_status);
+    }
+
+    // ✅ Load by CUSTOMER
+    async function loadByCustomer(customer){
+      if(!customer) return;
+      const data = await safeJson(`/api/installbase/rows?customer=${encodeURIComponent(customer)}`);
+      if(!data || !data.ok) return;
+
+      const rows = data.rows || [];
+      if(rows.length === 0) return;
+
+      // fill first row
+      fillFromRow(rows[0]);
+
+      // set serial list for this customer
+      const dl = document.getElementById("dl_serial");
+      if(dl){
+        dl.innerHTML = rows
+          .map(r => (r.serial_no || "").trim())
+          .filter(v => v)
+          .map(v => `<option value="${v.replace(/"/g,'&quot;')}"></option>`)
+          .join("");
+      }
+    }
+
+    // ✅ Load by SERIAL (autofill)
+    async function loadBySerial(s){
+      if(!s) return;
+      const data = await safeJson(`/api/installbase/by-serial?serial=${encodeURIComponent(s)}`);
+      if(!data || !data.ok || !data.row) return;
+
+      Object.entries(data.row).forEach(([k,v]) => setVal(k, v));
+    }
+
+    // events
+    cust.addEventListener("change", () => loadByCustomer(cust.value.trim()));
+    cust.addEventListener("blur",   () => loadByCustomer(cust.value.trim()));
+
+    serial.addEventListener("change", () => loadBySerial(serial.value.trim()));
+    serial.addEventListener("blur",   () => loadBySerial(serial.value.trim()));
+
+    // SAVE
+    document.getElementById("installbaseForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const fd = new FormData(e.target);
+      const payload = Object.fromEntries(fd.entries());
+
+      if(!payload.customer_name || !payload.serial_no){
+        alert("Customer Name & Serial No required!");
+        return;
+      }
+
+      try{
+        const r = await fetch("/api/installbase/save", {
+          method: "POST",
+          credentials: "include",
+          headers: {"Content-Type":"application/json", "Accept":"application/json"},
+          body: JSON.stringify(payload)
+        });
+
+        const j = await r.json().catch(()=>null);
+        if(!r.ok || !j || !j.ok){
+          alert((j && j.message) ? j.message : "Save failed");
+          return;
+        }
+        alert(j.message || "Saved!");
+      }catch(err){
+        console.log(err);
+        alert("Network error while saving.");
+      }
+    });
+  </script>
+</body>
+</html>
