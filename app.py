@@ -123,6 +123,12 @@ def _require_login_json():
     return None
 
 
+# ✅ helper: case-insensitive trim compare expression (NO logic change, only safe matching)
+def _cmp_ci_trim(colname: str) -> str:
+    # compare column as NVARCHAR, trimmed, upper
+    return f"UPPER(LTRIM(RTRIM(CAST({_qcol(colname)} AS NVARCHAR(200)))))"
+
+
 # ===================== AUTH =====================
 def get_user(username: str):
     with get_conn() as conn:
@@ -197,7 +203,6 @@ def logout():
 def installbase_update():
     if "user" not in session:
         return redirect(url_for("home"))
-    # ✅ make sure file name matches in templates/
     return render_template("installbaseForm.html")
 
 
@@ -208,6 +213,9 @@ def _is_manager_like(role: str) -> bool:
 
 
 def _installbase_scope_where(install_cols):
+    """
+    ✅ FIX: engineer/zone match now TRIM+UPPER, so SUPAN KHARIKAP / Supan Kharikap / trailing spaces all match.
+    """
     role = (session.get("role") or "").strip().lower()
     zone = (session.get("zone") or "").strip()
     eng  = (session.get("engineer") or "").strip()
@@ -224,23 +232,23 @@ def _installbase_scope_where(install_cols):
 
     if _is_manager_like(role):
         if zone and zone_col:
-            where.append(f"{_qcol(zone_col)} = ?")
+            where.append(f"{_cmp_ci_trim(zone_col)} = UPPER(?)")
             params.append(zone)
         return (" WHERE " + " AND ".join(where)) if where else "", params
 
     if zone and zone_col:
-        where.append(f"{_qcol(zone_col)} = ?")
+        where.append(f"{_cmp_ci_trim(zone_col)} = UPPER(?)")
         params.append(zone)
 
     if eng and (svc_col or sales_col):
         if svc_col and sales_col:
-            where.append(f"({_qcol(svc_col)} = ? OR {_qcol(sales_col)} = ?)")
+            where.append(f"({_cmp_ci_trim(svc_col)} = UPPER(?) OR {_cmp_ci_trim(sales_col)} = UPPER(?))")
             params.extend([eng, eng])
         elif svc_col:
-            where.append(f"{_qcol(svc_col)} = ?")
+            where.append(f"{_cmp_ci_trim(svc_col)} = UPPER(?)")
             params.append(eng)
         elif sales_col:
-            where.append(f"{_qcol(sales_col)} = ?")
+            where.append(f"{_cmp_ci_trim(sales_col)} = UPPER(?)")
             params.append(eng)
 
     return (" WHERE " + " AND ".join(where)) if where else "", params
@@ -261,11 +269,11 @@ def _wsr_scope_where(wsr_cols):
     params = []
 
     if zone and zone_col:
-        where.append(f"{_qcol(zone_col)} = ?")
+        where.append(f"{_cmp_ci_trim(zone_col)} = UPPER(?)")
         params.append(zone)
 
     if (not _is_manager_like(role)) and eng and eng_col:
-        where.append(f"{_qcol(eng_col)} = ?")
+        where.append(f"{_cmp_ci_trim(eng_col)} = UPPER(?)")
         params.append(eng)
 
     return (" WHERE " + " AND ".join(where)) if where else "", params
@@ -481,10 +489,6 @@ def api_installbase_customer_suggest():
 
     q = (request.args.get("q") or "").strip()
 
-    # ✅ FAST: min 2 chars (blank/focus request band)
-    if len(q) < 2:
-        return jsonify({"items": []})
-
     cols = _table_columns("dbo.InstallBase")
     if not cols:
         return jsonify({"items": []})
@@ -505,14 +509,14 @@ def api_installbase_customer_suggest():
         where_parts.append(base_where.replace(" WHERE ", "", 1))
         params += base_params
 
-    # ✅ FAST: prefix match uses index (q%)
-    where_parts.append(f"CAST({_qcol(cust_col)} AS NVARCHAR(200)) LIKE ?")
-    params.append(f"{q}%")
+    if q:
+        where_parts.append(f"CAST({_qcol(cust_col)} AS NVARCHAR(200)) LIKE ?")
+        params.append(f"%{q}%")
 
     where_sql = " WHERE " + " AND ".join(where_parts) if where_parts else ""
 
     sql = f"""
-        SELECT DISTINCT TOP 20 CAST({_qcol(cust_col)} AS NVARCHAR(200)) AS v
+        SELECT DISTINCT TOP 30 CAST({_qcol(cust_col)} AS NVARCHAR(200)) AS v
         FROM dbo.InstallBase
         {where_sql}
         ORDER BY v
@@ -535,10 +539,6 @@ def api_installbase_serial_suggest():
 
     q = (request.args.get("q") or "").strip()
 
-    # ✅ FAST: min 2 chars
-    if len(q) < 2:
-        return jsonify({"items": []})
-
     cols = _table_columns("dbo.InstallBase")
     if not cols:
         return jsonify({"items": []})
@@ -555,14 +555,14 @@ def api_installbase_serial_suggest():
         where_parts.append(base_where.replace(" WHERE ", "", 1))
         params += base_params
 
-    # ✅ FAST: prefix match
-    where_parts.append(f"CAST({_qcol(serial_col)} AS NVARCHAR(200)) LIKE ?")
-    params.append(f"{q}%")
+    if q:
+        where_parts.append(f"CAST({_qcol(serial_col)} AS NVARCHAR(200)) LIKE ?")
+        params.append(f"%{q}%")
 
     where_sql = " WHERE " + " AND ".join(where_parts) if where_parts else ""
 
     sql = f"""
-        SELECT DISTINCT TOP 20 CAST({_qcol(serial_col)} AS NVARCHAR(200)) AS v
+        SELECT DISTINCT TOP 30 CAST({_qcol(serial_col)} AS NVARCHAR(200)) AS v
         FROM dbo.InstallBase
         {where_sql}
         ORDER BY v

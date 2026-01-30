@@ -78,6 +78,23 @@
     .suggestItem:hover{background:#f8fafc;}
     .suggestItem.loading{cursor:default;color:var(--muted);font-weight:700;}
 
+    /* ✅ GLOBAL LOADING OVERLAY (always visible) */
+    #globalLoadingBadge{
+      position: fixed;
+      right: 18px;
+      top: 14px;
+      z-index: 99999;
+      display: none;
+      padding: 8px 12px;
+      border-radius: 999px;
+      background: #ffffff;
+      border: 1px solid var(--border);
+      box-shadow: var(--shadow);
+      font-size: 13px;
+      font-weight: 800;
+      color: var(--primary);
+    }
+
     @media (max-width:1100px){
       .cards{grid-template-columns:repeat(2,1fr)}
       .grid{grid-template-columns:repeat(2,1fr)}
@@ -94,6 +111,9 @@
 </head>
 
 <body>
+  <!-- ✅ Global loading badge (no layout change) -->
+  <div id="globalLoadingBadge">Loading...</div>
+
   <div class="app">
     <aside class="sidebar">
       <div class="brand">
@@ -117,7 +137,8 @@
         <button id="btnMasterView" data-roles="Admin,Manager,Team Leader,User"
                 onclick="showSection('masterSection', this); openMaster();">📄 Master Installbase View</button>
 
-        <button id="btnMasterUpdate" data-roles="Admin,Manager" type="button" onclick="window.open('/installbase/update','_blank','noopener');"> Master Installbase Update</button>
+        <button id="btnMasterUpdate" data-roles="Admin,Manager" type="button"
+                onclick="window.open('/installbase/update','_blank','noopener');"> Master Installbase Update</button>
 
         <button id="btnBreakdown" data-roles="Admin,Manager,Team Leader,user"
                 onclick="showSection('breakdownSection', this); openBreakdown();">✅ Breakdown Login</button>
@@ -136,13 +157,7 @@
       <div class="topbar">
         <div class="title">
           <h1>Service Dashboard</h1>
-          <!-- ✅ ONLY ADD LOADING TEXT HERE (no layout change) -->
-          <div class="sub">
-            KGK SERVICE TEAM LOGIN ERP
-            <span id="globalLoadingText" style="display:none; margin-left:10px; font-weight:800; color:var(--primary);">
-              Loading...
-            </span>
-          </div>
+          <div class="sub">KGK SERVICE TEAM LOGIN ERP</div>
         </div>
 
         <div class="userBox">
@@ -330,21 +345,21 @@ const SERVER_ROLENAME = "{{ role|e }}";
 const SERVER_TEAM = "{{ team|e }}";
 
 /* ✅ GLOBAL LOADING (only UI, no logic change) */
-const _gText = document.getElementById("globalLoadingText");
+const _gText = document.getElementById("globalLoadingBadge");
 let _loadingCount = 0;
 
 function showLoading(msg="Loading..."){
   if(!_gText) return;
   _loadingCount++;
-  _gText.textContent = msg;
-  _gText.style.display = "inline";
+  _gText.textContent = msg || "Loading...";
+  _gText.style.display = "inline-flex";
 }
-
 function hideLoading(){
   if(!_gText) return;
   _loadingCount = Math.max(0, _loadingCount - 1);
   if(_loadingCount === 0){
     _gText.style.display = "none";
+    _gText.textContent = "Loading...";
   }
 }
 
@@ -487,14 +502,12 @@ async function fillWsrFromInstallbase(customer){
     const row = (data.rows && data.rows.length) ? data.rows[0] : null;
     if (!row) return;
 
-    // ✅ Fill upto Email
     setValByName("location", row.location || "");
     setValByName("contactPerson", row.contact_person || "");
     setValByName("designation", row.designation || "");
     setValByName("contactNumber", row.contact_no || "");
     setValByName("email", row.email || "");
 
-    // optional
     setValByName("machineStatus", row.mc_status || row.active_status || "");
     setValByName("inkType", row.ink_type || "");
   }catch(e){
@@ -505,10 +518,8 @@ async function fillWsrFromInstallbase(customer){
 }
 
 async function fetchCustomerSuggest(q){
-  showLoading("Loading suggestions...");
   const res = await fetch("/api/installbase/customer_suggest?q=" + encodeURIComponent(q || ""));
   const data = await res.json();
-  hideLoading();
   return (data.items || []).slice(0, 12);
 }
 
@@ -535,7 +546,6 @@ function setupCustomerSuggest(){
 
   async function updateSuggest(){
     const q = (inp.value || "").trim();
-    // show loading inside suggest box (UI only)
     box.innerHTML = `<div class="suggestItem loading">Loading...</div>`;
     box.style.display = "block";
     try{
@@ -653,7 +663,6 @@ document.getElementById("masterSearch").addEventListener("input", async (e)=>{
 
   if (q.length < 2){ hideSuggest("masterSuggest"); return; }
 
-  // UI only
   box.innerHTML = `<div class="suggestItem loading">Loading...</div>`;
   box.style.display = "block";
 
@@ -671,7 +680,6 @@ document.getElementById("masterSearch").addEventListener("input", async (e)=>{
     hideLoading();
   }
 });
-
 document.getElementById("masterSuggest").addEventListener("click", (e)=>{
   const it = e.target.closest(".suggestItem");
   if (!it || it.classList.contains("loading")) return;
@@ -742,7 +750,6 @@ document.getElementById("reportSearch").addEventListener("input", async (e)=>{
 
   if (q.length < 2){ hideSuggest("reportSuggest"); return; }
 
-  // UI only
   box.innerHTML = `<div class="suggestItem loading">Loading...</div>`;
   box.style.display = "block";
 
@@ -760,7 +767,6 @@ document.getElementById("reportSearch").addEventListener("input", async (e)=>{
     hideLoading();
   }
 });
-
 document.getElementById("reportSuggest").addEventListener("click", (e)=>{
   const it = e.target.closest(".suggestItem");
   if (!it || it.classList.contains("loading")) return;
