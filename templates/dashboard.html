@@ -51,7 +51,7 @@
     .sectionHeader small{color:var(--muted)}
 
     .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;}
-    label{font-size:12px;color:var(--muted);display:block;margin-bottom:6px}  
+    label{font-size:12px;color:var(--muted);display:block;margin-bottom:6px}
 
     input,select,textarea{width:100%;padding:10px;border:1px solid var(--border);border-radius:12px;font-size:14px;outline:none;background:#fff;}
     textarea{min-height:90px;resize:vertical;}
@@ -77,25 +77,40 @@
     .suggestItem{padding:10px 12px;cursor:pointer;border-bottom:1px solid #f1f5f9;}
     .suggestItem:hover{background:#f8fafc;}
     .suggestItem.loading{cursor:default;color:var(--muted);font-weight:700;}
-    #globalLoadingBadge{
-  position: fixed;
-  left: 50%;
-  top: 50%;
-  transform: translate(-50%, -50%);
-  z-index: 99999;
 
-  display: none;
-  padding: 14px 18px;
-  border-radius: 14px;
-
-  background: #ffffff;
-  border: 1px solid var(--border);
-  box-shadow: 0 20px 50px rgba(0,0,0,.18);
-
-  font-size: 14px;
-  font-weight: 800;
-  color: var(--primary);
-}
+    /* ✅✅ GLOBAL LOADING - CENTER OVERLAY (NO side floater) */
+    #globalLoadingOverlay{
+      position:fixed;
+      inset:0;
+      display:none;
+      align-items:center;
+      justify-content:center;
+      background:rgba(15, 23, 42, .22);
+      backdrop-filter: blur(2px);
+      z-index: 99999;
+    }
+    .glBox{
+      background:#fff;
+      border:1px solid var(--border);
+      box-shadow: var(--shadow);
+      border-radius: 16px;
+      padding: 14px 16px;
+      display:flex;
+      align-items:center;
+      gap:10px;
+      min-width: 180px;
+      justify-content:center;
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--text);
+    }
+    .glSpinner{
+      width:16px;height:16px;border-radius:50%;
+      border:2px solid rgba(26,115,232,.35);
+      border-top-color: var(--primary);
+      animation: spin .8s linear infinite;
+    }
+    @keyframes spin{to{transform:rotate(360deg)}}
 
     @media (max-width:1100px){
       .cards{grid-template-columns:repeat(2,1fr)}
@@ -108,13 +123,18 @@
       .grid{grid-template-columns:1fr}
       table{min-width:1200px}
       .sidebarFooter{position:relative;left:0;right:0;bottom:0;margin-top:12px;}
-      
     }
   </style>
 </head>
 
 <body>
-  <div id="globalLoadingBadge">Loading...</div>
+  <!-- ✅ Center Loading Overlay -->
+  <div id="globalLoadingOverlay">
+    <div class="glBox">
+      <span class="glSpinner"></span>
+      <span id="globalLoadingText">Loading...</span>
+    </div>
+  </div>
 
   <div class="app">
     <aside class="sidebar">
@@ -140,7 +160,7 @@
                 onclick="showSection('weeklyPlanSection', this);">✅ Weekly Plan</button>
 
         <button id="btnWeeklyPlanView" data-roles="Admin,Manager,Team Leader,User"
-                onclick="showSection('weeklyWiewPlanSection', this);">✅ Weekly Plan Report</button>       
+                onclick="showSection('weeklyWiewPlanSection', this);">✅ Weekly Plan Report</button>
 
         <button id="btnMasterView" data-roles="Admin,Manager,Team Leader,User"
                 onclick="showSection('masterSection', this); openMaster();">📄 Master Installbase View</button>
@@ -223,14 +243,8 @@
         <div id="masterTable"></div>
       </section>
 
-      <!-- ✅ WEEKLY PLAN View -->
-       
-
-
-
-
-      <!-- ✅ WEEKLY PLAN -->
-      <section id="weeklyPlnSection" class="section">
+      <!-- ✅✅ WEEKLY PLAN (FIXED ID: weeklyPlanSection) -->
+      <section id="weeklyPlanSection" class="section">
         <div class="sectionHeader">
           <h2>Weekly Plan</h2>
           <small>Add weekly service planning</small>
@@ -444,7 +458,7 @@
 
             <div><label>Action Taken (in brief)</label><textarea name="actionTaken"></textarea></div>
             <div><label>Customer Feedback</label><textarea name="customerFeedback"></textarea></div>
-            
+
             <div><label>Call Status </label>
               <select name="callStatus">
                 <option value="">--Select--</option>
@@ -513,7 +527,6 @@
         </div>
       </section>
 
-
       <section id="weeklyWiewPlanSection" class="section">
         <div class="sectionHeader">
           <h2>Planning Report</h2>
@@ -523,7 +536,6 @@
           ✅ Planing module will be added Soon.
         </div>
       </section>
-
 
     </main>
   </div>
@@ -538,22 +550,23 @@ const SERVER_ROLENAME = "{{ role|e }}";
 const SERVER_TEAM = "{{ team|e }}";
 
 /* ===========================
-   LOADING BADGE
+   LOADING OVERLAY (CENTER)
 =========================== */
-const _gText = document.getElementById("globalLoadingBadge");
+const _gOverlay = document.getElementById("globalLoadingOverlay");
+const _gText = document.getElementById("globalLoadingText");
 let _loadingCount = 0;
 
 function showLoading(msg="Loading..."){
-  if(!_gText) return;
+  if(!_gOverlay || !_gText) return;
   _loadingCount++;
   _gText.textContent = msg || "Loading...";
-  _gText.style.display = "inline-flex";
+  _gOverlay.style.display = "flex";
 }
 function hideLoading(){
-  if(!_gText) return;
+  if(!_gOverlay || !_gText) return;
   _loadingCount = Math.max(0, _loadingCount - 1);
   if(_loadingCount === 0){
-    _gText.style.display = "none";
+    _gOverlay.style.display = "none";
     _gText.textContent = "Loading...";
   }
 }
@@ -624,17 +637,13 @@ function getField(row, keys, containsPatterns){
   );
 }
 
-/* ✅ IMPORTANT: LOCATION ONLY (address match nahi karega) */
+/* ✅ IMPORTANT: LOCATION ONLY */
 function getLocationFromRow(r){
   return getField(r, ["LOCATION","Location","location"], ["location"]);
 }
-
-/* ✅ Model from DB */
 function getModelFromRow(r){
   return getField(r, ["Model","MODEL","model"], ["model"]);
 }
-
-/* ✅ Serial from DB */
 function getSerialFromRow(r){
   return getField(r,
     ["Serial No.","Serial No","SERIAL NO.","Serial","serialNo","serial_no","srNo","sr_no"],
@@ -642,10 +651,6 @@ function getSerialFromRow(r){
   );
 }
 
-function setValByName(name, val){
-  const el = document.querySelector(`[name="${name}"]`);
-  if (el) el.value = (val ?? "");
-}
 function setWsrValByName(name, val){
   const form = document.getElementById("wsrForm");
   if(!form) return;
@@ -794,7 +799,7 @@ async function fetchCustomerSuggest(q){
 }
 
 /* ===========================
-   ✅ ONE SINGLE setupListSuggest (click -> open)
+   ✅ ONE SINGLE setupListSuggest
 =========================== */
 function setupListSuggest({ inputId, boxId, getList, onPick }){
   const inp = document.getElementById(inputId);
@@ -813,9 +818,7 @@ function setupListSuggest({ inputId, boxId, getList, onPick }){
     box.style.display = "block";
   }
 
-  function openAll(){
-    render(getList());
-  }
+  function openAll(){ render(getList()); }
 
   function filterNow(){
     const q = (inp.value || "").trim().toLowerCase();
@@ -844,9 +847,7 @@ function setupListSuggest({ inputId, boxId, getList, onPick }){
         if(onPick) onPick(v);
       }
     }
-    if(e.key === "ArrowDown"){
-      openAll();
-    }
+    if(e.key === "ArrowDown"){ openAll(); }
   });
 
   box.addEventListener("click", (e)=>{
@@ -868,7 +869,7 @@ function setupListSuggest({ inputId, boxId, getList, onPick }){
 }
 
 /* ===========================
-   WSR: CASCADE (Customer -> Location -> Model -> Serial -> Fill)
+   WSR: CASCADE
 =========================== */
 let _wsrRowsCache = [];
 
@@ -890,10 +891,7 @@ function fillWsrBaseFieldsFromRow(row){
     ["Contact Person1","Contact Person 1","contactPerson1","contact_person1","contactPerson","contact_person","Contact Person Name","Contact Person"],
     ["contactperson1","contactperson","contact person"]
   ));
-  setWsrValByName("designation", getField(row,
-    ["Designation","designation","Designation (1)"],
-    ["designation"]
-  ));
+  setWsrValByName("designation", getField(row, ["Designation","designation","Designation (1)"], ["designation"]));
   setWsrValByName("contactNumber", getField(row,
     ["Contact No.","Contact No","Contact No. (1)","Contact Number","contactNumber","contact_no","Phone","phone","mobile"],
     ["contactno","contact number","phone","mobile"]
@@ -940,14 +938,11 @@ function onWsrLocationPicked(){
   hideSuggest("wsrModelSuggest");
   hideSuggest("wsrSerialSuggest");
 }
-
 function onWsrModelPicked(){
   const ser = document.getElementById("wsr_serialNo");
   if(ser) ser.value = "";
   hideSuggest("wsrSerialSuggest");
-  // model pick ke baad user serial pick kare (dropdown click pe open hoga)
 }
-
 function onWsrSerialPicked(){
   const loc = normVal(document.getElementById("wsr_location")?.value);
   const model = normVal(document.getElementById("wsr_printerModel")?.value);
@@ -976,7 +971,6 @@ async function loadWsrCustomer(customer){
     const rows = data.rows || [];
     _wsrRowsCache = rows;
 
-    // Contact/Email etc. from first row
     if(rows.length){
       fillWsrBaseFieldsFromRow(rows[0]);
     }
@@ -989,7 +983,6 @@ async function loadWsrCustomer(customer){
     if(modEl) modEl.value = "";
     if(serEl) serEl.value = "";
 
-    // ✅ Auto pick location ONLY if single unique
     if(rows.length && locEl){
       const allLocs = uniq(rows.map(getLocationFromRow));
       if(allLocs.length === 1){
@@ -998,7 +991,6 @@ async function loadWsrCustomer(customer){
       }
     }
 
-    // ✅ Model: do NOT force; only auto pick if single unique for selected location
     if(rows.length && modEl){
       const modelsForLoc = uniq(wsrFilteredByLocation().map(getModelFromRow));
       if(modelsForLoc.length === 1){
@@ -1014,7 +1006,7 @@ async function loadWsrCustomer(customer){
   }
 }
 
-/* WSR customer suggest (server) */
+/* WSR customer suggest */
 function setupCustomerSuggest(){
   const inp = document.getElementById("wsrCustomer");
   const box = document.getElementById("customerSuggest");
@@ -1083,10 +1075,8 @@ function setupCustomerSuggest(){
   });
 }
 
-
-
 /* ===========================
-   WEEKLY PLAN: CASCADE (same concept)
+   WEEKLY PLAN: CASCADE
 =========================== */
 let _wpRowsCache = [];
 
@@ -1427,7 +1417,7 @@ async function loadReport(){
 }
 
 /* ===========================
-   WSR SUBMIT (unchanged)
+   ✅✅ WSR SUBMIT (RESTORED / WORKING)
 =========================== */
 document.getElementById("wsrForm").addEventListener("submit", function(e){
   e.preventDefault();
@@ -1443,7 +1433,15 @@ document.getElementById("wsrForm").addEventListener("submit", function(e){
     headers: {"Content-Type":"application/json"},
     body: JSON.stringify(data)
   })
-  .then(r => r.json())
+  .then(async (r) => {
+    let res = {};
+    try { res = await r.json(); } catch {}
+    if(!r.ok){
+      const msg = res.error || res.message || ("HTTP " + r.status);
+      throw new Error(msg);
+    }
+    return res;
+  })
   .then(res => {
     alert(res.message || "Saved");
     if (res.ok){
@@ -1453,12 +1451,12 @@ document.getElementById("wsrForm").addEventListener("submit", function(e){
       loadReport();
     }
   })
-  .catch(()=> alert("Error saving WSR"))
+  .catch((err)=> alert("WSR Save Failed: " + (err?.message || err)))
   .finally(()=> hideLoading());
 });
 
 /* ===========================
-   WEEKLY PLAN SUBMIT (unchanged)
+   ✅✅ WEEKLY PLAN SUBMIT (RESTORED / WORKING)
 =========================== */
 document.getElementById("weeklyPlanForm").addEventListener("submit", function(e){
   e.preventDefault();
@@ -1474,7 +1472,15 @@ document.getElementById("weeklyPlanForm").addEventListener("submit", function(e)
     headers: {"Content-Type":"application/json"},
     body: JSON.stringify(data)
   })
-  .then(r => r.json())
+  .then(async (r) => {
+    let res = {};
+    try { res = await r.json(); } catch {}
+    if(!r.ok){
+      const msg = res.error || res.message || ("HTTP " + r.status);
+      throw new Error(msg);
+    }
+    return res;
+  })
   .then(res => {
     alert(res.message || "Saved");
     if(res.ok){
@@ -1483,7 +1489,7 @@ document.getElementById("weeklyPlanForm").addEventListener("submit", function(e)
       resetWpCascades();
     }
   })
-  .catch(()=> alert("Error saving Weekly Plan"))
+  .catch((err)=> alert("Weekly Plan Save Failed: " + (err?.message || err)))
   .finally(()=> hideLoading());
 });
 
@@ -1503,10 +1509,9 @@ window.onload = function(){
   applyRoleAccess(SERVER_ROLENAME);
   fillVisitCode2();
 
-  setupCustomerSuggest();        // WSR customer suggest
-  setupWeeklyCustomerSuggest();  // Weekly customer suggest
+  setupCustomerSuggest();
+  setupWeeklyCustomerSuggest();
 
-  // ✅ WSR comboboxes
   setupListSuggest({
     inputId:"wsr_location",
     boxId:"wsrLocationSuggest",
@@ -1526,7 +1531,6 @@ window.onload = function(){
     onPick: ()=> onWsrSerialPicked()
   });
 
-  // ✅ Weekly comboboxes
   setupListSuggest({
     inputId:"wp_location",
     boxId:"wpLocationSuggest",
@@ -1595,7 +1599,9 @@ window.onload = function(){
   });
 })();
 </script>
+
 <script>
+/* ✅ OPTIONAL: Serial details auto fill (kept safe - uses name selectors) */
 async function fillBySerial(serial) {
   serial = (serial || "").trim();
   if (!serial) return;
@@ -1607,42 +1613,38 @@ async function fillBySerial(serial) {
   const wsr = data.wsr || {};
   const ib  = data.installbase || {};
 
-  // WSR -> latest visit + values
-  const lastVisit = document.getElementById("lastVisitDate");
-  if (lastVisit) lastVisit.value = wsr.visit_date || "";
+  const lastVisit = document.querySelector(`[name="lastVisitDate"]`);
+  if (lastVisit) lastVisit.value = wsr.last_visit_date || "";
 
-  const tot = document.getElementById("tot");
+  const tot = document.querySelector(`[name="tot"]`);
   if (tot) tot.value = wsr.tot || "";
 
-  const pot = document.getElementById("pot");
+  const pot = document.querySelector(`[name="pot"]`);
   if (pot) pot.value = wsr.pot || "";
 
-  const ink = document.getElementById("ink");
+  const ink = document.querySelector(`[name="ink"]`);
   if (ink) ink.value = wsr.ink || "";
 
-  const solvent = document.getElementById("solvent");
+  const solvent = document.querySelector(`[name="solvent"]`);
   if (solvent) solvent.value = wsr.solvent || "";
 
-  const cnc = document.getElementById("cnc");
+  const cnc = document.querySelector(`[name="cnc"]`);
   if (cnc) cnc.value = wsr.cnc || "";
 
-  // InstallBase -> filter due + amc due
-  const filterDue = document.getElementById("filterDueDate");
+  const filterDue = document.querySelector(`[name="filterDue"]`);
   if (filterDue) filterDue.value = ib.filter_due || "";
 
-  const amcDue = document.getElementById("amcDueDate");
+  const amcDue = document.querySelector(`[name="amcDueDate"]`);
   if (amcDue) amcDue.value = ib.amc_due || "";
 }
 
 document.addEventListener("DOMContentLoaded", () => {
-  // ✅ your serial dropdown/input
-  const serialEl = document.getElementById("serialNo"); // <-- yaha aapka HTML id
+  // weekly plan serial input
+  const serialEl = document.getElementById("wp_serialNo");
   if (!serialEl) return;
-
   serialEl.addEventListener("change", () => fillBySerial(serialEl.value));
 });
 </script>
-
 
 </body>
 </html>
