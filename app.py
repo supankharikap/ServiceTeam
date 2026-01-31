@@ -17,7 +17,6 @@ app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
 
 # ✅ Cookie settings (IMPORTANT)
 app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
-# .env: COOKIE_SECURE=1 (Azure https), local test: COOKIE_SECURE=0
 app.config["SESSION_COOKIE_SECURE"] = (os.environ.get("COOKIE_SECURE", "1") == "1")
 
 
@@ -123,10 +122,11 @@ def _require_login_json():
     return None
 
 
-# ✅ helper: case-insensitive trim compare expression (NO logic change, only safe matching)
+# ✅ helper: case-insensitive trim compare expression
 def _cmp_ci_trim(colname: str) -> str:
-    # compare column as NVARCHAR, trimmed, upper
-    return f"UPPER(LTRIM(RTRIM(CAST({_qcol(colname)} AS NVARCHAR(200)))))"
+    c = f"CAST({_qcol(colname)} AS NVARCHAR(200))"
+    # remove NBSP (CHAR(160)) and tabs, then trim + upper
+    return f"UPPER(LTRIM(RTRIM(REPLACE(REPLACE({c}, CHAR(160), ' '), CHAR(9), ''))))"
 
 
 # ===================== AUTH =====================
@@ -212,10 +212,8 @@ def _is_manager_like(role: str) -> bool:
     return ("manager" in r) or ("team leader" in r) or ("teamleader" in r) or ("team_leader" in r)
 
 
+# ✅✅ FINAL FIX: USER = zone + SERVICE ENGINEER ONLY (sales engineer removed)
 def _installbase_scope_where(install_cols):
-    """
-    ✅ FIX: engineer/zone match now TRIM+UPPER, so SUPAN KHARIKAP / Supan Kharikap / trailing spaces all match.
-    """
     role = (session.get("role") or "").strip().lower()
     zone = (session.get("zone") or "").strip()
     eng  = (session.get("engineer") or "").strip()
@@ -224,32 +222,26 @@ def _installbase_scope_where(install_cols):
         return "", []
 
     zone_col = _find_col(install_cols, aliases=["ZONE"], must_contain=["zone"])
-    svc_col  = _find_col(install_cols, aliases=["SERVICE_ENGR","SERVICE ENGR","SERVICE_ENGINEER","SERVICE ENGINEER"], must_contain=["service","engr"])
-    sales_col= _find_col(install_cols, aliases=["SALES_ENGR","SALES ENGR","SALES_ENGINEER","SALES ENGINEER"], must_contain=["sales","engr"])
+    svc_col  = _find_col(
+        install_cols,
+        aliases=["SERVICE_ENGR", "SERVICE ENGR", "SERVICE_ENGINEER", "SERVICE ENGINEER"],
+        must_contain=["service", "engr"]
+    )
 
     where = []
     params = []
 
+    # Manager/Team Leader => only zone
     if _is_manager_like(role):
         if zone and zone_col:
             where.append(f"{_cmp_ci_trim(zone_col)} = UPPER(?)")
             params.append(zone)
         return (" WHERE " + " AND ".join(where)) if where else "", params
 
-    if zone and zone_col:
-        where.append(f"{_cmp_ci_trim(zone_col)} = UPPER(?)")
-        params.append(zone)
-
-    if eng and (svc_col or sales_col):
-        if svc_col and sales_col:
-            where.append(f"({_cmp_ci_trim(svc_col)} = UPPER(?) OR {_cmp_ci_trim(sales_col)} = UPPER(?))")
-            params.extend([eng, eng])
-        elif svc_col:
-            where.append(f"{_cmp_ci_trim(svc_col)} = UPPER(?)")
-            params.append(eng)
-        elif sales_col:
-            where.append(f"{_cmp_ci_trim(sales_col)} = UPPER(?)")
-            params.append(eng)
+    # User => zone + service engineer
+    if eng and svc_col:
+        where.append(f"{_cmp_ci_trim(svc_col)} = UPPER(?)")
+        params.append(eng)
 
     return (" WHERE " + " AND ".join(where)) if where else "", params
 
@@ -367,8 +359,8 @@ def api_master_installbase():
     base_where, base_params = _installbase_scope_where(cols)
 
     preferred = [
-        "ZONE","SALES_ENGR","SERVICE_ENGR","Cluster_No","CUSTOMER_NAME","Location","Machine_Type","Model","Serial_No",
-        "SALES ENGR","SERVICE ENGR","CLUSTER NO","CUSTOMER NAME","SERIAL NO"
+        "ZONE","SERVICE_ENGR","Cluster_No","CUSTOMER_NAME","Location","Machine_Type","Model","Serial_No",
+        "SERVICE ENGR","CLUSTER NO","CUSTOMER NAME","SERIAL NO"
     ]
     search_where, search_params = _build_token_search_where(q, cols, preferred)
 
@@ -425,16 +417,15 @@ def api_master_installbase_suggest():
 
     zone_col   = _find_col(cols, aliases=["ZONE","Zone"], must_contain=["zone"])
     svc_col    = _find_col(cols, aliases=["SERVICE_ENGR","SERVICE ENGR"], must_contain=["service","engr"])
-    sales_col  = _find_col(cols, aliases=["SALES_ENGR","SALES ENGR"], must_contain=["sales","engr"])
     cust_col   = _find_col(cols, aliases=["CUSTOMER_NAME","CUSTOMER NAME","CustomerName","Customer Name"], must_contain=["customer","name"])
     serial_col = _find_col(cols, aliases=["Serial No.","Serial No","Serial_No","SERIAL NO","SerialNo"], must_contain=["serial"])
     cluster_col= _find_col(cols, aliases=["Cluster_No","CLUSTER NO","Cluster No"], must_contain=["cluster"])
     loc_col    = _find_col(cols, aliases=["LOCATION","Location"], must_contain=["location"])
 
-    key_cols = [c for c in [cust_col, serial_col, loc_col, svc_col, sales_col, zone_col, cluster_col] if c]
-
     items = []
     seen = set()
+
+    key_cols = [c for c in [cust_col, serial_col, loc_col, svc_col, zone_col, cluster_col] if c]
 
     try:
         with get_conn() as conn:
@@ -578,75 +569,6 @@ def api_installbase_serial_suggest():
         return jsonify({"items": []})
 
 
-@app.get("/api/installbase/by-serial")
-def api_installbase_by_serial():
-    """Autofill for selected serial: returns keys matching your HTML ids."""
-    need = _require_login_json()
-    if need: return jsonify({"ok": False, "row": None}), 401
-
-    serial = (request.args.get("serial") or "").strip()
-    if not serial:
-        return jsonify({"ok": True, "row": None})
-
-    cols = _table_columns("dbo.InstallBase")
-    if not cols:
-        return jsonify({"ok": False, "row": None, "message": "dbo.InstallBase not found"}), 400
-
-    serial_col = _find_col(cols, aliases=["Serial No.","Serial No","Serial_No","SERIAL NO","SerialNo"], must_contain=["serial"])
-    cust_col   = _find_col(cols, aliases=["CUSTOMER NAME","CUSTOMER_NAME","Customer Name","CustomerName"], must_contain=["customer","name"])
-    loc_col    = _find_col(cols, aliases=["LOCATION","Location"], must_contain=["location"])
-    state_col  = _find_col(cols, aliases=["STATE","State"], must_contain=["state"])
-    addr_col   = _find_col(cols, aliases=["Address","ADDRESS"], must_contain=["address"])
-    model_col  = _find_col(cols, aliases=["Model","MODEL"], must_contain=["model"])
-    ink_col    = _find_col(cols, aliases=["Ink type","InkType","INK TYPE"], must_contain=["ink"])
-
-    if not serial_col:
-        return jsonify({"ok": False, "row": None, "message": "Serial column not found"}), 400
-
-    base_where, base_params = _installbase_scope_where(cols)
-
-    where_parts = []
-    params = []
-    if base_where:
-        where_parts.append(base_where.replace(" WHERE ", "", 1))
-        params += base_params
-
-    where_parts.append(f"{_qcol(serial_col)} = ?")
-    params.append(serial)
-
-    where_sql = " WHERE " + " AND ".join(where_parts)
-
-    def sel(col, alias):
-        return f"{_qcol(col)} AS {alias}" if col else f"'' AS {alias}"
-
-    sql = f"""
-        SELECT TOP 1
-          {sel(cust_col,'customer_name')},
-          {sel(serial_col,'serial_no')},
-          {sel(loc_col,'location')},
-          {sel(state_col,'state')},
-          {sel(addr_col,'address')},
-          {sel(model_col,'model')},
-          {sel(ink_col,'ink_type')}
-        FROM dbo.InstallBase
-        {where_sql}
-    """
-
-    try:
-        with get_conn() as conn:
-            cur = conn.cursor()
-            cur.execute(sql, params)
-            row = cur.fetchone()
-            if not row:
-                return jsonify({"ok": True, "row": None})
-
-            keys = [d[0] for d in cur.description]
-            out = {keys[i]: _json_safe(row[i]) for i in range(len(keys))}
-        return jsonify({"ok": True, "row": out})
-    except Exception as e:
-        return jsonify({"ok": False, "row": None, "message": str(e)}), 500
-
-
 @app.get("/api/installbase/rows")
 def api_installbase_rows():
     need = _require_login_json()
@@ -665,18 +587,19 @@ def api_installbase_rows():
         return jsonify({"ok": False, "rows": [], "message": "Customer column not found"}), 400
 
     zone_col    = _find_col(cols, aliases=["ZONE","Zone"], must_contain=["zone"])
-    sales_col   = _find_col(cols, aliases=["SALES_ENGR","SALES ENGR"], must_contain=["sales","engr"])
     svc_col     = _find_col(cols, aliases=["SERVICE_ENGR","SERVICE ENGR"], must_contain=["service","engr"])
     cluster_col = _find_col(cols, aliases=["Cluster_No","CLUSTER NO","Cluster No"], must_contain=["cluster"])
     loc_col     = _find_col(cols, aliases=["LOCATION","Location"], must_contain=["location"])
     state_col   = _find_col(cols, aliases=["STATE","State"], must_contain=["state"])
     addr_col    = _find_col(cols, aliases=["Address","ADDRESS"], must_contain=["address"])
-    mtype_col   = _find_col(cols, aliases=["Machine_Type","MACHINE TYPE","Machine Type"], must_contain=["machine","type"])
-    model_col   = _find_col(cols, aliases=["Model","MODEL"], must_contain=["model"])
     serial_col  = _find_col(cols, aliases=["Serial No.","Serial No","Serial_No","SERIAL NO","SerialNo"], must_contain=["serial"])
     ink_col     = _find_col(cols, aliases=["Ink type","InkType","INK TYPE"], must_contain=["ink"])
     active_col  = _find_col(cols, aliases=["Active Status","ActiveStatus"], must_contain=["active","status"])
     mc_status_col = _find_col(cols, aliases=["Mc Status","McStatus","Machine Status","MachineStatus"], must_contain=["status"])
+
+    # ✅✅ FIX: model + machine type columns for JSON return
+    model_col = _find_col(cols, aliases=["Model","MODEL","Printer Model","PrinterModel"], must_contain=["model"])
+    mtype_col = _find_col(cols, aliases=["Machine Type","MachineType","Machine_Type"], must_contain=["machine","type"])
 
     cp_col   = _find_col(cols, aliases=["Contact Person","ContactPerson"], must_contain=["contact","person"])
     des_col  = _find_col(cols, aliases=["Designation"], must_contain=["designation"])
@@ -691,9 +614,7 @@ def api_installbase_rows():
         where_parts.append(base_where.replace(" WHERE ", "", 1))
         params += base_params
 
-    where_parts.append(
-        f"UPPER(LTRIM(RTRIM(CAST({_qcol(cust_col)} AS NVARCHAR(200))))) = UPPER(?)"
-    )
+    where_parts.append(f"{_cmp_ci_trim(cust_col)} = UPPER(?)")
     params.append(customer)
 
     where_sql = " WHERE " + " AND ".join(where_parts)
@@ -704,15 +625,14 @@ def api_installbase_rows():
     select_sql = ", ".join([
         sel(cust_col, "customer_name"),
         sel(serial_col, "serial_no"),
+        sel(model_col, "model"),            # ✅ added
+        sel(mtype_col, "machine_type"),     # ✅ added
         sel(zone_col, "zone"),
-        sel(sales_col, "sales_engr"),
         sel(svc_col, "service_engr"),
         sel(cluster_col, "cluster_no"),
         sel(loc_col, "location"),
         sel(state_col, "state"),
         sel(addr_col, "address"),
-        sel(mtype_col, "machine_type"),
-        sel(model_col, "model"),
         sel(ink_col, "ink_type"),
         sel(active_col, "active_status"),
         sel(mc_status_col, "mc_status"),
@@ -748,110 +668,6 @@ def api_installbase_rows():
         return jsonify({"ok": True, "rows": out_rows})
     except Exception as e:
         return jsonify({"ok": False, "rows": [], "message": str(e)}), 500
-
-
-# ===================== INSTALLBASE SAVE (UPSERT) =====================
-@app.post("/api/installbase/save")
-def api_installbase_save():
-    if "user" not in session:
-        return jsonify({"ok": False, "message": "Unauthorized"}), 401
-
-    payload = request.get_json(force=True) or {}
-
-    cols = _table_columns("dbo.InstallBase")
-    if not cols:
-        return jsonify({"ok": False, "message": "dbo.InstallBase not found"}), 400
-
-    serial_col = _find_col(cols, aliases=["Serial No.","Serial No","Serial_No","SERIAL NO","SerialNo"], must_contain=["serial"])
-    cust_col   = _find_col(cols, aliases=["CUSTOMER NAME","CUSTOMER_NAME","Customer Name","CustomerName"], must_contain=["customer","name"])
-
-    if not serial_col:
-        return jsonify({"ok": False, "message": "Serial column not found"}), 400
-
-    serial = (payload.get("serial_no") or "").strip()
-    customer = (payload.get("customer_name") or "").strip()
-
-    if not serial:
-        return jsonify({"ok": False, "message": "Serial No required"}), 400
-    if cust_col and not customer:
-        return jsonify({"ok": False, "message": "Customer Name required"}), 400
-
-    idx = _col_index(cols)
-
-    date_keys = {
-        "invoice_date","installed_on","amc_invoice_date","amc_from","amc_to","amc_due_date",
-        "filter_invoice_date","next_filter_due_date","cluster_visit_plan","actual_visit","next_ter2_plan"
-    }
-
-    def _maybe_date(key, val):
-        if key in date_keys:
-            return _parse_iso_date(val)
-        return val
-
-    try:
-        with get_conn() as conn:
-            cur = conn.cursor()
-
-            cur.execute(f"SELECT 1 FROM dbo.InstallBase WHERE {_qcol(serial_col)} = ?", (serial,))
-            exists = cur.fetchone() is not None
-
-            if exists:
-                set_parts = []
-                params = []
-
-                for k, v in payload.items():
-                    nk = _norm(k)
-                    if nk not in idx:
-                        continue
-                    dbcol = idx[nk]
-                    if dbcol == serial_col:
-                        continue
-                    v = _maybe_date(k, v)
-                    set_parts.append(f"{_qcol(dbcol)} = ?")
-                    params.append(v)
-
-                if not set_parts:
-                    return jsonify({"ok": True, "action": "updated", "message": "Nothing to update."})
-
-                params.append(serial)
-                sql = f"UPDATE dbo.InstallBase SET {', '.join(set_parts)} WHERE {_qcol(serial_col)} = ?"
-                cur.execute(sql, params)
-                conn.commit()
-                return jsonify({"ok": True, "action": "updated", "message": f"Updated: {serial}"})
-
-            # INSERT
-            insert_cols = [_qcol(serial_col)]
-            insert_vals = ["?"]
-            insert_params = [serial]
-
-            if cust_col:
-                insert_cols.append(_qcol(cust_col))
-                insert_vals.append("?")
-                insert_params.append(customer)
-
-            for k, v in payload.items():
-                nk = _norm(k)
-                if nk not in idx:
-                    continue
-                dbcol = idx[nk]
-                if dbcol in (serial_col, cust_col):
-                    continue
-
-                v = _maybe_date(k, v)
-                if v in (None, ""):
-                    continue
-
-                insert_cols.append(_qcol(dbcol))
-                insert_vals.append("?")
-                insert_params.append(v)
-
-            sql = f"INSERT INTO dbo.InstallBase ({', '.join(insert_cols)}) VALUES ({', '.join(insert_vals)})"
-            cur.execute(sql, insert_params)
-            conn.commit()
-            return jsonify({"ok": True, "action": "inserted", "message": f"Inserted: {serial}"})
-
-    except Exception as e:
-        return jsonify({"ok": False, "message": f"Save error: {e}"}), 500
 
 
 # ===================== REPORT VIEW (WSR TABLE VIEW) =====================
@@ -980,6 +796,166 @@ def api_report_suggest():
     return jsonify({"items": items})
 
 
+
+@app.get("/api/serial/details")
+def api_serial_details():
+    need = _require_login_json()
+    if need:
+        return need
+
+    serial = (request.args.get("serial") or "").strip()
+    if not serial:
+        return jsonify({"ok": True, "wsr": {}, "installbase": {}})
+
+    # ---------------- WSR: latest row for this serial ----------------
+    wsr_cols = _table_columns("dbo.WSR")
+    wsr_data = {}
+
+    if wsr_cols:
+        wsr_serial_col = _find_col(
+            wsr_cols,
+            aliases=["Serial No", "SerialNo", "Serial_No", "SERIAL NO", "Serial"],
+            must_contain=["serial"]
+        )
+        wsr_visit_col = _find_col(
+            wsr_cols,
+            aliases=["VisitDate", "Visit Date", "Last Visit Date"],
+            must_contain=["visit", "date"]
+        )
+
+        # fields needed from WSR
+        wsr_tot_col = _find_col(wsr_cols, aliases=["TOT", "Tot"], must_contain=["tot"])
+        wsr_pot_col = _find_col(wsr_cols, aliases=["POT", "Pot"], must_contain=["pot"])
+        wsr_ink_col = _find_col(wsr_cols, aliases=["INK", "Ink", "InkType", "Ink Type"], must_contain=["ink"])
+        wsr_sol_col = _find_col(wsr_cols, aliases=["Solvent", "SOLVENT"], must_contain=["solvent"])
+        wsr_cnc_col = _find_col(wsr_cols, aliases=["CNC"], must_contain=["cnc"])
+
+        base_where, base_params = _wsr_scope_where(wsr_cols)
+
+        if wsr_serial_col and wsr_visit_col:
+            where_parts = []
+            params = []
+
+            if base_where:
+                where_parts.append(base_where.replace(" WHERE ", "", 1))
+                params += base_params
+
+            where_parts.append(f"{_cmp_ci_trim(wsr_serial_col)} = UPPER(?)")
+            params.append(serial)
+
+            where_sql = " WHERE " + " AND ".join(where_parts)
+
+            def sel(col, alias):
+                return f"{_qcol(col)} AS {alias}" if col else f"'' AS {alias}"
+
+            select_sql = ", ".join([
+                sel(wsr_visit_col, "last_visit_date"),
+                sel(wsr_tot_col, "tot"),
+                sel(wsr_pot_col, "pot"),
+                sel(wsr_ink_col, "ink"),
+                sel(wsr_sol_col, "solvent"),
+                sel(wsr_cnc_col, "cnc"),
+            ])
+
+            sql = f"""
+                SELECT TOP 1 {select_sql}
+                FROM dbo.WSR
+                {where_sql}
+                ORDER BY {_qcol(wsr_visit_col)} DESC
+            """
+
+            try:
+                with get_conn() as conn:
+                    cur = conn.cursor()
+                    cur.execute(sql, params)
+                    r = cur.fetchone()
+                    if r:
+                        keys = ["last_visit_date", "tot", "pot", "ink", "solvent", "cnc"]
+                        for i, k in enumerate(keys):
+                            v = r[i]
+                            if isinstance(v, (datetime, date)):
+                                wsr_data[k] = v.date().isoformat() if isinstance(v, datetime) else v.isoformat()
+                            else:
+                                wsr_data[k] = "" if v is None else str(v)
+            except Exception:
+                wsr_data = {}
+
+    # ---------------- InstallBase: dates for this serial ----------------
+    ib_cols = _table_columns("dbo.InstallBase")
+    ib_data = {}
+
+    if ib_cols:
+        ib_serial_col = _find_col(
+            ib_cols,
+            aliases=["Serial No.", "Serial No", "Serial_No", "SERIAL NO", "SerialNo", "Serial"],
+            must_contain=["serial"]
+        )
+
+        filter_due_col = _find_col(
+            ib_cols,
+            aliases=["Filter Due Date / Hrs", "Filter Due Date/Hrs", "Filter Kit Due Date/Hrs", "FilterKitDue", "FilterDue"],
+            must_contain=["filter", "due"]
+        )
+
+        amc_due_col = _find_col(
+            ib_cols,
+            aliases=["AMC Due Date", "Amc Due Date", "AMC_DUE_DATE", "AMCDueDate"],
+            must_contain=["amc", "due"]
+        )
+
+        base_where, base_params = _installbase_scope_where(ib_cols)
+
+        if ib_serial_col:
+            where_parts = []
+            params = []
+
+            if base_where:
+                where_parts.append(base_where.replace(" WHERE ", "", 1))
+                params += base_params
+
+            where_parts.append(f"{_cmp_ci_trim(ib_serial_col)} = UPPER(?)")
+            params.append(serial)
+
+            where_sql = " WHERE " + " AND ".join(where_parts)
+
+            def sel(col, alias):
+                return f"{_qcol(col)} AS {alias}" if col else f"'' AS {alias}"
+
+            select_sql = ", ".join([
+                sel(filter_due_col, "filter_due"),
+                sel(amc_due_col, "amc_due"),
+            ])
+
+            sql = f"""
+                SELECT TOP 1 {select_sql}
+                FROM dbo.InstallBase
+                {where_sql}
+            """
+
+            try:
+                with get_conn() as conn:
+                    cur = conn.cursor()
+                    cur.execute(sql, params)
+                    r = cur.fetchone()
+                    if r:
+                        keys = ["filter_due", "amc_due"]
+                        for i, k in enumerate(keys):
+                            v = r[i]
+                            if isinstance(v, (datetime, date)):
+                                ib_data[k] = v.date().isoformat() if isinstance(v, datetime) else v.isoformat()
+                            else:
+                                ib_data[k] = "" if v is None else str(v)
+            except Exception:
+                ib_data = {}
+
+    return jsonify({
+        "ok": True,
+        "wsr": wsr_data,
+        "installbase": ib_data
+    })
+
+
+
 # ===================== WSR INSERT =====================
 def _parse_date(v):
     if v is None:
@@ -993,6 +969,16 @@ def _parse_date(v):
         except Exception:
             pass
     return None
+
+
+# ✅ time helper: keep HH:MM as text
+def _parse_time_hhmm(v):
+    if v is None:
+        return None
+    s = str(v).strip()
+    if not s or s.upper() in ("NA", "N/A", "NULL", "#VALUE!"):
+        return None
+    return s[:5]
 
 
 @app.post("/api/wsr")
@@ -1027,6 +1013,34 @@ def api_wsr():
     act_col  = _find_col(cols, aliases=["ActionTaken","Action Taken"], must_contain=["action"])
     rem_col  = _find_col(cols, aliases=["Remarks","Remark"], must_contain=["remark"])
 
+    # ✅ extra columns for complete WSR table
+    model_col  = _find_col(cols, aliases=["Printer Model","PrinterModel","Model"], must_contain=["printer","model"])
+    mcno_col   = _find_col(cols, aliases=["M/C No","MC No","MCNo","Machine No","MachineNo"], must_contain=["mc","no"])
+    serial_col = _find_col(cols, aliases=["Serial No","SerialNo","Serial_No","SERIAL NO"], must_contain=["serial"])
+
+    turnon_col  = _find_col(cols, aliases=["Turn on Time","TurnOnTime"], must_contain=["turn","time"])
+    printon_col = _find_col(cols, aliases=["Print on time","PrintOnTime"], must_contain=["print","time"])
+
+    tstart_col = _find_col(cols, aliases=["Travel Start (HH:MM)","TravelStart","Travel Start"], must_contain=["travel","start"])
+    tend_col   = _find_col(cols, aliases=["Travel End (HH:MM)","TravelEnd","Travel End"], must_contain=["travel","end"])
+    ttime_col  = _find_col(cols, aliases=["TRAVE TIME","TRAVEL TIME","Travel Time","TravelTime"], must_contain=["travel","time"])
+
+    wstart_col = _find_col(cols, aliases=["Work Start (HH:MM)","WorkStart","Work Start"], must_contain=["work","start"])
+    wend_col   = _find_col(cols, aliases=["Work End (HH:MM)","WorkEnd","Work End"], must_contain=["work","end"])
+    wtime_col  = _find_col(cols, aliases=["WORK TIME","Work Time","WorkTime"], must_contain=["work","time"])
+
+    ink_col2    = _find_col(cols, aliases=["INK","Ink"], must_contain=["ink"])
+    solvent_col = _find_col(cols, aliases=["Solvent"], must_contain=["solvent"])
+    cnc_col     = _find_col(cols, aliases=["CNC"], must_contain=["cnc"])
+
+    filterdue_col  = _find_col(cols, aliases=["Filter Kit Due Date/Hrs","FilterKitDue","Filter Kit Due"], must_contain=["filter","due"])
+    feedback_col   = _find_col(cols, aliases=["Customer Feedback","CustomerFeedback"], must_contain=["customer","feedback"])
+    callstatus_col = _find_col(cols, aliases=["Call Status","CallStatus"], must_contain=["call","status"])
+    revisit_col    = _find_col(cols, aliases=["Re-visit Required","Revisit Required","RevisitRequired"], must_contain=["re","visit"])
+
+    se_rem_col = _find_col(cols, aliases=["Service Engineer Remarks","ServiceEngineerRemarks"], must_contain=["service","engineer","remarks"])
+    sm_rem_col = _find_col(cols, aliases=["Service Manager Remarks","ServiceManagerRemarks"], must_contain=["service","manager","remarks"])
+
     mapping = [
         ("zone", zone_col),
         ("engineerName", eng_col),
@@ -1047,18 +1061,59 @@ def api_wsr():
         ("visitDate", visit_col),
         ("actionTaken", act_col),
         ("remarks", rem_col),
+
+        ("printerModel", model_col),
+        ("mcNo", mcno_col),
+        ("serialNo", serial_col),
+
+        ("turnOnTime", turnon_col),
+        ("printOnTime", printon_col),
+
+        ("travelStart", tstart_col),
+        ("travelEnd", tend_col),
+        ("travelTime", ttime_col),
+
+        ("workStart", wstart_col),
+        ("workEnd", wend_col),
+        ("workTime", wtime_col),
+
+        ("ink", ink_col2),
+        ("solvent", solvent_col),
+        ("cnc", cnc_col),
+
+        ("filterKitDue", filterdue_col),
+        ("customerFeedback", feedback_col),
+        ("callStatus", callstatus_col),
+        ("revisitRequired", revisit_col),
+
+        ("serviceEngineerRemarks", se_rem_col),
+        ("serviceManagerRemarks", sm_rem_col),
     ]
 
     insert_cols = []
     insert_vals = []
     params = []
 
+    # ✅✅ FIX: prevent same db column twice in insert
+    seen_cols = set()
+
     for key, dbcol in mapping:
         if not dbcol:
             continue
+
+        if dbcol in seen_cols:
+            continue
+        seen_cols.add(dbcol)
+
         val = payload.get(key)
+
+        # dates
         if dbcol in (call_col, visit_col):
             val = _parse_date(val)
+
+        # times (HH:MM)
+        if dbcol in (turnon_col, printon_col, tstart_col, tend_col, wstart_col, wend_col):
+            val = _parse_time_hhmm(val)
 
         insert_cols.append(_qcol(dbcol))
         insert_vals.append("?")
