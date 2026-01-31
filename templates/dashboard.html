@@ -77,6 +77,18 @@
     .suggestItem{padding:10px 12px;cursor:pointer;border-bottom:1px solid #f1f5f9;}
     .suggestItem:hover{background:#f8fafc;}
     .suggestItem.loading{cursor:default;color:var(--muted);font-weight:700;}
+    
+    .report-toolbar{ display:flex;align-items:center; gap:20px; flex-wrap:nowrap;overflow-x:auto;white-space:nowrap;
+      -webkit-overflow-scrolling:touch;
+    }
+    .tb-search{height: 38px;padding: 0 14px;border: 1px solid var(--border);border-radius: 999px;font-size: 14px;outline: none;background: #fff;width:10cm; min-width: 0;}
+    .tb-datewrap{display:inline-flex;align-items:center;gap:10px;flex:0 0 auto;}
+    .tb-lbl{font-size:13px;color:var(--muted);font-weight:600;}
+    .tb-export{background:#eaf2ff;border-color:#cfe0ff;}
+    .tb-date{  height:38px;  padding:0 12px;  border:1px solid var(--border);  border-radius:12px;  font-size:14px;  outline:none;  background:#fff;  width:150px;   /* ✅ smaller */  min-width:150px;}
+
+    
+
 
     /* ✅✅ GLOBAL LOADING - CENTER OVERLAY (NO side floater) */
     #globalLoadingOverlay{
@@ -123,6 +135,8 @@
       .grid{grid-template-columns:1fr}
       table{min-width:1200px}
       .sidebarFooter{position:relative;left:0;right:0;bottom:0;margin-top:12px;}
+
+      
     }
   </style>
 </head>
@@ -370,9 +384,8 @@
       <section id="wsrSection" class="section">
         <div class="sectionHeader">
           <h2>WSR Report Form</h2>
-          <small>Submit service activity</small>
+          <small>Submit service activity</small> 
         </div>
-
         <form id="wsrForm">
           <div class="grid">
             <div><label>Zone</label><input id="wsr_zone" name="zone" readonly></div>
@@ -495,38 +508,35 @@
           <h2>Report View</h2>
           <small>dbo.WSR table view</small>
         </div>
-
-        <div style="position:relative; margin:0 0 10px;">
-          <div class="searchRow">
-            <input id="reportSearch" placeholder="Search report (customer / MMM-YY / engineer / zone...)" autocomplete="off">
-            <div style="display:flex; gap:10px; justify-content:flex-end;">
-              <button class="btn gray" onclick="reportDoSearch()">🔎 Search</button>
-              <button class="btn gray" onclick="reportClear()">✖ Clear</button>
-              <button class="btn gray" onclick="loadReport()">🔄 Refresh</button>
-            </div>
-          </div>
-          <div id="reportSuggest" class="suggestBox"></div>
-          <div id="reportErr" class="err"></div>
+        <div class="report-toolbar">
+          <input id="reportSearch" class="tb-search"
+          placeholder="Search report (customer / MMM-YY / engineer / zone...)"
+          autocomplete="off">
+          <button class="tb-btn" onclick="reportDoSearch()">🔎 Search</button>
+          <button class="tb-btn" onclick="reportClear()">✖ Clear</button>
+          <button class="tb-btn" onclick="loadReport()">🔄 Refresh</button>
+          <label>Form</label><input type="date" class="tb-date" id="fromDate">
+          <label>To</label><input type="date" class="tb-date" id="toDate">
+          <button class="tb-btn tb-export" onclick="exportReport()">⬇️Excel Export</button>  
         </div>
-
+        <div id="reportSuggest" class="suggestBox"></div>
+        <div id="reportErr" class="err"></div>     
         <div id="reportWrap" class="tableWrap">
-          <table id="dataTable">
-            <thead></thead>
-            <tbody></tbody>
-          </table>
-        </div>
+         <table id="dataTable">
+          <thead></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+    <section id="breakdownSection" class="section">
+      <div class="sectionHeader">
+        <h2>Breakdown Login</h2>
+        <small>Coming soon</small>
+      </div>
+      <div style="color:var(--muted); line-height:1.6">
+        ✅ Breakdown module will be added here.
+      </div>
       </section>
-
-      <section id="breakdownSection" class="section">
-        <div class="sectionHeader">
-          <h2>Breakdown Login</h2>
-          <small>Coming soon</small>
-        </div>
-        <div style="color:var(--muted); line-height:1.6">
-          ✅ Breakdown module will be added here.
-        </div>
-      </section>
-
       <section id="weeklyWiewPlanSection" class="section">
         <div class="sectionHeader">
           <h2>Planning Report</h2>
@@ -1645,6 +1655,75 @@ document.addEventListener("DOMContentLoaded", () => {
   serialEl.addEventListener("change", () => fillBySerial(serialEl.value));
 });
 </script>
+
+<script>
+function exportReport(){
+  const table = document.getElementById("dataTable");
+  if(!table){
+    alert("Table not found!");
+    return;
+  }
+
+  // take filters for filename
+  const q = (document.getElementById("reportSearch")?.value || "").trim();
+  const from = document.getElementById("fromDate")?.value || "";
+  const to   = document.getElementById("toDate")?.value || "";
+
+  // helper: escape for CSV
+  const csvEscape = (val) => {
+    const s = String(val ?? "");
+    // If contains comma, quote, newline -> wrap in quotes and double quotes
+    if (/[",\n\r]/.test(s)) return `"${s.replace(/"/g,'""')}"`;
+    return s;
+  };
+
+  // headers
+  const rows = [];
+  const theadRow = table.querySelector("thead tr");
+  if(!theadRow){
+    alert("No data to export!");
+    return;
+  }
+
+  const headers = Array.from(theadRow.querySelectorAll("th")).map(th => th.innerText.trim());
+  rows.push(headers.map(csvEscape).join(","));
+
+  // body rows
+  const bodyRows = table.querySelectorAll("tbody tr");
+  bodyRows.forEach(tr=>{
+    const cols = Array.from(tr.querySelectorAll("td")).map(td => td.innerText.trim());
+    rows.push(cols.map(csvEscape).join(","));
+  });
+
+  if(rows.length <= 1){
+    alert("No rows to export!");
+    return;
+  }
+
+  // CSV content (Excel friendly BOM)
+  const csv = "\uFEFF" + rows.join("\r\n");
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+
+  // filename
+  const safe = (s) => String(s || "").replace(/[^\w\-]+/g, "_");
+  const nameParts = ["WSR_Report"];
+  if(from) nameParts.push("From_" + from);
+  if(to) nameParts.push("To_" + to);
+  if(q) nameParts.push("Q_" + safe(q).slice(0,30));
+  const filename = nameParts.join("_") + ".xls";
+
+  // download
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+</script>
+
 
 </body>
 </html>
