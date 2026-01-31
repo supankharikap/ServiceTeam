@@ -15,22 +15,22 @@
     body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;background:var(--bg);color:var(--text);}
     .wrap{max-width:1200px;margin:24px auto;padding:0 16px;}
     .header{display:flex;gap:12px;align-items:center;justify-content:space-between;margin-bottom:14px;}
-    .title{font-size:20px;font-weight:800;color:#000;}
+    .title{font-size:18px;font-weight:700;color:#0f172a;}
     .sub{color:var(--muted);font-size:13px;margin-top:2px}
     .card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);padding:16px;}
     fieldset{border:1px solid var(--border);border-radius:12px;padding:12px;margin:0 0 12px 0;}
-    legend{padding:0 8px;color:#000;font-weight:800;font-size:12px;letter-spacing:.4px;text-transform:uppercase;}
+    legend{padding:0 8px;color:#0f172a;font-weight:700;font-size:12px;letter-spacing:.3px;text-transform:uppercase;}
     .grid{display:grid;grid-template-columns:repeat(12,1fr);gap:10px;align-items:start;}
     .f{grid-column:span 3;}
     .f.span-6{grid-column:span 6;}
     .f.span-12{grid-column:span 12;}
 
-    /* ✅ ONLY LABEL: black + bold */
+    /* Pro look: normal label weight */
     label{
       display:block;
-      font-size:13.5px;
-      color:#000 !important;
-      font-weight:800 !important;
+      font-size:13px;
+      color:#0f172a;
+      font-weight:600;
       margin:0 0 6px 2px;
     }
 
@@ -55,12 +55,10 @@
       color:var(--muted);font-size:12px;background:#fff;
       white-space:nowrap;
     }
-
-    /* ✅ Loading pill (shows when fetching/saving) */
     .pill.loading{
       border-color: var(--primary);
       color: var(--primary);
-      font-weight: 800;
+      font-weight: 700;
     }
     .pill.loading::before{
       content:"";
@@ -89,7 +87,7 @@
   <div class="wrap">
     <div class="header">
       <div>
-        <div class="title">Welcome KGK Jet India</div>
+        <div class="title">KGK Jet India</div>
         <div class="title">InstallBase Entry Form</div>
         <div class="sub">Search by Customer / Serial, then update & save</div>
       </div>
@@ -101,7 +99,8 @@
     </div>
 
     <form class="card" id="installbaseForm" autocomplete="off">
-      <!-- CUSTOMER + SERIAL -->
+
+      <!-- SEARCH / UPDATE (TOP SAME AS YOU WANTED) -->
       <fieldset>
         <legend>Search / Update</legend>
         <div class="grid">
@@ -142,9 +141,9 @@
         </div>
       </fieldset>
 
-      <!-- CUSTOMER -->
+      <!-- CUSTOMER / LOCATION -->
       <fieldset>
-        <legend>Customer</legend>
+        <legend>Customer / Location</legend>
         <div class="grid">
           <div class="f">
             <label for="location">LOCATION</label>
@@ -157,6 +156,67 @@
           <div class="f span-12">
             <label for="address">Address</label>
             <textarea id="address" name="address"></textarea>
+          </div>
+        </div>
+      </fieldset>
+
+      <!-- CONTACT 1 -->
+      <fieldset>
+        <legend>Contact Person 1</legend>
+        <div class="grid">
+          <div class="f span-6">
+            <label for="contact_person1">Contact Person1</label>
+            <input id="contact_person1" name="contact_person1" type="text" />
+          </div>
+          <div class="f">
+            <label for="designation1">Designation</label>
+            <input id="designation1" name="designation1" type="text" />
+          </div>
+          <div class="f">
+            <label for="contact_no1">Contact No.</label>
+            <input id="contact_no1" name="contact_no1" type="text" />
+          </div>
+          <div class="f span-6">
+            <label for="email_id1">Email Id</label>
+            <input id="email_id1" name="email_id1" type="text" />
+          </div>
+        </div>
+      </fieldset>
+
+      <!-- CONTACT 2 -->
+      <fieldset>
+        <legend>Contact Person 2</legend>
+        <div class="grid">
+          <div class="f span-6">
+            <label for="contact_person2">Contact Person2</label>
+            <input id="contact_person2" name="contact_person2" type="text" />
+          </div>
+          <div class="f">
+            <label for="designation2">Designation (2)</label>
+            <input id="designation2" name="designation2" type="text" />
+          </div>
+          <div class="f">
+            <label for="contact_no2">Contact No. (2)</label>
+            <input id="contact_no2" name="contact_no2" type="text" />
+          </div>
+          <div class="f span-6">
+            <label for="email_id2">Email Id (2)</label>
+            <input id="email_id2" name="email_id2" type="text" />
+          </div>
+        </div>
+      </fieldset>
+
+      <!-- SEGMENT -->
+      <fieldset>
+        <legend>Segment</legend>
+        <div class="grid">
+          <div class="f span-6">
+            <label for="segment">Segment</label>
+            <input id="segment" name="segment" type="text" />
+          </div>
+          <div class="f span-6">
+            <label for="sub_segment">Sub-Segment</label>
+            <input id="sub_segment" name="sub_segment" type="text" />
           </div>
         </div>
       </fieldset>
@@ -179,11 +239,126 @@
           </div>
           <div class="f">
             <label for="active_status">Active Status</label>
-            <input id="active_status" name="active_status" type="text" placeholder="Active / Inactive" />
+            <input id="active_status" name="active_status" type="text" placeholder="ACTIVE / INACTIVE" />
           </div>
           <div class="f">
             <label for="mc_status">Mc Status</label>
             <input id="mc_status" name="mc_status" type="text" />
+          </div>
+        </div>
+      </fieldset>
+
+      <!-- SALES / INSTALL -->
+      <fieldset>
+        <legend>Sales / Install</legend>
+        <div class="grid">
+          <div class="f span-6">
+            <label for="sales_invoice_no">Sales Invoice No</label>
+            <input id="sales_invoice_no" name="sales_invoice_no" type="text" />
+          </div>
+          <div class="f">
+            <label for="invoice_date">Invoice Date</label>
+            <input id="invoice_date" name="invoice_date" type="text" placeholder="YYYY-MM-DD" />
+          </div>
+          <div class="f">
+            <label for="installed_on">Installed On</label>
+            <input id="installed_on" name="installed_on" type="text" placeholder="YYYY-MM-DD" />
+          </div>
+        </div>
+      </fieldset>
+
+      <!-- AMC -->
+      <fieldset>
+        <legend>AMC</legend>
+        <div class="grid">
+          <div class="f">
+            <label for="amc_invoice_date">AMC Invoice Date</label>
+            <input id="amc_invoice_date" name="amc_invoice_date" type="text" placeholder="YYYY-MM-DD" />
+          </div>
+          <div class="f">
+            <label for="amc_from">AMC From</label>
+            <input id="amc_from" name="amc_from" type="text" placeholder="YYYY-MM-DD" />
+          </div>
+          <div class="f">
+            <label for="amc_to">AMC To</label>
+            <input id="amc_to" name="amc_to" type="text" placeholder="YYYY-MM-DD" />
+          </div>
+          <div class="f">
+            <label for="no_of_visits">No. of Visits</label>
+            <input id="no_of_visits" name="no_of_visits" type="text" />
+          </div>
+          <div class="f">
+            <label for="amc_amount">AMC Amount</label>
+            <input id="amc_amount" name="amc_amount" type="text" />
+          </div>
+          <div class="f">
+            <label for="amc_due_date">AMC Due Date</label>
+            <input id="amc_due_date" name="amc_due_date" type="text" placeholder="YYYY-MM-DD" />
+          </div>
+          <div class="f">
+            <label for="amc_days_remaining">AMC Days Remaining</label>
+            <input id="amc_days_remaining" name="amc_days_remaining" type="text" />
+          </div>
+        </div>
+      </fieldset>
+
+      <!-- FILTER -->
+      <fieldset>
+        <legend>Filter</legend>
+        <div class="grid">
+          <div class="f">
+            <label for="filter_invoice_date">Filter Invoice Date</label>
+            <input id="filter_invoice_date" name="filter_invoice_date" type="text" placeholder="YYYY-MM-DD" />
+          </div>
+          <div class="f">
+            <label for="filter_days">Filter Days</label>
+            <input id="filter_days" name="filter_days" type="text" />
+          </div>
+          <div class="f">
+            <label for="next_filter_due_date">Next Filter Due Date</label>
+            <input id="next_filter_due_date" name="next_filter_due_date" type="text" placeholder="YYYY-MM-DD" />
+          </div>
+          <div class="f">
+            <label for="filter_days_remaining">Filter Days Remaining</label>
+            <input id="filter_days_remaining" name="filter_days_remaining" type="text" />
+          </div>
+        </div>
+      </fieldset>
+
+      <!-- CLUSTER / PLAN -->
+      <fieldset>
+        <legend>Visit Plan</legend>
+        <div class="grid">
+          <div class="f span-6">
+            <label for="cluster_visit_plan">Cluster Visit Plan</label>
+            <input id="cluster_visit_plan" name="cluster_visit_plan" type="text" />
+          </div>
+          <div class="f span-6">
+            <label for="actual_visit">Actual Visit</label>
+            <input id="actual_visit" name="actual_visit" type="text" />
+          </div>
+          <div class="f">
+            <label for="cluster">Cluster</label>
+            <input id="cluster" name="cluster" type="text" />
+          </div>
+        </div>
+      </fieldset>
+
+      <!-- REMARKS / TERRITORY -->
+      <fieldset>
+        <legend>Remarks / Territory</legend>
+        <div class="grid">
+          <div class="f span-12">
+            <label for="remarks">Remarks</label>
+            <textarea id="remarks" name="remarks"></textarea>
+          </div>
+          <div class="f">
+            <label for="teritory_no">Teritory No</label>
+            <input id="teritory_no" name="teritory_no" type="text" />
+          </div>
+          <div class="f span-6">
+            <label for="next_ter2_plan">NEXT TER2 PLAN</label>
+            <input id="next_ter2_plan" name="next_ter2_plan" type="text" />
           </div>
         </div>
       </fieldset>
@@ -235,9 +410,7 @@
     // ✅ Suggest loader
     async function loadSuggest(apiBase, q, datalistId){
       try{
-        // ✅ avoid too many calls (type at least 2 chars)
         if((q || "").trim().length > 0 && (q || "").trim().length < 2) return;
-
         const data = await safeJson(apiBase + encodeURIComponent(q || ""));
         if(!data) return;
 
@@ -271,25 +444,29 @@
       if(el) el.value = (v ?? "");
     }
 
-    // ✅ Fill from /api/installbase/rows (ONLY fields that exist in this HTML)
-    function fillFromRow(r){
-      setVal("customer_name", r.customer_name);
-      setVal("serial_no", r.serial_no);
-      setVal("zone", r.zone);
-      setVal("sales_engr", r.sales_engr);
-      setVal("service_engr", r.service_engr);
-      setVal("cluster_no", r.cluster_no);
-      setVal("location", r.location);
-      setVal("state", r.state);
-      setVal("address", r.address);
-      setVal("machine_type", r.machine_type);
-      setVal("model", r.model);
-      setVal("ink_type", r.ink_type);
-      setVal("active_status", r.active_status);
-      setVal("mc_status", r.mc_status);
+    function normKey(s){
+      return String(s || "").toLowerCase().replace(/[^a-z0-9]/g,'');
     }
 
-    // ✅ Load by CUSTOMER
+    function formElements(){
+      return Array.from(document.querySelectorAll("#installbaseForm input[name], #installbaseForm textarea[name]"));
+    }
+
+    // ✅ Fill form from DB row (keys are DB columns)
+    function fillFromDbRow(dbRow){
+      const dbMap = {};
+      Object.keys(dbRow || {}).forEach(k => dbMap[normKey(k)] = k);
+
+      formElements().forEach(el => {
+        const n = normKey(el.name);
+        const dbKey = dbMap[n];
+        if(dbKey !== undefined){
+          el.value = (dbRow[dbKey] ?? "");
+        }
+      });
+    }
+
+    // ✅ Load by CUSTOMER (fill first machine + serial list)
     async function loadByCustomer(customer){
       if(!customer) return;
       showLoading("Loading customer…");
@@ -301,15 +478,17 @@
         if(rows.length === 0) return;
 
         // fill first row
-        fillFromRow(rows[0]);
+        fillFromDbRow(rows[0]);
 
-        // set serial list for this customer
+        // set serial list for this customer (multiple machines)
         const dl = document.getElementById("dl_serial");
         if(dl){
-          dl.innerHTML = rows
-            .map(r => (r.serial_no || "").trim())
-            .filter(v => v)
-            .map(v => `<option value="${v.replace(/"/g,'&quot;')}"></option>`)
+          const serials = rows
+            .map(r => (r["Serial No."] || r["Serial No"] || r["Serial_No"] || r["SERIAL NO"] || r["SerialNo"] || r["Serial"] || "").trim())
+            .filter(v => v);
+
+          dl.innerHTML = serials
+            .map(v => `<option value="${String(v).replace(/"/g,'&quot;')}"></option>`)
             .join("");
         }
       } finally {
@@ -317,15 +496,14 @@
       }
     }
 
-    // ✅ Load by SERIAL (autofill)
+    // ✅ Load by SERIAL (autofill full row)
     async function loadBySerial(s){
       if(!s) return;
       showLoading("Loading serial…");
       try{
         const data = await safeJson(`/api/installbase/by-serial?serial=${encodeURIComponent(s)}`);
         if(!data || !data.ok || !data.row) return;
-
-        Object.entries(data.row).forEach(([k,v]) => setVal(k, v));
+        fillFromDbRow(data.row);
       } finally {
         hideLoading();
       }
@@ -338,7 +516,7 @@
     serial.addEventListener("change", () => loadBySerial(serial.value.trim()));
     serial.addEventListener("blur",   () => loadBySerial(serial.value.trim()));
 
-    // SAVE
+    // ✅ SAVE with confirm: if serial exists => ask update yes/no
     document.getElementById("installbaseForm").addEventListener("submit", async (e) => {
       e.preventDefault();
       const fd = new FormData(e.target);
@@ -349,8 +527,20 @@
         return;
       }
 
-      showLoading("Saving…");
+      showLoading("Checking…");
       try{
+        const chk = await safeJson(`/api/installbase/exists?serial=${encodeURIComponent(payload.serial_no)}`);
+
+        if(chk && chk.ok && chk.exists === true){
+          hideLoading();
+          const yes = confirm("Ye Serial No. already database me hai.\nAap UPDATE karna chahte ho?");
+          if(!yes){
+            alert("Update cancelled.");
+            return;
+          }
+        }
+
+        showLoading("Saving…");
         const r = await fetch("/api/installbase/save", {
           method: "POST",
           credentials: "include",

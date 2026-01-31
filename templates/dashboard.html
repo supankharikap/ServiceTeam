@@ -135,6 +135,9 @@
         <button id="btnWeeklyPlan" data-roles="Admin,Manager,Team Leader,User"
                 onclick="showSection('weeklyPlanSection', this);">✅ Weekly Plan</button>
 
+        <button id="btnWeeklyPlanView" data-roles="Admin,Manager,Team Leader,User"
+                onclick="showSection('weeklyWiewPlanSection', this);">✅ Weekly Plan Report</button>       
+
         <button id="btnMasterView" data-roles="Admin,Manager,Team Leader,User"
                 onclick="showSection('masterSection', this); openMaster();">📄 Master Installbase View</button>
 
@@ -216,8 +219,14 @@
         <div id="masterTable"></div>
       </section>
 
+      <!-- ✅ WEEKLY PLAN View -->
+       
+
+
+
+
       <!-- ✅ WEEKLY PLAN -->
-      <section id="weeklyPlanSection" class="section">
+      <section id="weeklyPlnSection" class="section">
         <div class="sectionHeader">
           <h2>Weekly Plan</h2>
           <small>Add weekly service planning</small>
@@ -499,6 +508,18 @@
           ✅ Breakdown module will be added here.
         </div>
       </section>
+
+
+      <section id="weeklyWiewPlanSection" class="section">
+        <div class="sectionHeader">
+          <h2>Planning Report</h2>
+          <small>Coming soon</small>
+        </div>
+        <div style="color:var(--muted); line-height:1.6">
+          ✅ Planing module will be added Soon.
+        </div>
+      </section>
+
 
     </main>
   </div>
@@ -1057,6 +1078,8 @@ function setupCustomerSuggest(){
     }, 200);
   });
 }
+
+
 
 /* ===========================
    WEEKLY PLAN: CASCADE (same concept)
