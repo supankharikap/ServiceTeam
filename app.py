@@ -680,6 +680,9 @@ def api_report():
     limit = max(1, min(limit, 5000))
     q = (request.args.get("q") or "").strip()
 
+    from_date = _parse_iso_date(request.args.get("from"))
+    to_date   = _parse_iso_date(request.args.get("to"))
+
     cols = _table_columns("dbo.WSR")
     if not cols:
         return jsonify({"columns": [], "rows": []})
@@ -689,19 +692,30 @@ def api_report():
     preferred = ["Zone","EngineerName","CustomerName","Location","MMM-YY","Serial","Model","VisitDate"]
     search_where, search_params = _build_token_search_where(q, cols, preferred)
 
+    visit_col = _find_col(cols, aliases=["VisitDate","Visit Date"], must_contain=["visit","date"])
+
     where_parts = []
     params = []
+
     if base_where:
         where_parts.append(base_where.replace(" WHERE ", "", 1))
         params += base_params
+
     if search_where:
         where_parts.append(search_where)
         params += search_params
 
+    if visit_col:
+        if from_date:
+            where_parts.append(f"{_qcol(visit_col)} >= ?")
+            params.append(from_date)
+        if to_date:
+            where_parts.append(f"{_qcol(visit_col)} <= ?")
+            params.append(to_date)
+
     where_sql = (" WHERE " + " AND ".join(where_parts)) if where_parts else ""
 
-    visit_col = _find_col(cols, aliases=["VisitDate","Visit Date"], must_contain=["visit","date"])
-    id_col    = _find_col(cols, aliases=["Id","ID"], must_contain=["id"])
+    id_col = _find_col(cols, aliases=["Id","ID"], must_contain=["id"])
     order_by = f"{_qcol(visit_col)} DESC" if visit_col else (f"{_qcol(id_col)} DESC" if id_col else f"{_qcol(cols[0])} DESC")
 
     select_cols = ", ".join([_qcol(c) for c in cols])
@@ -721,7 +735,6 @@ def api_report():
             out_rows.append(obj)
 
         return jsonify({"columns": cols, "rows": out_rows})
-
     except Exception as e:
         return _json_err(str(e), 500)
 

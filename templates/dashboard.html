@@ -65,9 +65,46 @@
     thead th{position:sticky;top:0;background:#0b2a55;color:#fff;padding:10px;text-align:left;white-space:nowrap;}
     tbody td{border-top:1px solid var(--border);padding:10px;white-space:nowrap;}
 
-    .searchRow{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:10px;}
-    .searchRow input{flex:1;min-width:260px;}
-    .err{color:#b91c1c;font-weight:700;}
+    /* ✅ Master toolbar exactly like report toolbar */
+    .searchRow{
+     display:flex;
+     align-items:center;
+     gap:12px;
+     flex-wrap:nowrap;          /* ✅ single line */
+     overflow-x:auto;           /* ✅ mobile pe scroll */
+     white-space:nowrap;
+     -webkit-overflow-scrolling:touch;
+     margin-bottom:10px;
+    }
+
+    /* ✅ Master search input small (same as report) */
+    .searchRow input{
+      height:38px;
+      padding:0 14px;
+      border:1px solid var(--border);
+      border-radius:999px;
+      font-size:14px;
+      outline:none;
+      background:#fff;
+      width:10cm;      /* ✅ chota */
+      min-width:0;
+      flex:0 0 auto;
+    }
+    .searchRow .tb-btn{
+      height:38px;
+      padding:0 12px;
+      border:1px solid var(--border);
+      border-radius:12px;
+      background:#fff;
+      cursor:pointer;
+      font-weight:700;
+      flex:0 0 auto; 
+    }
+    .searchRow .tb-export{
+      background:#eaf2ff;
+      border-color:#cfe0ff;
+    }
+
 
     .suggestBox{
       position:absolute; display:none; background:#fff; border:1px solid #e5e7eb; border-radius:12px;
@@ -249,6 +286,8 @@
             <button class="btn gray" onclick="masterDoSearch()">🔎 Search</button>
             <button class="btn gray" onclick="masterClear()">✖ Clear</button>
             <button class="btn gray" onclick="openMaster()">🔄 Refresh</button>
+            <button class="btn gray" type="button" onclick="exportMaster()">⬇️Excel Export</button>
+
           </div>
           <div id="masterSuggest" class="suggestBox"></div>
           <div id="masterErr" class="err"></div>
@@ -512,12 +551,14 @@
           <input id="reportSearch" class="tb-search"
           placeholder="Search report (customer / MMM-YY / engineer / zone...)"
           autocomplete="off">
+          <label>Form</label><input type="date" class="tb-date" id="fromDate">
+          <label>To</label><input type="date" class="tb-date" id="toDate">         
+
+
           <button class="tb-btn" onclick="reportDoSearch()">🔎 Search</button>
           <button class="tb-btn" onclick="reportClear()">✖ Clear</button>
           <button class="tb-btn" onclick="loadReport()">🔄 Refresh</button>
-          <label>Form</label><input type="date" class="tb-date" id="fromDate">
-          <label>To</label><input type="date" class="tb-date" id="toDate">
-          <button class="tb-btn tb-export" onclick="exportReport()">⬇️Excel Export</button>  
+          <button class="tb-btn tb-export" onclick="exportReport()">⬇️Report Export</button>  
         </div>
         <div id="reportSuggest" class="suggestBox"></div>
         <div id="reportErr" class="err"></div>     
@@ -1340,11 +1381,31 @@ async function openMaster(){
   }
 }
 function masterDoSearch(){ openMaster(); }
+function reportClear(){
+  const s = document.getElementById("reportSearch");
+  const f = document.getElementById("fromDate");
+  const t = document.getElementById("toDate");
+
+  if(s) s.value = "";
+  if(f) f.value = "";
+  if(t) t.value = "";
+
+  hideSuggest("reportSuggest");
+
+  // reload view with no filters
+  loadReport();
+}
 function masterClear(){
-  document.getElementById("masterSearch").value = "";
+  const ms = document.getElementById("masterSearch");
+  if(ms) ms.value = "";
+
   hideSuggest("masterSuggest");
+
+  // Master view reload (no filters)
   openMaster();
 }
+
+
 document.getElementById("masterSearch").addEventListener("input", async (e)=>{
   const q = (e.target.value || "").trim();
   const box = document.getElementById("masterSuggest");
@@ -1377,27 +1438,36 @@ document.getElementById("masterSuggest").addEventListener("click", (e)=>{
    REPORT (unchanged)
 =========================== */
 function reportDoSearch(){ loadReport(); }
-function reportClear(){
-  document.getElementById("reportSearch").value = "";
-  hideSuggest("reportSuggest");
-  loadReport();
-}
+
 async function loadReport(){
   const errBox = document.getElementById("reportErr");
   errBox.textContent = "";
+
   const q = (document.getElementById("reportSearch").value || "").trim();
+  const from = document.getElementById("fromDate")?.value || "";
+  const to   = document.getElementById("toDate")?.value || "";
+
+  const params = new URLSearchParams();
+  params.set("limit","2000");
+  if(q) params.set("q", q);
+  if(from) params.set("from", from);
+  if(to) params.set("to", to);
+
   showLoading("Loading report...");
   try{
-    const res = await fetch("/api/report?limit=2000&q=" + encodeURIComponent(q));
+    const res = await fetch("/api/report?" + params.toString());
     const data = await res.json();
+
     if (!res.ok || data.error){
       errBox.textContent = data.error || "Report load error";
       return;
     }
+
     const thead = document.querySelector("#dataTable thead");
     const tbody = document.querySelector("#dataTable tbody");
     thead.innerHTML = "";
     tbody.innerHTML = "";
+
     const cols = data.columns || [];
     const rows = data.rows || [];
     if (!cols.length) return;
@@ -1414,7 +1484,7 @@ async function loadReport(){
       const tr = document.createElement("tr");
       cols.forEach(c=>{
         const td = document.createElement("td");
-        td.textContent = (r[c] === null || r[c] === undefined) ? "" : r[c];
+        td.textContent = (r[c] ?? "");
         tr.appendChild(td);
       });
       tbody.appendChild(tr);
@@ -1657,6 +1727,62 @@ document.addEventListener("DOMContentLoaded", () => {
 </script>
 
 <script>
+function exportMaster(){
+  // Master table renderTable() se #masterTable ke andar <table> ban raha hai
+  const wrap = document.getElementById("masterTable");
+  const table = wrap ? wrap.querySelector("table") : null;
+
+  if(!table){
+    alert("No data to export!");
+    return;
+  }
+
+  const csvEscape = (val) => {
+    const s = String(val ?? "");
+    if (/[",\n\r]/.test(s)) return `"${s.replace(/"/g,'""')}"`;
+    return s;
+  };
+
+  const out = [];
+  const theadRow = table.querySelector("thead tr");
+  if(!theadRow){
+    alert("No data to export!");
+    return;
+  }
+
+  // headers
+  const headers = Array.from(theadRow.querySelectorAll("th")).map(th => th.innerText.trim());
+  out.push(headers.map(csvEscape).join(","));
+
+  // visible rows only (filtered view)
+  table.querySelectorAll("tbody tr").forEach(tr=>{
+    const cols = Array.from(tr.querySelectorAll("td")).map(td => td.innerText.trim());
+    out.push(cols.map(csvEscape).join(","));
+  });
+
+  if(out.length <= 1){
+    alert("No rows to export!");
+    return;
+  }
+
+  const csv = "\uFEFF" + out.join("\r\n");
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+
+  const filename = "InstallBase_View.csv";
+
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+
+
+
 function exportReport(){
   const table = document.getElementById("dataTable");
   if(!table){
@@ -1711,7 +1837,7 @@ function exportReport(){
   if(from) nameParts.push("From_" + from);
   if(to) nameParts.push("To_" + to);
   if(q) nameParts.push("Q_" + safe(q).slice(0,30));
-  const filename = nameParts.join("_") + ".xls";
+  const filename = nameParts.join("_") + ".csv";
 
   // download
   const a = document.createElement("a");
