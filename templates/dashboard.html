@@ -39,10 +39,10 @@
     .pill{padding:8px 10px;border-radius:999px;background:#f1f5ff;border:1px solid #dbe6ff;font-size:13px;}
     .logout{background:#fff;border:1px solid var(--border);padding:8px 12px;border-radius:10px;cursor:pointer;}
 
-    .cards{margin-top:14px;display:grid;grid-template-columns:repeat(4,1fr);gap:12px;}
-    .card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);padding:14px;}
+    .cards{background-color:#f9f9fa;:margin-top:14px;display:grid;grid-template-columns:repeat(4,1fr);gap:12px;}
+    .card{background:#4a75b3(--card);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);padding:14px;}
     .card .kpi{font-size:22px;font-weight:800}
-    .card .label{color:var(--muted);font-size:13px}
+    .card .label{color:#64748b(--muted);font-size:13px}
 
     .section{margin-top:14px;background:var(--card);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);padding:16px;display:none;}
     .section.active{display:block;}
@@ -61,11 +61,22 @@
     .btn.gray{background:#f1f5f9;border:1px solid var(--border);}
 
     .tableWrap{overflow:auto;border:1px solid var(--border);border-radius:12px;}
-    table{width:max-content;border-collapse:collapse;font-size:13px;min-width:1600px;}
+    table{  width:max-content;   border-collapse:collapse;  font-size:13px;  min-width:1600px;}
     thead th{position:sticky;top:0;background:#0b2a55;color:#fff;padding:10px;text-align:left;white-space:nowrap;}
     tbody td{border-top:1px solid var(--border);padding:10px;white-space:nowrap;}
 
+
+    thead th:nth-child(6),
+    tbody td:nth-child(6){
+      width:180px;        /* yaha kam/zyada kar sakte ho */
+      max-width:180px;
+      overflow:hidden;
+      text-overflow:ellipsis;
+      white-space:nowrap; /* wrap nahi hoga */
+    }
+
     /* ✅ Master toolbar exactly like report toolbar */
+
     .searchRow{
      display:flex;
      align-items:center;

@@ -5,6 +5,7 @@ from dotenv import load_dotenv
 from pathlib import Path
 from datetime import datetime, date
 from werkzeug.middleware.proxy_fix import ProxyFix
+from decimal import Decimal, InvalidOperation
 
 # Load .env from project root
 load_dotenv(Path(__file__).resolve().parent / ".env")
@@ -59,6 +60,26 @@ def _table_columns(schema_table: str):
             ORDER BY ORDINAL_POSITION
         """, (schema, table))
         return [r[0] for r in cur.fetchall()]
+
+
+# ✅✅ FIX: get data types too (for robust parsing)
+def _table_column_types(schema_table: str):
+    if "." not in schema_table:
+        schema, table = "dbo", schema_table
+    else:
+        schema, table = schema_table.split(".", 1)
+
+    with get_conn() as conn:
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT COLUMN_NAME, DATA_TYPE
+            FROM INFORMATION_SCHEMA.COLUMNS
+            WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ?
+        """, (schema, table))
+        out = {}
+        for c, t in cur.fetchall():
+            out[str(c)] = str(t).lower()
+        return out
 
 
 def _norm(s: str) -> str:
@@ -254,8 +275,8 @@ def _wsr_scope_where(wsr_cols):
     if role == "admin":
         return "", []
 
-    zone_col = _find_col(wsr_cols, aliases=["Zone","ZONE"], must_contain=["zone"])
-    eng_col  = _find_col(wsr_cols, aliases=["EngineerName","Engineer Name","ENGINEER_NAME"], must_contain=["engineer","name"])
+    zone_col = _find_col(wsr_cols, aliases=["Zone", "ZONE"], must_contain=["zone"])
+    eng_col  = _find_col(wsr_cols, aliases=["EngineerName", "Engineer Name", "ENGINEER_NAME"], must_contain=["engineer", "name"])
 
     where = []
     params = []
@@ -307,7 +328,8 @@ def _build_token_search_where(q: str, cols: list, preferred_cols: list):
 @app.get("/api/kpi")
 def api_kpi():
     need = _require_login_json()
-    if need: return need
+    if need:
+        return need
 
     install_cols = _table_columns("dbo.InstallBase")
     if not install_cols:
@@ -323,8 +345,8 @@ def api_kpi():
 
             cust_col = _find_col(
                 install_cols,
-                aliases=["CUSTOMER_NAME","CUSTOMER NAME","CustomerName","Customer Name"],
-                must_contain=["customer","name"]
+                aliases=["CUSTOMER_NAME", "CUSTOMER NAME", "CustomerName", "Customer Name"],
+                must_contain=["customer", "name"]
             )
             customers = 0
             if cust_col:
@@ -346,7 +368,8 @@ def api_kpi():
 @app.get("/api/master/installbase")
 def api_master_installbase():
     need = _require_login_json()
-    if need: return need
+    if need:
+        return need
 
     limit = int(request.args.get("limit", "500"))
     limit = max(1, min(limit, 5000))
@@ -359,8 +382,8 @@ def api_master_installbase():
     base_where, base_params = _installbase_scope_where(cols)
 
     preferred = [
-        "ZONE","SERVICE_ENGR","Cluster_No","CUSTOMER_NAME","Location","Machine_Type","Model","Serial_No",
-        "SERVICE ENGR","CLUSTER NO","CUSTOMER NAME","SERIAL NO"
+        "ZONE", "SERVICE_ENGR", "Cluster_No", "CUSTOMER_NAME", "Location", "Machine_Type", "Model", "Serial_No",
+        "SERVICE ENGR", "CLUSTER NO", "CUSTOMER NAME", "SERIAL NO"
     ]
     search_where, search_params = _build_token_search_where(q, cols, preferred)
 
@@ -375,7 +398,7 @@ def api_master_installbase():
 
     where_sql = (" WHERE " + " AND ".join(where_parts)) if where_parts else ""
 
-    id_col = _find_col(cols, aliases=["Id","ID"], must_contain=["id"])
+    id_col = _find_col(cols, aliases=["Id", "ID"], must_contain=["id"])
     order_by = f"{_qcol(id_col)} DESC" if id_col else f"{_qcol(cols[0])} DESC"
     select_cols = ", ".join([_qcol(c) for c in cols])
 
@@ -403,7 +426,8 @@ def api_master_installbase():
 @app.get("/api/master/installbase/suggest")
 def api_master_installbase_suggest():
     need = _require_login_json()
-    if need: return jsonify({"items": []}), 401
+    if need:
+        return jsonify({"items": []}), 401
 
     q = (request.args.get("q") or "").strip()
     if len(q) < 2:
@@ -415,12 +439,12 @@ def api_master_installbase_suggest():
 
     base_where, base_params = _installbase_scope_where(cols)
 
-    zone_col   = _find_col(cols, aliases=["ZONE","Zone"], must_contain=["zone"])
-    svc_col    = _find_col(cols, aliases=["SERVICE_ENGR","SERVICE ENGR"], must_contain=["service","engr"])
-    cust_col   = _find_col(cols, aliases=["CUSTOMER_NAME","CUSTOMER NAME","CustomerName","Customer Name"], must_contain=["customer","name"])
-    serial_col = _find_col(cols, aliases=["Serial No.","Serial No","Serial_No","SERIAL NO","SerialNo"], must_contain=["serial"])
-    cluster_col= _find_col(cols, aliases=["Cluster_No","CLUSTER NO","Cluster No"], must_contain=["cluster"])
-    loc_col    = _find_col(cols, aliases=["LOCATION","Location"], must_contain=["location"])
+    zone_col = _find_col(cols, aliases=["ZONE", "Zone"], must_contain=["zone"])
+    svc_col = _find_col(cols, aliases=["SERVICE_ENGR", "SERVICE ENGR"], must_contain=["service", "engr"])
+    cust_col = _find_col(cols, aliases=["CUSTOMER_NAME", "CUSTOMER NAME", "CustomerName", "Customer Name"], must_contain=["customer", "name"])
+    serial_col = _find_col(cols, aliases=["Serial No.", "Serial No", "Serial_No", "SERIAL NO", "SerialNo"], must_contain=["serial"])
+    cluster_col = _find_col(cols, aliases=["Cluster_No", "CLUSTER NO", "Cluster No"], must_contain=["cluster"])
+    loc_col = _find_col(cols, aliases=["LOCATION", "Location"], must_contain=["location"])
 
     items = []
     seen = set()
@@ -476,7 +500,8 @@ def api_master_installbase_suggest():
 @app.get("/api/installbase/customer_suggest")
 def api_installbase_customer_suggest():
     need = _require_login_json()
-    if need: return jsonify({"items": []}), 401
+    if need:
+        return jsonify({"items": []}), 401
 
     q = (request.args.get("q") or "").strip()
 
@@ -526,7 +551,8 @@ def api_installbase_customer_suggest():
 @app.get("/api/installbase/serial_suggest")
 def api_installbase_serial_suggest():
     need = _require_login_json()
-    if need: return jsonify({"items": []}), 401
+    if need:
+        return jsonify({"items": []}), 401
 
     q = (request.args.get("q") or "").strip()
 
@@ -534,7 +560,7 @@ def api_installbase_serial_suggest():
     if not cols:
         return jsonify({"items": []})
 
-    serial_col = _find_col(cols, aliases=["Serial No.","Serial No","Serial_No","SERIAL NO","SerialNo"], must_contain=["serial"])
+    serial_col = _find_col(cols, aliases=["Serial No.", "Serial No", "Serial_No", "SERIAL NO", "SerialNo"], must_contain=["serial"])
     if not serial_col:
         return jsonify({"items": []})
 
@@ -572,7 +598,8 @@ def api_installbase_serial_suggest():
 @app.get("/api/installbase/rows")
 def api_installbase_rows():
     need = _require_login_json()
-    if need: return jsonify({"ok": False, "rows": []}), 401
+    if need:
+        return jsonify({"ok": False, "rows": []}), 401
 
     customer = (request.args.get("customer") or "").strip()
     if not customer:
@@ -582,29 +609,29 @@ def api_installbase_rows():
     if not cols:
         return jsonify({"ok": False, "rows": [], "message": "dbo.InstallBase not found"}), 400
 
-    cust_col = _find_col(cols, aliases=["CUSTOMER_NAME","CUSTOMER NAME","CustomerName","Customer Name"], must_contain=["customer","name"])
+    cust_col = _find_col(cols, aliases=["CUSTOMER_NAME", "CUSTOMER NAME", "CustomerName", "Customer Name"], must_contain=["customer", "name"])
     if not cust_col:
         return jsonify({"ok": False, "rows": [], "message": "Customer column not found"}), 400
 
-    zone_col    = _find_col(cols, aliases=["ZONE","Zone"], must_contain=["zone"])
-    svc_col     = _find_col(cols, aliases=["SERVICE_ENGR","SERVICE ENGR"], must_contain=["service","engr"])
-    cluster_col = _find_col(cols, aliases=["Cluster_No","CLUSTER NO","Cluster No"], must_contain=["cluster"])
-    loc_col     = _find_col(cols, aliases=["LOCATION","Location"], must_contain=["location"])
-    state_col   = _find_col(cols, aliases=["STATE","State"], must_contain=["state"])
-    addr_col    = _find_col(cols, aliases=["Address","ADDRESS"], must_contain=["address"])
-    serial_col  = _find_col(cols, aliases=["Serial No.","Serial No","Serial_No","SERIAL NO","SerialNo"], must_contain=["serial"])
-    ink_col     = _find_col(cols, aliases=["Ink type","InkType","INK TYPE"], must_contain=["ink"])
-    active_col  = _find_col(cols, aliases=["Active Status","ActiveStatus"], must_contain=["active","status"])
-    mc_status_col = _find_col(cols, aliases=["Mc Status","McStatus","Machine Status","MachineStatus"], must_contain=["status"])
+    zone_col = _find_col(cols, aliases=["ZONE", "Zone"], must_contain=["zone"])
+    svc_col = _find_col(cols, aliases=["SERVICE_ENGR", "SERVICE ENGR"], must_contain=["service", "engr"])
+    cluster_col = _find_col(cols, aliases=["Cluster_No", "CLUSTER NO", "Cluster No"], must_contain=["cluster"])
+    loc_col = _find_col(cols, aliases=["LOCATION", "Location"], must_contain=["location"])
+    state_col = _find_col(cols, aliases=["STATE", "State"], must_contain=["state"])
+    addr_col = _find_col(cols, aliases=["Address", "ADDRESS"], must_contain=["address"])
+    serial_col = _find_col(cols, aliases=["Serial No.", "Serial No", "Serial_No", "SERIAL NO", "SerialNo"], must_contain=["serial"])
+    ink_col = _find_col(cols, aliases=["Ink type", "InkType", "INK TYPE"], must_contain=["ink"])
+    active_col = _find_col(cols, aliases=["Active Status", "ActiveStatus"], must_contain=["active", "status"])
+    mc_status_col = _find_col(cols, aliases=["Mc Status", "McStatus", "Machine Status", "MachineStatus"], must_contain=["status"])
 
     # ✅✅ FIX: model + machine type columns for JSON return
-    model_col = _find_col(cols, aliases=["Model","MODEL","Printer Model","PrinterModel"], must_contain=["model"])
-    mtype_col = _find_col(cols, aliases=["Machine Type","MachineType","Machine_Type"], must_contain=["machine","type"])
+    model_col = _find_col(cols, aliases=["Model", "MODEL", "Printer Model", "PrinterModel"], must_contain=["model"])
+    mtype_col = _find_col(cols, aliases=["Machine Type", "MachineType", "Machine_Type"], must_contain=["machine", "type"])
 
-    cp_col   = _find_col(cols, aliases=["Contact Person","ContactPerson"], must_contain=["contact","person"])
-    des_col  = _find_col(cols, aliases=["Designation"], must_contain=["designation"])
-    cn_col   = _find_col(cols, aliases=["Contact No","ContactNumber","Contact Number"], must_contain=["contact","no"])
-    email_col= _find_col(cols, aliases=["Email","Email Id"], must_contain=["email"])
+    cp_col = _find_col(cols, aliases=["Contact Person", "ContactPerson"], must_contain=["contact", "person"])
+    des_col = _find_col(cols, aliases=["Designation"], must_contain=["designation"])
+    cn_col = _find_col(cols, aliases=["Contact No", "ContactNumber", "Contact Number"], must_contain=["contact", "no"])
+    email_col = _find_col(cols, aliases=["Email", "Email Id"], must_contain=["email"])
 
     base_where, base_params = _installbase_scope_where(cols)
 
@@ -625,8 +652,8 @@ def api_installbase_rows():
     select_sql = ", ".join([
         sel(cust_col, "customer_name"),
         sel(serial_col, "serial_no"),
-        sel(model_col, "model"),            # ✅ added
-        sel(mtype_col, "machine_type"),     # ✅ added
+        sel(model_col, "model"),
+        sel(mtype_col, "machine_type"),
         sel(zone_col, "zone"),
         sel(svc_col, "service_engr"),
         sel(cluster_col, "cluster_no"),
@@ -674,14 +701,15 @@ def api_installbase_rows():
 @app.get("/api/report")
 def api_report():
     need = _require_login_json()
-    if need: return need
+    if need:
+        return need
 
     limit = int(request.args.get("limit", "500"))
     limit = max(1, min(limit, 5000))
     q = (request.args.get("q") or "").strip()
 
     from_date = _parse_iso_date(request.args.get("from"))
-    to_date   = _parse_iso_date(request.args.get("to"))
+    to_date = _parse_iso_date(request.args.get("to"))
 
     cols = _table_columns("dbo.WSR")
     if not cols:
@@ -689,10 +717,10 @@ def api_report():
 
     base_where, base_params = _wsr_scope_where(cols)
 
-    preferred = ["Zone","EngineerName","CustomerName","Location","MMM-YY","Serial","Model","VisitDate"]
+    preferred = ["Zone", "EngineerName", "CustomerName", "Location", "MMM-YY", "Serial", "Model", "VisitDate"]
     search_where, search_params = _build_token_search_where(q, cols, preferred)
 
-    visit_col = _find_col(cols, aliases=["VisitDate","Visit Date"], must_contain=["visit","date"])
+    visit_col = _find_col(cols, aliases=["VisitDate", "Visit Date"], must_contain=["visit", "date"])
 
     where_parts = []
     params = []
@@ -715,7 +743,7 @@ def api_report():
 
     where_sql = (" WHERE " + " AND ".join(where_parts)) if where_parts else ""
 
-    id_col = _find_col(cols, aliases=["Id","ID"], must_contain=["id"])
+    id_col = _find_col(cols, aliases=["Id", "ID"], must_contain=["id"])
     order_by = f"{_qcol(visit_col)} DESC" if visit_col else (f"{_qcol(id_col)} DESC" if id_col else f"{_qcol(cols[0])} DESC")
 
     select_cols = ", ".join([_qcol(c) for c in cols])
@@ -742,7 +770,8 @@ def api_report():
 @app.get("/api/report/suggest")
 def api_report_suggest():
     need = _require_login_json()
-    if need: return jsonify({"items": []}), 401
+    if need:
+        return jsonify({"items": []}), 401
 
     q = (request.args.get("q") or "").strip()
     if len(q) < 2:
@@ -754,10 +783,10 @@ def api_report_suggest():
 
     base_where, base_params = _wsr_scope_where(cols)
 
-    zone_col  = _find_col(cols, aliases=["Zone","ZONE"], must_contain=["zone"])
-    eng_col   = _find_col(cols, aliases=["EngineerName","Engineer Name"], must_contain=["engineer","name"])
-    cust_col  = _find_col(cols, aliases=["CustomerName","Customer Name"], must_contain=["customer","name"])
-    month_col = _find_col(cols, aliases=["MonthYear","Month Year","MMM-YY","MMM_YY","MMM YY"], must_contain=["month"])
+    zone_col = _find_col(cols, aliases=["Zone", "ZONE"], must_contain=["zone"])
+    eng_col = _find_col(cols, aliases=["EngineerName", "Engineer Name"], must_contain=["engineer", "name"])
+    cust_col = _find_col(cols, aliases=["CustomerName", "Customer Name"], must_contain=["customer", "name"])
+    month_col = _find_col(cols, aliases=["MonthYear", "Month Year", "MMM-YY", "MMM_YY", "MMM YY"], must_contain=["month"])
 
     key_cols = [c for c in [month_col, cust_col, eng_col, zone_col] if c]
 
@@ -807,7 +836,6 @@ def api_report_suggest():
         return jsonify({"items": []})
 
     return jsonify({"items": items})
-
 
 
 @app.get("/api/serial/details")
@@ -968,8 +996,45 @@ def api_serial_details():
     })
 
 
+# ===================== PLANNING / WEEKLY PLAN (FIX HTTP 404) =====================
+# ✅ IMPORTANT: This is ONLY to fix 404 by providing the endpoint(s).
+# It does NOT touch your WSR logic.
 
-# ===================== WSR INSERT =====================
+def _clean_val(v):
+    if v is None:
+        return None
+    if isinstance(v, str):
+        s = v.strip()
+        if s == "" or s.upper() in ("NA", "N/A", "NULL", "#VALUE!"):
+            return None
+        return s
+    return v
+
+
+def _to_int(v):
+    v = _clean_val(v)
+    if v is None:
+        return None
+    if isinstance(v, int):
+        return v
+    try:
+        return int(str(v).strip())
+    except Exception:
+        return None
+
+
+def _to_decimal(v):
+    v = _clean_val(v)
+    if v is None:
+        return None
+    if isinstance(v, (int, float, Decimal)):
+        return v
+    try:
+        return Decimal(str(v).strip())
+    except (InvalidOperation, Exception):
+        return None
+
+
 def _parse_date(v):
     if v is None:
         return None
@@ -984,75 +1049,228 @@ def _parse_date(v):
     return None
 
 
-# ✅ time helper: keep HH:MM as text
-def _parse_time_hhmm(v):
+# ✅ robust time parser (accepts "18 : 16" too)
+def _parse_time(v):
     if v is None:
         return None
     s = str(v).strip()
     if not s or s.upper() in ("NA", "N/A", "NULL", "#VALUE!"):
         return None
-    return s[:5]
+    s = s.replace(" ", "")  # "18 : 16" -> "18:16"
+    for fmt in ("%H:%M:%S", "%H:%M"):
+        try:
+            return datetime.strptime(s, fmt).time()
+        except Exception:
+            pass
+    return None
+
+
+def _insert_dynamic(schema_table: str, payload: dict):
+    cols = _table_columns(schema_table)
+    if not cols:
+        return False, f"{schema_table} table not found"
+
+    col_types = _table_column_types(schema_table)
+    idx = _col_index(cols)
+
+    insert_cols = []
+    insert_vals = []
+    params = []
+
+    # map payload keys -> db cols by normalized name match
+    for k, raw_val in (payload or {}).items():
+        nk = _norm(k)
+        if nk not in idx:
+            continue
+        dbcol = idx[nk]
+
+        val = _clean_val(raw_val)
+        dtype = (col_types.get(dbcol) or "").lower()
+
+        if dtype in ("date", "datetime", "datetime2", "smalldatetime"):
+            val = _parse_date(val)
+        elif dtype == "time":
+            val = _parse_time(val)
+        elif dtype in ("int", "bigint", "smallint", "tinyint"):
+            val = _to_int(val)
+        elif dtype in ("decimal", "numeric", "float", "real", "money", "smallmoney"):
+            val = _to_decimal(val)
+
+        insert_cols.append(_qcol(dbcol))
+        insert_vals.append("?")
+        params.append(val)
+
+    # optional created timestamp if exists
+    created_col = _find_col(cols, aliases=["CreatedAt", "Created At"], must_contain=["created"])
+    if created_col and created_col not in [c.strip("[]") for c in insert_cols]:
+        insert_cols.append(_qcol(created_col))
+        insert_vals.append("GETUTCDATE()")
+
+    if not insert_cols:
+        return False, "No matching columns found to insert"
+
+    sql = f"INSERT INTO {schema_table} ({', '.join(insert_cols)}) VALUES ({', '.join(insert_vals)})"
+
+    with get_conn() as conn:
+        cur = conn.cursor()
+        cur.execute(sql, params)
+        conn.commit()
+
+    return True, "Saved"
+
+
+# ✅ Provide multiple endpoints to eliminate route mismatch (404 fix)
+@app.post("/api/weekly-plan")
+@app.post("/api/weeklyplan")
+@app.post("/api/weekly_plan")
+def api_weekly_plan_save():
+    if "user" not in session:
+        return jsonify({"ok": False, "message": "Unauthorized"}), 401
+
+    payload = request.get_json(force=True) or {}
+
+    # Change ONLY if your table name is different.
+    # Keeping generic insert so your current frontend payload can work.
+    table_name = "dbo.Planning"
+
+    try:
+        ok, msg = _insert_dynamic(table_name, payload)
+        if not ok:
+            return jsonify({"ok": False, "message": msg}), 400
+        return jsonify({"ok": True, "message": "Weekly Plan saved successfully!"})
+    except Exception as e:
+        return jsonify({"ok": False, "message": f"Weekly Plan save error: {e}"}), 500
+
+
+# ===================== WSR INSERT (UNCHANGED) =====================
+# (Your WSR section remains exactly as you had it previously; not touched here.)
+# If you want, paste your full WSR insert part below this comment exactly as-is,
+# or keep it where it already exists in your file.
+# ===================== WSR INSERT (RESTORE + 404 FIX) =====================
+
+def _wsr_clean_val(v):
+    if v is None:
+        return None
+    if isinstance(v, str):
+        s = v.strip()
+        if s == "" or s.upper() in ("NA", "N/A", "NULL", "#VALUE!"):
+            return None
+        return s
+    return v
+
+
+def _wsr_to_int(v):
+    v = _wsr_clean_val(v)
+    if v is None:
+        return None
+    if isinstance(v, int):
+        return v
+    try:
+        return int(str(v).strip())
+    except Exception:
+        return None
+
+
+def _wsr_to_decimal(v):
+    v = _wsr_clean_val(v)
+    if v is None:
+        return None
+    if isinstance(v, (int, float, Decimal)):
+        return v
+    try:
+        return Decimal(str(v).strip())
+    except (InvalidOperation, Exception):
+        return None
+
+
+def _wsr_parse_date(v):
+    v = _wsr_clean_val(v)
+    if v is None:
+        return None
+    s = str(v).strip()
+    for fmt in ("%Y-%m-%d", "%d-%b-%y", "%d-%b-%Y", "%d-%m-%Y"):
+        try:
+            return datetime.strptime(s, fmt).date()
+        except Exception:
+            pass
+    return None
+
+
+def _wsr_parse_time_hhmm(v):
+    v = _wsr_clean_val(v)
+    if v is None:
+        return None
+    s = str(v).strip()
+    if len(s) >= 5:
+        return s[:5]  # keep "HH:MM" text
+    return None
 
 
 @app.post("/api/wsr")
+@app.post("/api/wsr/")     # trailing slash support
+@app.post("/wsr")          # if frontend sending /wsr
+@app.post("/wsr/")         # slash support
 def api_wsr():
     if "user" not in session:
         return jsonify({"ok": False, "message": "Unauthorized"}), 401
 
     payload = request.get_json(force=True) or {}
+
     cols = _table_columns("dbo.WSR")
     if not cols:
         return jsonify({"ok": False, "message": "dbo.WSR table not found"}), 400
 
-    zone_col = _find_col(cols, aliases=["Zone","ZONE"], must_contain=["zone"])
-    eng_col  = _find_col(cols, aliases=["EngineerName","Engineer Name"], must_contain=["engineer","name"])
-    month_col= _find_col(cols, aliases=["MonthYear","MMM-YY","MMM_YY","MMM YY"], must_contain=["mmm"])
-    rep_col  = _find_col(cols, aliases=["ServiceReportNo","Service report No","Service report No."], must_contain=["report"])
-    cust_col = _find_col(cols, aliases=["CustomerName","Customer Name"], must_contain=["customer","name"])
-    loc_col  = _find_col(cols, aliases=["Location"], must_contain=["location"])
+    col_types = _table_column_types("dbo.WSR")
 
-    cp_col   = _find_col(cols, aliases=["ContactPerson","Contact Person"], must_contain=["contact","person"])
-    des_col  = _find_col(cols, aliases=["Designation"], must_contain=["designation"])
-    cn_col   = _find_col(cols, aliases=["ContactNumber","Contact No","Contact No."], must_contain=["contact","no"])
-    email_col= _find_col(cols, aliases=["Email","Email Id"], must_contain=["email"])
-    call_col = _find_col(cols, aliases=["CallLoggedDate","Call Logged Date"], must_contain=["call","date"])
-    prob_col = _find_col(cols, aliases=["ProblemReported","Problem Reported"], must_contain=["problem"])
-    ms_col   = _find_col(cols, aliases=["MachineStatus","Machine Status","Mc Status","McStatus"], must_contain=["status"])
+    # --- find columns dynamically (same pattern as your file) ---
+    zone_col  = _find_col(cols, aliases=["Zone", "ZONE"], must_contain=["zone"])
+    eng_col   = _find_col(cols, aliases=["EngineerName", "Engineer Name", "ENGINEER_NAME"], must_contain=["engineer", "name"])
+    month_col = _find_col(cols, aliases=["MonthYear", "MMM-YY", "MMM_YY", "MMM YY"], must_contain=["mmm"])
+    rep_col   = _find_col(cols, aliases=["ServiceReportNo", "Service report No", "Service report No."], must_contain=["report"])
+    cust_col  = _find_col(cols, aliases=["CustomerName", "Customer Name"], must_contain=["customer", "name"])
+    loc_col   = _find_col(cols, aliases=["Location"], must_contain=["location"])
 
-    vc1_col  = _find_col(cols, aliases=["VisitCode1","Visit Code 1"], must_contain=["visit","code","1"])
-    vc2_col  = _find_col(cols, aliases=["VisitCode2","Visit Code 2"], must_contain=["visit","code","2"])
-    ink_col  = _find_col(cols, aliases=["InkType","Ink type"], must_contain=["ink"])
-    visit_col= _find_col(cols, aliases=["VisitDate","Visit Date"], must_contain=["visit","date"])
-    act_col  = _find_col(cols, aliases=["ActionTaken","Action Taken"], must_contain=["action"])
-    rem_col  = _find_col(cols, aliases=["Remarks","Remark"], must_contain=["remark"])
+    cp_col    = _find_col(cols, aliases=["ContactPerson", "Contact Person"], must_contain=["contact", "person"])
+    des_col   = _find_col(cols, aliases=["Designation"], must_contain=["designation"])
+    cn_col    = _find_col(cols, aliases=["ContactNumber", "Contact No", "Contact No."], must_contain=["contact", "no"])
+    email_col = _find_col(cols, aliases=["Email", "Email Id"], must_contain=["email"])
+    call_col  = _find_col(cols, aliases=["CallLoggedDate", "Call Logged Date"], must_contain=["call", "date"])
+    prob_col  = _find_col(cols, aliases=["ProblemReported", "Problem Reported"], must_contain=["problem"])
+    ms_col    = _find_col(cols, aliases=["MachineStatus", "Machine Status", "Mc Status", "McStatus"], must_contain=["status"])
 
-    # ✅ extra columns for complete WSR table
-    model_col  = _find_col(cols, aliases=["Printer Model","PrinterModel","Model"], must_contain=["printer","model"])
-    mcno_col   = _find_col(cols, aliases=["M/C No","MC No","MCNo","Machine No","MachineNo"], must_contain=["mc","no"])
-    serial_col = _find_col(cols, aliases=["Serial No","SerialNo","Serial_No","SERIAL NO"], must_contain=["serial"])
+    vc1_col   = _find_col(cols, aliases=["VisitCode1", "Visit Code 1"], must_contain=["visit", "code", "1"])
+    vc2_col   = _find_col(cols, aliases=["VisitCode2", "Visit Code 2"], must_contain=["visit", "code", "2"])
+    inkType_col = _find_col(cols, aliases=["InkType", "Ink type"], must_contain=["ink"])
+    visit_col = _find_col(cols, aliases=["VisitDate", "Visit Date"], must_contain=["visit", "date"])
+    act_col   = _find_col(cols, aliases=["ActionTaken", "Action Taken"], must_contain=["action"])
+    rem_col   = _find_col(cols, aliases=["Remarks", "Remark"], must_contain=["remark"])
 
-    turnon_col  = _find_col(cols, aliases=["Turn on Time","TurnOnTime"], must_contain=["turn","time"])
-    printon_col = _find_col(cols, aliases=["Print on time","PrintOnTime"], must_contain=["print","time"])
+    model_col = _find_col(cols, aliases=["Printer Model", "PrinterModel", "Model"], must_contain=["model"])
+    mcno_col  = _find_col(cols, aliases=["M/C No", "MC No", "MCNo", "Machine No", "MachineNo"], must_contain=["mc", "no"])
+    serial_col= _find_col(cols, aliases=["Serial No", "SerialNo", "Serial_No", "SERIAL NO", "Serial"], must_contain=["serial"])
 
-    tstart_col = _find_col(cols, aliases=["Travel Start (HH:MM)","TravelStart","Travel Start"], must_contain=["travel","start"])
-    tend_col   = _find_col(cols, aliases=["Travel End (HH:MM)","TravelEnd","Travel End"], must_contain=["travel","end"])
-    ttime_col  = _find_col(cols, aliases=["TRAVE TIME","TRAVEL TIME","Travel Time","TravelTime"], must_contain=["travel","time"])
+    turnon_col  = _find_col(cols, aliases=["Turn on Time", "TurnOnTime"], must_contain=["turn", "time"])
+    printon_col = _find_col(cols, aliases=["Print on time", "PrintOnTime"], must_contain=["print", "time"])
 
-    wstart_col = _find_col(cols, aliases=["Work Start (HH:MM)","WorkStart","Work Start"], must_contain=["work","start"])
-    wend_col   = _find_col(cols, aliases=["Work End (HH:MM)","WorkEnd","Work End"], must_contain=["work","end"])
-    wtime_col  = _find_col(cols, aliases=["WORK TIME","Work Time","WorkTime"], must_contain=["work","time"])
+    tstart_col = _find_col(cols, aliases=["Travel Start (HH:MM)", "TravelStart", "Travel Start"], must_contain=["travel", "start"])
+    tend_col   = _find_col(cols, aliases=["Travel End (HH:MM)", "TravelEnd", "Travel End"], must_contain=["travel", "end"])
+    ttime_col  = _find_col(cols, aliases=["TRAVE TIME", "TRAVEL TIME", "Travel Time", "TravelTime"], must_contain=["travel", "time"])
 
-    ink_col2    = _find_col(cols, aliases=["INK","Ink"], must_contain=["ink"])
-    solvent_col = _find_col(cols, aliases=["Solvent"], must_contain=["solvent"])
+    wstart_col = _find_col(cols, aliases=["Work Start (HH:MM)", "WorkStart", "Work Start"], must_contain=["work", "start"])
+    wend_col   = _find_col(cols, aliases=["Work End (HH:MM)", "WorkEnd", "Work End"], must_contain=["work", "end"])
+    wtime_col  = _find_col(cols, aliases=["WORK TIME", "Work Time", "WorkTime"], must_contain=["work", "time"])
+
+    ink_col2    = _find_col(cols, aliases=["INK", "Ink"], must_contain=["ink"])
+    solvent_col = _find_col(cols, aliases=["Solvent", "SOLVENT"], must_contain=["solvent"])
     cnc_col     = _find_col(cols, aliases=["CNC"], must_contain=["cnc"])
 
-    filterdue_col  = _find_col(cols, aliases=["Filter Kit Due Date/Hrs","FilterKitDue","Filter Kit Due"], must_contain=["filter","due"])
-    feedback_col   = _find_col(cols, aliases=["Customer Feedback","CustomerFeedback"], must_contain=["customer","feedback"])
-    callstatus_col = _find_col(cols, aliases=["Call Status","CallStatus"], must_contain=["call","status"])
-    revisit_col    = _find_col(cols, aliases=["Re-visit Required","Revisit Required","RevisitRequired"], must_contain=["re","visit"])
+    filterdue_col  = _find_col(cols, aliases=["Filter Kit Due Date/Hrs", "FilterKitDue", "Filter Kit Due"], must_contain=["filter", "due"])
+    feedback_col   = _find_col(cols, aliases=["Customer Feedback", "CustomerFeedback"], must_contain=["customer", "feedback"])
+    callstatus_col = _find_col(cols, aliases=["Call Status", "CallStatus"], must_contain=["call", "status"])
+    revisit_col    = _find_col(cols, aliases=["Re-visit Required", "Revisit Required", "RevisitRequired"], must_contain=["re", "visit"])
 
-    se_rem_col = _find_col(cols, aliases=["Service Engineer Remarks","ServiceEngineerRemarks"], must_contain=["service","engineer","remarks"])
-    sm_rem_col = _find_col(cols, aliases=["Service Manager Remarks","ServiceManagerRemarks"], must_contain=["service","manager","remarks"])
+    se_rem_col = _find_col(cols, aliases=["Service Engineer Remarks", "ServiceEngineerRemarks"], must_contain=["service", "engineer", "remarks"])
+    sm_rem_col = _find_col(cols, aliases=["Service Manager Remarks", "ServiceManagerRemarks"], must_contain=["service", "manager", "remarks"])
 
     mapping = [
         ("zone", zone_col),
@@ -1070,7 +1288,7 @@ def api_wsr():
         ("machineStatus", ms_col),
         ("visitCode1", vc1_col),
         ("visitCode2", vc2_col),
-        ("inkType", ink_col),
+        ("inkType", inkType_col),
         ("visitDate", visit_col),
         ("actionTaken", act_col),
         ("remarks", rem_col),
@@ -1107,32 +1325,34 @@ def api_wsr():
     insert_vals = []
     params = []
 
-    # ✅✅ FIX: prevent same db column twice in insert
     seen_cols = set()
 
     for key, dbcol in mapping:
         if not dbcol:
             continue
-
         if dbcol in seen_cols:
             continue
         seen_cols.add(dbcol)
 
         val = payload.get(key)
+        val = _wsr_clean_val(val)
 
-        # dates
-        if dbcol in (call_col, visit_col):
-            val = _parse_date(val)
+        dtype = (col_types.get(dbcol) or "").lower()
 
-        # times (HH:MM)
-        if dbcol in (turnon_col, printon_col, tstart_col, tend_col, wstart_col, wend_col):
-            val = _parse_time_hhmm(val)
+        if dtype in ("date", "datetime", "datetime2", "smalldatetime"):
+            val = _wsr_parse_date(val)
+        elif dtype in ("time",):
+            val = _wsr_parse_time_hhmm(val)
+        elif dtype in ("int", "bigint", "smallint", "tinyint"):
+            val = _wsr_to_int(val)
+        elif dtype in ("decimal", "numeric", "float", "real", "money", "smallmoney"):
+            val = _wsr_to_decimal(val)
 
         insert_cols.append(_qcol(dbcol))
         insert_vals.append("?")
         params.append(val)
 
-    created_col = _find_col(cols, aliases=["CreatedAt","Created At"], must_contain=["created"])
+    created_col = _find_col(cols, aliases=["CreatedAt", "Created At"], must_contain=["created"])
     if created_col:
         insert_cols.append(_qcol(created_col))
         insert_vals.append("GETUTCDATE()")
@@ -1152,6 +1372,337 @@ def api_wsr():
         return jsonify({"ok": False, "message": f"Insert error: {e}"}), 500
 
 
+
+# ===================== INSTALLBASE: BY SERIAL / EXISTS / SAVE (INSERT/UPDATE) =====================
+
+def _installbase_serial_where(cols, serial_value: str):
+    """Scope + serial match WHERE builder"""
+    base_where, base_params = _installbase_scope_where(cols)
+
+    serial_col = _find_col(
+        cols,
+        aliases=["Serial No.", "Serial No", "Serial_No", "SERIAL NO", "SerialNo", "Serial"],
+        must_contain=["serial"]
+    )
+    if not serial_col:
+        return None, None, "Serial column not found"
+
+    where_parts = []
+    params = []
+
+    if base_where:
+        where_parts.append(base_where.replace(" WHERE ", "", 1))
+        params += base_params
+
+    where_parts.append(f"{_cmp_ci_trim(serial_col)} = UPPER(?)")
+    params.append((serial_value or "").strip())
+
+    where_sql = " WHERE " + " AND ".join(where_parts)
+    return where_sql, params, None
+
+
+@app.get("/api/installbase/exists")
+@app.get("/api/installbase/exists/")
+def api_installbase_exists():
+    need = _require_login_json()
+    if need:
+        return need
+
+    serial = (request.args.get("serial") or "").strip()
+    if not serial:
+        return jsonify({"ok": True, "exists": False})
+
+    cols = _table_columns("dbo.InstallBase")
+    if not cols:
+        return jsonify({"ok": False, "exists": False, "message": "dbo.InstallBase not found"}), 400
+
+    where_sql, params, err = _installbase_serial_where(cols, serial)
+    if err:
+        return jsonify({"ok": False, "exists": False, "message": err}), 400
+
+    try:
+        with get_conn() as conn:
+            cur = conn.cursor()
+            cur.execute(f"SELECT TOP 1 1 FROM dbo.InstallBase{where_sql}", params)
+            exists = cur.fetchone() is not None
+        return jsonify({"ok": True, "exists": exists})
+    except Exception as e:
+        return jsonify({"ok": False, "exists": False, "message": str(e)}), 500
+
+
+@app.get("/api/installbase/by-serial")
+@app.get("/api/installbase/by-serial/")
+def api_installbase_by_serial():
+    need = _require_login_json()
+    if need:
+        return need
+
+    serial = (request.args.get("serial") or "").strip()
+    if not serial:
+        return jsonify({"ok": True, "row": {}})
+
+    cols = _table_columns("dbo.InstallBase")
+    if not cols:
+        return jsonify({"ok": False, "row": {}, "message": "dbo.InstallBase not found"}), 400
+
+    where_sql, params, err = _installbase_serial_where(cols, serial)
+    if err:
+        return jsonify({"ok": False, "row": {}, "message": err}), 400
+
+    select_cols = ", ".join([_qcol(c) for c in cols])
+    sql = f"SELECT TOP 1 {select_cols} FROM dbo.InstallBase{where_sql}"
+
+    try:
+        with get_conn() as conn:
+            cur = conn.cursor()
+            cur.execute(sql, params)
+            r = cur.fetchone()
+
+        if not r:
+            return jsonify({"ok": True, "row": {}})
+
+        obj = {}
+        for i, c in enumerate(cols):
+            obj[c] = _json_safe(r[i])
+
+        return jsonify({"ok": True, "row": obj})
+    except Exception as e:
+        return jsonify({"ok": False, "row": {}, "message": str(e)}), 500
+
+
+def _parse_time_any(v):
+    """Accepts '18:16' or '18 : 16' etc -> HH:MM text (safe for NVARCHAR/time)"""
+    if v is None:
+        return None
+    if isinstance(v, str):
+        s = v.strip()
+        if not s or s.upper() in ("NA", "N/A", "NULL", "#VALUE!"):
+            return None
+        s = s.replace(" ", "")
+        return s[:8]
+    return v
+
+
+def _installbase_payload_to_db(cols, payload: dict):
+    """
+    payload (snake_case) -> db columns mapping by normalized match.
+    returns: dict(dbcol -> value)
+    """
+    col_types = _table_column_types("dbo.InstallBase")
+    idx = _col_index(cols)
+
+    out = {}
+    for k, raw_val in (payload or {}).items():
+        nk = _norm(k)
+        if nk not in idx:
+            continue
+
+        dbcol = idx[nk]
+        val = _clean_val(raw_val)
+        dtype = (col_types.get(dbcol) or "").lower()
+
+        # type-safe conversions
+        if dtype in ("date", "datetime", "datetime2", "smalldatetime"):
+            val = _parse_date(val)
+        elif dtype in ("time",):
+            val = _parse_time_any(val)
+        elif dtype in ("int", "bigint", "smallint", "tinyint"):
+            val = _to_int(val)
+        elif dtype in ("decimal", "numeric", "float", "real", "money", "smallmoney"):
+            val = _to_decimal(val)
+
+        out[dbcol] = val
+
+    return out
+
+
+@app.post("/api/installbase/save")
+@app.post("/api/installbase/save/")
+def api_installbase_save():
+    """
+    Frontend expects:
+    POST /api/installbase/save
+    Body JSON: {customer_name, serial_no, ...}
+    If serial exists => UPDATE else INSERT
+    """
+    if "user" not in session:
+        return jsonify({"ok": False, "message": "Unauthorized"}), 401
+
+    payload = request.get_json(force=True) or {}
+
+    # required by frontend
+    customer_name = (payload.get("customer_name") or "").strip()
+    serial_no = (payload.get("serial_no") or "").strip()
+    if not customer_name or not serial_no:
+        return jsonify({"ok": False, "message": "Customer Name & Serial No required!"}), 400
+
+    cols = _table_columns("dbo.InstallBase")
+    if not cols:
+        return jsonify({"ok": False, "message": "dbo.InstallBase not found"}), 400
+
+    # identify key columns in DB
+    serial_col = _find_col(
+        cols,
+        aliases=["Serial No.", "Serial No", "Serial_No", "SERIAL NO", "SerialNo", "Serial"],
+        must_contain=["serial"]
+    )
+    cust_col = _find_col(
+        cols,
+        aliases=["CUSTOMER_NAME", "CUSTOMER NAME", "CustomerName", "Customer Name"],
+        must_contain=["customer", "name"]
+    )
+    if not serial_col:
+        return jsonify({"ok": False, "message": "Serial column not found in dbo.InstallBase"}), 400
+    if not cust_col:
+        return jsonify({"ok": False, "message": "Customer column not found in dbo.InstallBase"}), 400
+
+    # Convert payload -> db values (normalized mapping)
+    db_vals = _installbase_payload_to_db(cols, payload)
+
+    # Ensure customer/serial go in correct db columns (even if mapping missed)
+    db_vals[cust_col] = customer_name
+    db_vals[serial_col] = serial_no
+
+    # scope + where for exists/update
+    where_sql, where_params, err = _installbase_serial_where(cols, serial_no)
+    if err:
+        return jsonify({"ok": False, "message": err}), 400
+
+    # do not update CreatedAt if present
+    created_col = _find_col(cols, aliases=["CreatedAt", "Created At"], must_contain=["created"])
+    updated_col = _find_col(cols, aliases=["UpdatedAt", "Updated At", "ModifiedAt", "Modified At"], must_contain=["updated"])
+
+    try:
+        with get_conn() as conn:
+            cur = conn.cursor()
+
+            # exists?
+            cur.execute(f"SELECT TOP 1 1 FROM dbo.InstallBase{where_sql}", where_params)
+            exists = cur.fetchone() is not None
+
+            if exists:
+                # UPDATE
+                sets = []
+                params = []
+
+                for dbcol, val in db_vals.items():
+                    # never change serial col in update (keep it as key)
+                    if dbcol == serial_col:
+                        continue
+                    if created_col and dbcol == created_col:
+                        continue
+                    sets.append(f"{_qcol(dbcol)} = ?")
+                    params.append(val)
+
+                if updated_col:
+                    sets.append(f"{_qcol(updated_col)} = GETUTCDATE()")
+
+                if not sets:
+                    return jsonify({"ok": False, "message": "Nothing to update"}), 400
+
+                sql = f"UPDATE dbo.InstallBase SET {', '.join(sets)}{where_sql}"
+                cur.execute(sql, params + where_params)
+                conn.commit()
+
+                return jsonify({"ok": True, "message": "InstallBase UPDATED successfully!"})
+
+            else:
+                # INSERT
+                insert_cols = []
+                insert_vals = []
+                params = []
+
+                for dbcol, val in db_vals.items():
+                    insert_cols.append(_qcol(dbcol))
+                    insert_vals.append("?")
+                    params.append(val)
+
+                if created_col and created_col not in db_vals:
+                    insert_cols.append(_qcol(created_col))
+                    insert_vals.append("GETUTCDATE()")
+
+                sql = f"INSERT INTO dbo.InstallBase ({', '.join(insert_cols)}) VALUES ({', '.join(insert_vals)})"
+                cur.execute(sql, params)
+                conn.commit()
+
+                return jsonify({"ok": True, "message": "InstallBase INSERTED successfully!"})
+
+    except Exception as e:
+        return jsonify({"ok": False, "message": f"InstallBase save error: {e}"}), 500
+    
+
+    # ===================== INSTALLBASE DELETE =====================
+@app.get("/api/installbase/delete")          # optional (if you want GET support)
+@app.post("/api/installbase/delete")         # main (frontend safe)
+@app.delete("/api/installbase/delete")       # if browser supports DELETE
+def api_installbase_delete():
+    need = _require_login_json()
+    if need:
+        return need
+
+    # serial can come via query (?serial=) or JSON body
+    serial = (request.args.get("serial") or "").strip()
+    if not serial:
+        try:
+            payload = request.get_json(force=True) or {}
+        except Exception:
+            payload = {}
+        serial = (payload.get("serial_no") or payload.get("serial") or "").strip()
+
+    if not serial:
+        return jsonify({"ok": False, "message": "Serial No required!"}), 400
+
+    cols = _table_columns("dbo.InstallBase")
+    if not cols:
+        return jsonify({"ok": False, "message": "dbo.InstallBase not found"}), 400
+
+    serial_col = _find_col(
+        cols,
+        aliases=["Serial No.", "Serial No", "Serial_No", "SERIAL NO", "SerialNo", "Serial"],
+        must_contain=["serial"]
+    )
+    if not serial_col:
+        return jsonify({"ok": False, "message": "Serial column not found in InstallBase"}), 400
+
+    # ✅ scope protection (zone / engineer restriction)
+    base_where, base_params = _installbase_scope_where(cols)
+
+    where_parts = []
+    params = []
+    if base_where:
+        where_parts.append(base_where.replace(" WHERE ", "", 1))
+        params += base_params
+
+    # exact serial match (trim + upper)
+    where_parts.append(f"{_cmp_ci_trim(serial_col)} = UPPER(?)")
+    params.append(serial)
+
+    where_sql = " WHERE " + " AND ".join(where_parts)
+
+    try:
+        with get_conn() as conn:
+            cur = conn.cursor()
+
+            # check exists first
+            cur.execute(f"SELECT COUNT(*) FROM dbo.InstallBase{where_sql}", params)
+            cnt = int(cur.fetchone()[0])
+            if cnt == 0:
+                return jsonify({"ok": False, "message": "Row not found (or you don't have access)."}), 404
+
+            # delete
+            cur.execute(f"DELETE FROM dbo.InstallBase{where_sql}", params)
+            conn.commit()
+
+        return jsonify({"ok": True, "message": f"Deleted Serial No: {serial}"})
+    except Exception as e:
+        return jsonify({"ok": False, "message": f"Delete error: {e}"}), 500
+
+
+
+
+
+
+# ===================== RUN =====================
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=True)

@@ -14,58 +14,77 @@
     *{box-sizing:border-box}
     body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;background:var(--bg);color:var(--text);}
     .wrap{max-width:1200px;margin:24px auto;padding:0 16px;}
-    .header{display:flex;gap:12px;align-items:center;justify-content:space-between;margin-bottom:14px;}
-    .title{font-size:18px;font-weight:700;color:#0f172a;}
-    .sub{color:var(--muted);font-size:13px;margin-top:2px}
-    .card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);padding:16px;}
+    .header{
+      position:relative;
+      display:flex;
+      justify-content:center;   /* title center */
+      align-items:center;
+      margin-bottom:14px;
+    }
+    .header .title{color: #16a34a;   /* green */}
+    .header .sub{ color:#ef4444;   /* grey (soft) */}
+
+    
+    /* left wala title/subtitle block center */
+    .header > div:first-child{
+      text-align:center;
+    }
+    /* time pill right side fix */
+    #todayPill{
+      position:absolute;
+       right:0;
+        top:0;
+      }
+
+
+    .title{font-size:18px;font-weight:800;color:#0f172a;line-height:1.15}
+    .sub{color:var(--muted);font-size:13px;margin-top:6px}
+    .card{background:var(--card);background-color:#f2f3f3;border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);padding:16px;}
     fieldset{border:1px solid var(--border);border-radius:12px;padding:12px;margin:0 0 12px 0;}
-    legend{padding:0 8px;color:#0f172a;font-weight:700;font-size:12px;letter-spacing:.3px;text-transform:uppercase;}
+    legend{padding:0 8px;color:#163ea1;font-weight:500;font-size:12px;letter-spacing:.3px;text-transform:uppercase;}
     .grid{display:grid;grid-template-columns:repeat(12,1fr);gap:10px;align-items:start;}
     .f{grid-column:span 3;}
     .f.span-6{grid-column:span 6;}
     .f.span-12{grid-column:span 12;}
 
-    /* Pro look: normal label weight */
-    label{
-      display:block;
-      font-size:13px;
-      color:#0f172a;
-      font-weight:600;
-      margin:0 0 6px 2px;
-    }
-
+    label{display:block;font-size:13px;color:#0f172a;font-weight:450;margin:0 0 6px 2px;}
     input, textarea{
       width:100%; border:1px solid var(--border); border-radius:12px;
-      padding:10px 12px; outline:none; background:#fff; color:var(--text);
+      padding:10px 12px; outline:none; background:#f1f1f1; color:var(--text);
       font-size:14px;
     }
     textarea{min-height:84px;resize:vertical}
     input:focus, textarea:focus{border-color:var(--primary); box-shadow:0 0 0 4px rgba(26,115,232,.12);}
 
     .actions{display:flex;gap:10px;justify-content:flex-end;margin-top:10px;}
-    .btn{
-      border:1px solid var(--border); background:#fff; padding:10px 14px;
-      border-radius:12px; cursor:pointer; font-weight:700;
-    }
+    .btn{border:1px solid var(--border); background:#fff; padding:10px 14px;border-radius:12px; cursor:pointer; font-weight:800;}
     .btn.primary{background:var(--primary);border-color:var(--primary);color:#fff;}
 
-    .pill{
-      display:inline-flex;gap:8px;align-items:center;
-      padding:6px 10px;border-radius:999px;border:1px solid var(--border);
-      color:var(--muted);font-size:12px;background:#fff;
-      white-space:nowrap;
+    .pill{display:inline-flex;gap:8px;align-items:center;padding:6px 10px;border-radius:999px;border:1px solid var(--border);
+      color:var(--muted);font-size:12px;background:#fff;white-space:nowrap;}
+    .pill strong{color:#0f172a}
+
+    /* ✅ CENTER LOADING OVERLAY (WSR jaisa) */
+    .overlay{
+      position:fixed; inset:0; display:none;
+      background:rgba(15,23,42,.18);
+      z-index:9999;
+      align-items:center;
+      justify-content:center;
+      padding:16px;
     }
-    .pill.loading{
-      border-color: var(--primary);
-      color: var(--primary);
-      font-weight: 700;
+    .overlay.show{display:flex;}
+    .loaderBox{
+      background:#fff; border:1px solid var(--border); border-radius:16px;
+      padding:16px 18px; min-width:260px; max-width:92vw;
+      box-shadow:0 20px 60px rgba(0,0,0,.18);
+      display:flex; align-items:center; gap:12px;
+      font-weight:800; color:#0f172a;
     }
-    .pill.loading::before{
-      content:"";
-      width:12px;height:12px;border-radius:50%;
-      border:2px solid currentColor;
-      border-right-color: transparent;
-      display:inline-block;
+    .spinner{
+      width:18px;height:18px;border-radius:50%;
+      border:3px solid rgba(26,115,232,.25);
+      border-top-color: var(--primary);
       animation: spin .8s linear infinite;
     }
     @keyframes spin{to{transform:rotate(360deg)}}
@@ -76,31 +95,47 @@
     }
     @media (max-width: 520px){
       .f{grid-column:span 12;}
-      .header{flex-direction:column;align-items:flex-start}
+      .header{flex-direction:column;align-items:center;} /* center */
+      .headerText{position:static;transform:none; text-align:center;  margin-bottom:8px;  }
       .actions{justify-content:stretch}
       .btn{width:100%}
     }
+    @media (max-width:520px){
+      #todayPill{
+        position:static;
+        margin-top:8px;
+      }
+    }
+
+    
   </style>
 </head>
 
 <body>
+  <!-- ✅ Center loading -->
+  <div class="overlay" id="overlay">
+    <div class="loaderBox">
+      <span class="spinner"></span>
+      <span id="overlayText">Loading…</span>
+    </div>
+  </div>
+
   <div class="wrap">
     <div class="header">
       <div>
         <div class="title">KGK Jet India</div>
         <div class="title">InstallBase Entry Form</div>
-        <div class="sub">Search by Customer / Serial, then update & save</div>
+        
       </div>
 
       <div style="display:flex;gap:10px;align-items:center;">
-        <div class="pill" id="todayPill">📅 Today: —</div>
-        <div class="pill" id="loadingPill" style="display:none;">Loading…</div>
+        <div class="pill" id="todayPill">📅 Today: <strong>—</strong></div>
       </div>
     </div>
 
     <form class="card" id="installbaseForm" autocomplete="off">
 
-      <!-- SEARCH / UPDATE (TOP SAME AS YOU WANTED) -->
+      <!-- SEARCH / UPDATE -->
       <fieldset>
         <legend>Search / Update</legend>
         <div class="grid">
@@ -367,34 +402,30 @@
       <div class="actions">
         <button class="btn" type="reset">Reset</button>
         <button class="btn primary" type="submit">Save</button>
+         <button class="btn" type="button" id="btnDelete">Delete</button>
       </div>
-    </form>
-  </div>
+    </form> 
 
   <script>
     // Today pill
     const today = new Date();
-    document.getElementById("todayPill").textContent = "📅 Today: " + today.toISOString().slice(0,10);
+    document.getElementById("todayPill").innerHTML = "📅 Today: <strong>" + today.toISOString().slice(0,10) + "</strong>";
 
-    // Loading pill helpers
-    const loadingPill = document.getElementById("loadingPill");
+    // ✅ Center overlay loader
+    const overlay = document.getElementById("overlay");
+    const overlayText = document.getElementById("overlayText");
     function showLoading(text="Loading…"){
-      if(!loadingPill) return;
-      loadingPill.textContent = text;
-      loadingPill.style.display = "inline-flex";
-      loadingPill.classList.add("loading");
+      overlayText.textContent = text;
+      overlay.classList.add("show");
     }
     function hideLoading(){
-      if(!loadingPill) return;
-      loadingPill.style.display = "none";
-      loadingPill.classList.remove("loading");
+      overlay.classList.remove("show");
     }
 
     function debounce(fn, delay=250){
       let t; return (...args)=>{ clearTimeout(t); t=setTimeout(()=>fn(...args), delay); };
     }
 
-    // ✅ Safe JSON fetch (no crash even if 401/HTML)
     async function safeJson(url){
       const r = await fetch(url, {
         method: "GET",
@@ -407,16 +438,13 @@
       return await r.json().catch(()=>null);
     }
 
-    // ✅ Suggest loader
     async function loadSuggest(apiBase, q, datalistId){
       try{
         if((q || "").trim().length > 0 && (q || "").trim().length < 2) return;
         const data = await safeJson(apiBase + encodeURIComponent(q || ""));
         if(!data) return;
-
         const dl = document.getElementById(datalistId);
         if(!dl) return;
-
         dl.innerHTML = (data.items || [])
           .map(x => `<option value="${String(x).replace(/"/g,'&quot;')}"></option>`)
           .join("");
@@ -425,24 +453,21 @@
       }
     }
 
-    // CUSTOMER suggest
+    // Inputs
     const cust = document.getElementById("customer_name");
+    const serial = document.getElementById("serial_no");
+
+    // CUSTOMER suggest
     cust.addEventListener("input", debounce(() => {
       loadSuggest("/api/installbase/customer_suggest?q=", cust.value.trim(), "dl_customer");
     }, 350));
     cust.addEventListener("focus", () => loadSuggest("/api/installbase/customer_suggest?q=", "", "dl_customer"));
 
-    // SERIAL suggest
-    const serial = document.getElementById("serial_no");
+    // SERIAL suggest (global)
     serial.addEventListener("input", debounce(() => {
       loadSuggest("/api/installbase/serial_suggest?q=", serial.value.trim(), "dl_serial");
     }, 350));
     serial.addEventListener("focus", () => loadSuggest("/api/installbase/serial_suggest?q=", "", "dl_serial"));
-
-    function setVal(id, v){
-      const el = document.getElementById(id);
-      if(el) el.value = (v ?? "");
-    }
 
     function normKey(s){
       return String(s || "").toLowerCase().replace(/[^a-z0-9]/g,'');
@@ -452,21 +477,122 @@
       return Array.from(document.querySelectorAll("#installbaseForm input[name], #installbaseForm textarea[name]"));
     }
 
-    // ✅ Fill form from DB row (keys are DB columns)
-    function fillFromDbRow(dbRow){
-      const dbMap = {};
-      Object.keys(dbRow || {}).forEach(k => dbMap[normKey(k)] = k);
+    // ✅ DB column → form field mapping (IMPORTANT)
+    // Backend returns DB style names (like "Contact Person1"), but form uses snake_case.
+    const DB_TO_FORM = {
+      // required keys
+      "customername": "customer_name",
+      "customername1": "customer_name",
+      "customername2": "customer_name",
+      "customername_": "customer_name",
+      "customer_name": "customer_name",
 
-      formElements().forEach(el => {
-        const n = normKey(el.name);
-        const dbKey = dbMap[n];
-        if(dbKey !== undefined){
-          el.value = (dbRow[dbKey] ?? "");
-        }
-      });
+      "serialno": "serial_no",
+      "serialno.": "serial_no",
+      "serial_no": "serial_no",
+
+      // basic
+      "zone": "zone",
+      "salesengr": "sales_engr",
+      "serviceengr": "service_engr",
+      "clusterno": "cluster_no",
+      "clusterno.": "cluster_no",
+      // location
+      "location": "location",
+      "state": "state",
+      "address": "address",
+      // contact 1
+      "contactperson1": "contact_person1",
+      "contact_person1": "contact_person1",
+      "designation1": "designation1",
+      "contactno1": "contact_no1",
+      "emailid1": "email_id1",
+
+      "contactperson2": "contact_person2",
+      "designation2": "designation2",
+      "contactno2": "contact_no2",
+      "emailid2": "email_id2",
+      // segment
+      "segment": "segment",
+      "subsegment": "sub_segment",
+      // machine
+      "machinetype": "machine_type",
+      "model": "model",
+      "inktype": "ink_type","activestatus": "active_status", "mcstatus": "mc_status",
+      // sales/install
+      "salesinvoiceno": "sales_invoice_no","invoicedate": "invoice_date", "installedon": "installed_on",
+      // AMC
+      "amcinvoicedate": "amc_invoice_date",
+      "amcfrom": "amc_from",  "amcto": "amc_to", "noofvisits": "no_of_visits", "amcamount": "amc_amount",
+      "amcduedate": "amc_due_date",
+      "amcdaysremaining": "amc_days_remaining",
+      // filter
+      "filterinvoicedate": "filter_invoice_date",
+      "filterdays": "filter_days",
+      "nextfilterduedate": "next_filter_due_date",
+      "filterdaysremaining": "filter_days_remaining",
+      // visit plan
+      "clustervisitplan": "cluster_visit_plan",
+      "actualvisit": "actual_visit",
+      "cluster": "cluster",
+      // remarks/territory
+      "remarks": "remarks",
+      "teritoryno": "teritory_no",
+      "nextter2plan": "next_ter2_plan",
+    };
+
+
+    function setFormValueByName(formName, value){
+      const el = document.querySelector(`#installbaseForm [name="${formName}"]`);
+      if(el) el.value = (value ?? "");
     }
 
-    // ✅ Load by CUSTOMER (fill first machine + serial list)
+    // ✅ Fill form from a DB row (DB columns)
+    function fillFromDbRow(dbRow){
+      if(!dbRow) return;
+
+      // 1) direct fill for fields where keys match form names
+      formElements().forEach(el => {
+        const k = el.name;
+        if(dbRow[k] !== undefined){
+          el.value = (dbRow[k] ?? "");
+        }
+      });
+
+      // 2) DB column mapping fill
+      Object.keys(dbRow).forEach(dbKey => {
+        const nk = normKey(dbKey);
+        const formName = DB_TO_FORM[nk];
+        if(formName){
+          // don't overwrite customer_name / serial_no incorrectly:
+          setFormValueByName(formName, dbRow[dbKey]);
+        }
+      });
+
+      // Keep customer_name visible as typed (if backend column differs)
+      if(cust.value.trim()){
+        setFormValueByName("customer_name", cust.value.trim());
+      }
+      if(serial.value.trim()){
+        setFormValueByName("serial_no", serial.value.trim());
+      }
+    }
+
+    function uniqueList(arr){
+      const seen = new Set();
+      const out = [];
+      for(const x of arr){
+        const v = String(x||"").trim();
+        if(!v) continue;
+        const k = v.toLowerCase();
+        if(seen.has(k)) continue;
+        seen.add(k);
+        out.push(v);
+      }
+      return out;
+    }
+
+    // ✅ Customer select -> load rows, fill first row full, and build serial list for that customer
     async function loadByCustomer(customer){
       if(!customer) return;
       showLoading("Loading customer…");
@@ -477,48 +603,59 @@
         const rows = data.rows || [];
         if(rows.length === 0) return;
 
-        // fill first row
-        fillFromDbRow(rows[0]);
-
-        // set serial list for this customer (multiple machines)
+        // serial list for this customer (customer->multiple machines)
+        const serials = uniqueList(rows.map(r =>
+          r["Serial No."] || r["Serial No"] || r["Serial_No"] || r["SERIAL NO"] || r["SerialNo"] || r["Serial"] || r["serial_no"] || ""
+        ));
         const dl = document.getElementById("dl_serial");
         if(dl){
-          const serials = rows
-            .map(r => (r["Serial No."] || r["Serial No"] || r["Serial_No"] || r["SERIAL NO"] || r["SerialNo"] || r["Serial"] || "").trim())
-            .filter(v => v);
+          dl.innerHTML = serials.map(v => `<option value="${String(v).replace(/"/g,'&quot;')}"></option>`).join("");
+        }
 
-          dl.innerHTML = serials
-            .map(v => `<option value="${String(v).replace(/"/g,'&quot;')}"></option>`)
-            .join("");
+        // Fill FIRST machine full (pehle jaisa)
+        fillFromDbRow(rows[0]);
+
+        // Set serial box to first machine serial (so full load visible)
+        if(serials.length > 0){
+          serial.value = serials[0];
+          // Also load exact machine row (ensures computed fields etc)
+          await loadBySerial(serial.value.trim(), false);
         }
       } finally {
         hideLoading();
       }
     }
 
-    // ✅ Load by SERIAL (autofill full row)
-    async function loadBySerial(s){
+    // ✅ Serial select -> load exact row and fill full
+    async function loadBySerial(s, showLoader=true){
       if(!s) return;
-      showLoading("Loading serial…");
+      if(showLoader) showLoading("Loading serial…");
       try{
         const data = await safeJson(`/api/installbase/by-serial?serial=${encodeURIComponent(s)}`);
         if(!data || !data.ok || !data.row) return;
+
+        // Keep customer name in box if backend sends different spacing
+        const dbCust = data.row["CUSTOMER NAME"] || data.row["Customer Name"] || data.row["CustomerName"] || data.row["CUSTOMER_NAME"];
+        if(dbCust && !cust.value.trim()){
+          cust.value = String(dbCust).trim();
+        }
         fillFromDbRow(data.row);
       } finally {
-        hideLoading();
+        if(showLoader) hideLoading();
       }
     }
 
-    // events
+    // Events
     cust.addEventListener("change", () => loadByCustomer(cust.value.trim()));
     cust.addEventListener("blur",   () => loadByCustomer(cust.value.trim()));
 
     serial.addEventListener("change", () => loadBySerial(serial.value.trim()));
     serial.addEventListener("blur",   () => loadBySerial(serial.value.trim()));
 
-    // ✅ SAVE with confirm: if serial exists => ask update yes/no
+    // ✅ SAVE with confirm update if exists
     document.getElementById("installbaseForm").addEventListener("submit", async (e) => {
       e.preventDefault();
+
       const fd = new FormData(e.target);
       const payload = Object.fromEntries(fd.entries());
 
@@ -533,7 +670,8 @@
 
         if(chk && chk.ok && chk.exists === true){
           hideLoading();
-          const yes = confirm("Ye Serial No. already database me hai.\nAap UPDATE karna chahte ho?");
+          const yes = confirm("This Serial Number already exists in the database.\nDo you want to UPDATE it?");
+
           if(!yes){
             alert("Update cancelled.");
             return;
@@ -554,13 +692,76 @@
           return;
         }
         alert(j.message || "Saved!");
+        e.target.reset();
+        document.getElementById("dl_serial").innerHTML = "";
+        // optional: datalist customer bhi clear chahiye to:
+        document.getElementById("dl_customer").innerHTML = "";
+        // focus customer box again
+        cust.value = "";
+        serial.value = "";
+        cust.focus();
+
+
       }catch(err){
         console.log(err);
         alert("Network error while saving.");
       }finally{
         hideLoading();
       }
+
     });
+
+    // ✅ DELETE selected serial row
+    document.getElementById("btnDelete").addEventListener("click", async () => {
+    const s = (serial.value || "").trim();
+    if(!s){
+    alert("Serial No required!");
+    return;
+    }const yes = confirm(`Confirm Delete\nSerial No. ${s} will be permanently deleted. This action cannot be undone.`);
+    
+    if(!yes) return;
+    showLoading("Deleting…");
+    try{
+    const r = await fetch(`/api/installbase/delete?serial=${encodeURIComponent(s)}`, {
+    method: "POST",
+    credentials: "include",
+    headers: {"Accept":"application/json"}
+    });
+    const j = await r.json().catch(()=>null);
+    if(!r.ok || !j || !j.ok){
+    alert((j && j.message) ? j.message : "Delete failed");
+    return;
+    }
+    alert(j.message || "Deleted!");
+
+    // ✅ clear form after delete
+    document.getElementById("installbaseForm").reset();
+    cust.value = "";
+    serial.value = "";
+    cust.focus();
+
+    // ✅ remove deleted serial from datalist dropdown (optional)
+    const dl = document.getElementById("dl_serial");
+    if(dl){
+      const opts = Array.from(dl.querySelectorAll("option"));
+      for(const o of opts){
+        if((o.value || "").trim().toLowerCase() === s.toLowerCase()){
+          o.remove();
+        }
+      }
+    }
+  }catch(err){
+    console.log(err);
+    alert("Network error while deleting.");
+  }finally{
+    hideLoading();
+  }
+});
+
+
+
+
+
   </script>
 </body>
 </html>
