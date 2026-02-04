@@ -1,9 +1,12 @@
 import os, sys
 import pyodbc
+import pandas as pd
 from dotenv import load_dotenv
 from pathlib import Path
 from datetime import datetime
+from decimal import Decimal, InvalidOperation
 
+# Load .env from same folder
 load_dotenv(Path(__file__).resolve().parent / ".env")
 
 def must_env(k: str) -> str:
@@ -28,169 +31,223 @@ CONN_STR = (
     "Connection Timeout=30;"
 )
 
-NA_VALUES = {"", "NA", "N/A", "NULL", "null", "na", "n/a"}
+NA_VALUES = {"", "NA", "N/A", "NULL", "null", "na", "n/a", "-", "--"}
 
+# Put your exact date headers here (same as your file)
 DATE_HEADERS = {
     "Invoice Date", "Installed On", "AMC Invoice Date", "AMC From", "AMC To",
     "AMC Due Date", "Filter Invoice Date", "Next Filter Due Date",
     "Cluster Visit Plan", "Actual Visit", "NEXT TER2 PLAN"
 }
 
+# ✅ FIX: empty string -> None
 def clean(v):
     if v is None:
         return None
-    v = v.strip()
-    if v in NA_VALUES:
+    s = str(v).strip()
+    if not s:
         return None
-    return v
+    if s in NA_VALUES:
+        return None
+    return s
 
 def parse_date(v):
-    v = clean(v)
-    if not v:
+    s = clean(v)
+    if not s:
         return None
-    for fmt in ("%d-%b-%y", "%d-%b-%Y"):
+    for fmt in ("%d-%b-%y", "%d-%b-%Y", "%d/%m/%Y", "%d-%m-%Y", "%Y-%m-%d", "%d/%m/%y"):
         try:
-            return datetime.strptime(v, fmt).date()
+            return datetime.strptime(s, fmt).date()
         except ValueError:
             pass
     return None
 
+def parse_int(v):
+    s = clean(v)
+    if not s:
+        return None
+    s = s.replace(",", "").strip()
+    try:
+        if "." in s:
+            return int(float(s))
+        return int(s)
+    except ValueError:
+        return None
+
+def parse_decimal(v):
+    s = clean(v)
+    if not s:
+        return None
+    s = s.replace(",", "").strip()
+    s = s.replace("₹", "").replace("$", "").replace("INR", "").strip()
+    try:
+        return Decimal(s)
+    except (InvalidOperation, ValueError):
+        return None
+
+def parse_float(v):
+    s = clean(v)
+    if not s:
+        return None
+    s = s.replace(",", "").strip()
+    try:
+        return float(s)
+    except ValueError:
+        return None
+
+def parse_bit(v):
+    s = clean(v)
+    if not s:
+        return None
+    s = s.strip().lower()
+    if s in {"1", "true", "t", "yes", "y"}:
+        return 1
+    if s in {"0", "false", "f", "no", "n"}:
+        return 0
+    return None
+
 def normalize(name: str) -> str:
-    # Convert "Sales Invoice No" -> "SALES_INVOICE_NO" like variants
-    x = name.strip()
+    x = str(name).strip()
     x = x.replace(".", "")
     x = x.replace("/", "_")
     x = x.replace("-", "_")
-    x = x.replace("  ", " ")
+    x = " ".join(x.split())
     x = x.replace(" ", "_")
     x = x.replace("(", "").replace(")", "")
     return x.upper()
 
-def load_rows_safely(filepath: str):
-    # Handles cases where address field contains newline (no extra tab),
-    # by joining lines until column count matches header count.
-    raw = Path(filepath).read_text(encoding="utf-8-sig", errors="ignore")
-    lines = [ln for ln in raw.splitlines() if ln.strip() != ""]
-
-    if not lines:
-        raise RuntimeError("File empty hai.")
-
-    header_line = lines[0]
-    headers = [h.strip() for h in header_line.split("\t")]
-    col_count = len(headers)
-    if col_count < 5:
-        raise RuntimeError("Header me TAB delimiter nahi lag raha. (Columns bahut kam detect hue)")
-
-    rows = []
-    buf = ""
-
-    for ln in lines[1:]:
-        if not buf:
-            buf = ln
-        else:
-            buf = buf + " " + ln  # join broken line with space
-
-        parts = buf.split("\t")
-
-        if len(parts) < col_count:
-            continue  # still incomplete row, keep adding next line
-        else:
-            # If extra tabs happened, merge extras into last column
-            if len(parts) > col_count:
-                fixed = parts[:col_count-1] + [" ".join(parts[col_count-1:])]
-                parts = fixed
-
-            row = {headers[i]: parts[i] for i in range(col_count)}
-            rows.append(row)
-            buf = ""
-
-    if buf.strip():
-        print("⚠️ Last row incomplete lag raha hai, skip ho gaya:", buf[:120])
-
-    return headers, rows
+def read_csv(filepath: str) -> pd.DataFrame:
+    p = Path(filepath)
+    if not p.exists():
+        raise RuntimeError(f"File not found: {filepath}")
+    df = pd.read_csv(p, encoding="utf-8-sig", dtype=str, keep_default_na=False)
+    df.columns = [str(c).strip() for c in df.columns]
+    return df
 
 def main():
-    filepath = sys.argv[1] if len(sys.argv) > 1 else "installbase.txt"
-
-    headers, rows = load_rows_safely(filepath)
-    print(f"Headers: {len(headers)} | Rows found: {len(rows)}")
+    filepath = sys.argv[1] if len(sys.argv) > 1 else "INSTALL BASE.csv"
+    df = read_csv(filepath)
+    print("CSV Columns:", len(df.columns), "| Rows:", len(df))
 
     with pyodbc.connect(CONN_STR) as conn:
         cur = conn.cursor()
-        cur.fast_executemany = True
 
-        # DB columns
+        # ✅ HY090 FIX: do NOT use fast_executemany
+        cur.fast_executemany = False
+
+        # Read DB column names + types
         cur.execute("""
-            SELECT name
-            FROM sys.columns
-            WHERE object_id = OBJECT_ID('dbo.InstallBase')
+            SELECT c.name, t.name AS type_name
+            FROM sys.columns c
+            JOIN sys.types t ON c.user_type_id = t.user_type_id
+            WHERE c.object_id = OBJECT_ID('dbo.InstallBase')
         """)
-        db_cols = {r[0] for r in cur.fetchall()}
+        db_info = cur.fetchall()
+        db_cols = {r[0] for r in db_info}
+        db_types = {r[0]: str(r[1]).lower() for r in db_info}
+        db_cols_norm_map = {normalize(c): c for c in db_cols}
 
-        # Build mapping: file header -> db column
+        # Mapping: CSV header -> DB column (skip ID)
         mapping = {}
         missing = []
-
-        for h in headers:
-            candidates = [
-                h,                       # exact excel style
-                normalize(h),            # normalized style
-                normalize(h).title(),    # sometimes mixed
-                normalize(h).lower(),    # lower
-            ]
+        for h in df.columns:
+            if normalize(h) == "ID":
+                continue
+            nh = normalize(h)
             chosen = None
-            for c in candidates:
-                if c in db_cols:
-                    chosen = c
-                    break
+            if h in db_cols:
+                chosen = h
+            elif nh in db_cols_norm_map:
+                chosen = db_cols_norm_map[nh]
             if chosen:
                 mapping[h] = chosen
             else:
                 missing.append(h)
 
         if missing:
-            print("⚠️ Ye headers DB me nahi mile, insert me skip honge:")
+            print("⚠️ These CSV headers not found in DB. Skipping:")
             for m in missing:
                 print(" -", m)
 
-        use_headers = [h for h in headers if h in mapping]
+        use_headers = [h for h in df.columns if h in mapping]
         if not use_headers:
-            raise RuntimeError("Koi bhi header DB columns se match nahi hua. Table schema check karo.")
+            raise RuntimeError("No CSV headers matched DB columns. Check table schema.")
 
         insert_cols = [mapping[h] for h in use_headers]
+        print("✅ Columns to insert:", len(insert_cols))
+
+        # Parser per DB type
+        date_headers_norm = {normalize(x) for x in DATE_HEADERS}
+
+        def parse_by_db_type(csv_header, v):
+            db_col = mapping[csv_header]
+            t = db_types.get(db_col, "")
+
+            if normalize(csv_header) in date_headers_norm:
+                return parse_date(v)
+
+            if t in {"date", "datetime", "datetime2", "smalldatetime"}:
+                return parse_date(v)
+            if t in {"int", "bigint", "smallint", "tinyint"}:
+                return parse_int(v)
+            if t in {"decimal", "numeric", "money", "smallmoney"}:
+                return parse_decimal(v)
+            if t in {"float", "real"}:
+                return parse_float(v)
+            if t in {"bit"}:
+                return parse_bit(v)
+            return clean(v)
+        
+        # 🗑️ FULL REFRESH: delete all old rows
+       
+
+
+
+
+        # Create staging table
+        stage_cols_sql = ", ".join(f"[{c}]" for c in insert_cols)
+        cur.execute("IF OBJECT_ID('tempdb..#Stage') IS NOT NULL DROP TABLE #Stage;")
+        cur.execute(f"SELECT TOP 0 {stage_cols_sql} INTO #Stage FROM dbo.InstallBase;")
+        conn.commit()
+
+        # Insert CSV -> #Stage (ROW BY ROW)
         col_sql = ", ".join(f"[{c}]" for c in insert_cols)
         placeholders = ", ".join("?" for _ in insert_cols)
-        sql = f"INSERT INTO dbo.InstallBase ({col_sql}) VALUES ({placeholders})"
+        stage_insert_sql = f"INSERT INTO #Stage ({col_sql}) VALUES ({placeholders})"
 
-        batch = []
-        total = 0
+        total_stage = 0
+        for i, (_, row) in enumerate(df.iterrows()):
+            vals = [parse_by_db_type(h, row.get(h, "")) for h in use_headers]
+            try:
+                cur.execute(stage_insert_sql, vals)
+                total_stage += 1
+                if total_stage % 200 == 0:
+                    conn.commit()
+            except pyodbc.Error as e:
+                print("\n❌ BAD ROW FOUND at CSV row index:", i)
+                print("Error:", e)
+                for h, v in zip(use_headers, vals):
+                    print(f"  {h}: {v!r}")
+                raise
 
-        for r in rows:
-            vals = []
-            for h in use_headers:
-                v = r.get(h)
-                if h in DATE_HEADERS:
-                    vals.append(parse_date(v))
-                else:
-                    vals.append(clean(v))
-            batch.append(tuple(vals))
+        conn.commit()
+        print("✅ Staged rows:", total_stage)
 
-            if len(batch) >= 300:
-                cur.executemany(sql, batch)
-                conn.commit()
-                total += len(batch)
-                print("Inserted:", total)
-                batch = []
+        cur.execute("SELECT COUNT(*) FROM #Stage;")
+        print("✅ #Stage count:", cur.fetchone()[0])
 
-        if batch:
-            cur.executemany(sql, batch)
-            conn.commit()
-            total += len(batch)
-
-        print("✅ DONE. Total inserted rows:", total)
+        # Final insert ALL rows to dbo.InstallBase (NO DELETE, NO NOT EXISTS)
+        final_insert_sql = f"""
+        INSERT INTO dbo.InstallBase ({col_sql})
+        SELECT {col_sql}
+        FROM #Stage;
+        """
+        cur.execute(final_insert_sql)
+        conn.commit()
+        print("✅ Insert completed")
 
         cur.execute("SELECT COUNT(*) FROM dbo.InstallBase;")
-        print("DB total rows now:", cur.fetchone()[0])
+        print("✅ DB total rows now:", cur.fetchone()[0])
 
 if __name__ == "__main__":
     main()
