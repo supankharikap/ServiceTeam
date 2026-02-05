@@ -22,6 +22,68 @@ app.config["SESSION_COOKIE_SECURE"] = (os.environ.get("COOKIE_SECURE", "1") == "
 
 
 # ===================== DB HELPERS =====================
+
+
+def _clean_val(v):
+    if v is None:
+        return None
+    if isinstance(v, str):
+        s = v.strip()
+        if s == "" or s.upper() in ("NA", "N/A", "NULL", "#VALUE!"):
+            return None
+        return s
+    return v
+
+
+def _to_int(v):
+    v = _clean_val(v)
+    if v is None:
+        return None
+    if isinstance(v, int):
+        return v
+    try:
+        return int(str(v).strip())
+    except Exception:
+        return None
+
+
+
+
+def _to_decimal(v):
+    v = _clean_val(v)
+    if v is None:
+        return None
+    if isinstance(v, (int, float, Decimal)):
+        return v
+    try:
+        return Decimal(str(v).strip())
+    except (InvalidOperation, Exception):
+        return None
+    
+def _parse_iso_date(v):
+    """HTML <input type="date"> => YYYY-MM-DD"""
+    if v is None:
+        return None
+    s = str(v).strip()
+    if not s or s.upper() in ("NA", "N/A", "NULL", "#VALUE!"):
+        return None
+
+    # if ISO datetime came, keep only date part
+    if "T" in s:
+        s = s.split("T", 1)[0].strip()
+
+    s = s.replace("/", "-")
+
+    for fmt in ("%Y-%m-%d", "%d-%m-%Y", "%d-%m-%y"):
+        try:
+            return datetime.strptime(s, fmt).date()
+        except Exception:
+            pass
+
+    return None
+
+
+
 def _must_env(name: str) -> str:
     v = os.environ.get(name)
     if not v:
@@ -119,18 +181,6 @@ def _json_safe(v):
         return v.isoformat()
     return str(v)
 
-
-def _parse_iso_date(v):
-    """HTML <input type="date"> => YYYY-MM-DD"""
-    if v is None:
-        return None
-    s = str(v).strip()
-    if not s:
-        return None
-    try:
-        return datetime.strptime(s, "%Y-%m-%d").date()
-    except Exception:
-        return None
 
 
 def _json_err(msg, code=400):
@@ -837,6 +887,9 @@ def api_report_suggest():
 
     return jsonify({"items": items})
 
+# ===================== WEEKLY PLAN REPORT (VIEW) =====================
+# ✅✅ WEEKLY PLAN AUTOFILL (DO NOT TOUCH WSR INSERT CODE)
+# Paste this by REPLACING your current /api/serial/details function (same route)
 
 @app.get("/api/serial/details")
 def api_serial_details():
@@ -848,26 +901,28 @@ def api_serial_details():
     if not serial:
         return jsonify({"ok": True, "wsr": {}, "installbase": {}})
 
-    # ---------------- WSR: latest row for this serial ----------------
+    # ---------------- WSR: pick row with MAX(VisitDate) for this serial ----------------
     wsr_cols = _table_columns("dbo.WSR")
     wsr_data = {}
 
     if wsr_cols:
         wsr_serial_col = _find_col(
             wsr_cols,
-            aliases=["Serial No", "SerialNo", "Serial_No", "SERIAL NO", "Serial"],
-            must_contain=["serial"]
-        )
-        wsr_visit_col = _find_col(
-            wsr_cols,
-            aliases=["VisitDate", "Visit Date", "Last Visit Date"],
-            must_contain=["visit", "date"]
-        )
+              aliases=[
+                  "Serial No", "SerialNo", "Serial_No", "SERIAL NO", "Serial",
+                  "serialNo", "serial_no", "serial no", "Serial Number", "Machine SR. No.", "Printer SR. No."
+                  ],
+                  must_contain=["serial"])
+        
+        wsr_visit_col = _find_col( wsr_cols, aliases=["Visit Date", "VISIT DATE", "VisitDate", "Visit_Date", "visit_date"], must_contain=["visit", "date"])
 
-        # fields needed from WSR
-        wsr_tot_col = _find_col(wsr_cols, aliases=["TOT", "Tot"], must_contain=["tot"])
-        wsr_pot_col = _find_col(wsr_cols, aliases=["POT", "Pot"], must_contain=["pot"])
-        wsr_ink_col = _find_col(wsr_cols, aliases=["INK", "Ink", "InkType", "Ink Type"], must_contain=["ink"])
+
+        # ✅ weekly plan wants these (from dbo.WSR)
+        wsr_tot_col = _find_col(wsr_cols,aliases=["Turn on Time", "TurnOnTime", "TURN ON TIME"], must_contain=["turn", "on", "time"])
+        wsr_pot_col = _find_col(wsr_cols,aliases=["Print on time", "PrintOnTime", "PRINT ON TIME"],must_contain=["print", "on", "time"]
+)
+
+        wsr_ink_col = _find_col(wsr_cols, aliases=["INK", "Ink"], must_contain=["ink"])
         wsr_sol_col = _find_col(wsr_cols, aliases=["Solvent", "SOLVENT"], must_contain=["solvent"])
         wsr_cnc_col = _find_col(wsr_cols, aliases=["CNC"], must_contain=["cnc"])
 
@@ -877,17 +932,22 @@ def api_serial_details():
             where_parts = []
             params = []
 
+            # ✅ scope (zone/engineer) same as your report
             if base_where:
                 where_parts.append(base_where.replace(" WHERE ", "", 1))
                 params += base_params
 
+            # ✅ serial match (trim+upper)
             where_parts.append(f"{_cmp_ci_trim(wsr_serial_col)} = UPPER(?)")
             params.append(serial)
+
+            # ✅ ignore rows where VisitDate is NULL (so MAX visit date logic works)
+            where_parts.append(f"{_qcol(wsr_visit_col)} IS NOT NULL")
 
             where_sql = " WHERE " + " AND ".join(where_parts)
 
             def sel(col, alias):
-                return f"{_qcol(col)} AS {alias}" if col else f"'' AS {alias}"
+                return f"{_qcol(col)} AS {alias}" if col else f"NULL AS {alias}"
 
             select_sql = ", ".join([
                 sel(wsr_visit_col, "last_visit_date"),
@@ -898,6 +958,7 @@ def api_serial_details():
                 sel(wsr_cnc_col, "cnc"),
             ])
 
+            # ✅✅ IMPORTANT: this picks MAX(VisitDate) row (NOT latest entry / ID)
             sql = f"""
                 SELECT TOP 1 {select_sql}
                 FROM dbo.WSR
@@ -910,18 +971,25 @@ def api_serial_details():
                     cur = conn.cursor()
                     cur.execute(sql, params)
                     r = cur.fetchone()
-                    if r:
-                        keys = ["last_visit_date", "tot", "pot", "ink", "solvent", "cnc"]
-                        for i, k in enumerate(keys):
-                            v = r[i]
-                            if isinstance(v, (datetime, date)):
-                                wsr_data[k] = v.date().isoformat() if isinstance(v, datetime) else v.isoformat()
-                            else:
-                                wsr_data[k] = "" if v is None else str(v)
+
+                if r:
+                    keys = ["last_visit_date", "tot", "pot", "ink", "solvent", "cnc"]
+                    for i, k in enumerate(keys):
+                        v = r[i]
+                        if isinstance(v, datetime):
+                            wsr_data[k] = v.date().isoformat()
+                        elif isinstance(v, date):
+                            wsr_data[k] = v.isoformat()
+                        else:
+                            wsr_data[k] = "" if v is None else str(v)
+                else:
+                    # ✅ no WSR data for this serial => keep blank
+                    wsr_data = {}
+
             except Exception:
                 wsr_data = {}
 
-    # ---------------- InstallBase: dates for this serial ----------------
+    # ---------------- InstallBase: get filter_due / amc_due for this serial ----------------
     ib_cols = _table_columns("dbo.InstallBase")
     ib_data = {}
 
@@ -934,7 +1002,10 @@ def api_serial_details():
 
         filter_due_col = _find_col(
             ib_cols,
-            aliases=["Filter Due Date / Hrs", "Filter Due Date/Hrs", "Filter Kit Due Date/Hrs", "FilterKitDue", "FilterDue"],
+            aliases=[
+                "Filter Due Date / Hrs", "Filter Due Date/Hrs",
+                "Filter Kit Due Date/Hrs", "FilterKitDue", "FilterDue"
+            ],
             must_contain=["filter", "due"]
         )
 
@@ -960,7 +1031,7 @@ def api_serial_details():
             where_sql = " WHERE " + " AND ".join(where_parts)
 
             def sel(col, alias):
-                return f"{_qcol(col)} AS {alias}" if col else f"'' AS {alias}"
+                return f"{_qcol(col)} AS {alias}" if col else f"NULL AS {alias}"
 
             select_sql = ", ".join([
                 sel(filter_due_col, "filter_due"),
@@ -978,14 +1049,20 @@ def api_serial_details():
                     cur = conn.cursor()
                     cur.execute(sql, params)
                     r = cur.fetchone()
-                    if r:
-                        keys = ["filter_due", "amc_due"]
-                        for i, k in enumerate(keys):
-                            v = r[i]
-                            if isinstance(v, (datetime, date)):
-                                ib_data[k] = v.date().isoformat() if isinstance(v, datetime) else v.isoformat()
-                            else:
-                                ib_data[k] = "" if v is None else str(v)
+
+                if r:
+                    keys = ["filter_due", "amc_due"]
+                    for i, k in enumerate(keys):
+                        v = r[i]
+                        if isinstance(v, datetime):
+                            ib_data[k] = v.date().isoformat()
+                        elif isinstance(v, date):
+                            ib_data[k] = v.isoformat()
+                        else:
+                            ib_data[k] = "" if v is None else str(v)
+                else:
+                    ib_data = {}
+
             except Exception:
                 ib_data = {}
 
@@ -996,57 +1073,71 @@ def api_serial_details():
     })
 
 
+@app.get("/api/weeklyplan/report/suggest")
+@app.get("/api/weekly-plan/report/suggest")
+@app.get("/api/weekly_plan/report/suggest")
+def api_weekly_plan_report_suggest():
+    need = _require_login_json()
+    if need:
+        return jsonify({"items": []}), 401
+
+    q = (request.args.get("q") or "").strip()
+    if len(q) < 2:
+        return jsonify({"items": []})
+
+    cols = _table_columns("dbo.Planning")
+    if not cols:
+        return jsonify({"items": []})
+
+    # choose important columns for suggestions
+    zone_col = _find_col(cols, aliases=["zone", "Zone", "ZONE"], must_contain=["zone"])
+    eng_col  = _find_col(cols, aliases=["engineer_name", "EngineerName", "Engineer Name"], must_contain=["engineer", "name"])
+    cust_col = _find_col(cols, aliases=["customer_name", "CustomerName", "Customer Name"], must_contain=["customer", "name"])
+    loc_col  = _find_col(cols, aliases=["location", "Location"], must_contain=["location"])
+    clus_col = _find_col(cols, aliases=["cluster_code", "Cluster", "ClusterCode"], must_contain=["cluster"])
+    vdate_col = _find_col(cols, aliases=["visit_date", "VisitDate", "Visit Date"], must_contain=["visit", "date"])
+
+    key_cols = [c for c in [cust_col, eng_col, zone_col, loc_col, clus_col, vdate_col] if c]
+
+    items = []
+    seen = set()
+
+    try:
+        with get_conn() as conn:
+            cur = conn.cursor()
+
+            for c in key_cols:
+                sql = f"""
+                    SELECT DISTINCT TOP 10 CAST({_qcol(c)} AS NVARCHAR(200)) AS v
+                    FROM dbo.Planning
+                    WHERE CAST({_qcol(c)} AS NVARCHAR(200)) LIKE ?
+                    ORDER BY v
+                """
+                cur.execute(sql, [f"%{q}%"])
+
+                for (v,) in cur.fetchall():
+                    vv = (v or "").strip()
+                    if not vv:
+                        continue
+                    k = vv.lower()
+                    if k in seen:
+                        continue
+                    seen.add(k)
+                    items.append(vv)
+                    if len(items) >= 12:
+                        break
+
+                if len(items) >= 12:
+                    break
+
+    except Exception:
+        return jsonify({"items": []})
+
+    return jsonify({"items": items})
+
 # ===================== PLANNING / WEEKLY PLAN (FIX HTTP 404) =====================
 # ✅ IMPORTANT: This is ONLY to fix 404 by providing the endpoint(s).
 # It does NOT touch your WSR logic.
-
-def _clean_val(v):
-    if v is None:
-        return None
-    if isinstance(v, str):
-        s = v.strip()
-        if s == "" or s.upper() in ("NA", "N/A", "NULL", "#VALUE!"):
-            return None
-        return s
-    return v
-
-
-def _to_int(v):
-    v = _clean_val(v)
-    if v is None:
-        return None
-    if isinstance(v, int):
-        return v
-    try:
-        return int(str(v).strip())
-    except Exception:
-        return None
-
-
-def _to_decimal(v):
-    v = _clean_val(v)
-    if v is None:
-        return None
-    if isinstance(v, (int, float, Decimal)):
-        return v
-    try:
-        return Decimal(str(v).strip())
-    except (InvalidOperation, Exception):
-        return None
-
-
-def _parse_date(v):
-    if v is None:
-        return None
-    s = str(v).strip()
-    if not s or s.upper() in ("NA", "N/A", "NULL", "#VALUE!"):
-        return None
-    for fmt in ("%Y-%m-%d", "%d-%b-%y", "%d-%b-%Y", "%d-%m-%Y"):
-        try:
-            return datetime.strptime(s, fmt).date()
-        except Exception:
-            pass
-    return None
 
 
 # ✅ robust time parser (accepts "18 : 16" too)
@@ -1064,6 +1155,7 @@ def _parse_time(v):
             pass
     return None
 
+   
 
 def _insert_dynamic(schema_table: str, payload: dict):
     cols = _table_columns(schema_table)
@@ -1073,22 +1165,39 @@ def _insert_dynamic(schema_table: str, payload: dict):
     col_types = _table_column_types(schema_table)
     idx = _col_index(cols)
 
+    payload = dict(payload or {})
+
+    # ✅ FIX: normalize visit_date key from any frontend key
+    if "visit_date" not in payload:
+        payload["visit_date"] = (
+            payload.get("visitDate")
+            or payload.get("VisitDate")
+            or payload.get("visit date")
+            or payload.get("Visit Date")
+        )
+
+    # ✅ if ISO datetime came, keep only date part
+    vd = payload.get("visit_date")
+    if isinstance(vd, str) and "T" in vd:
+        payload["visit_date"] = vd.split("T", 1)[0].strip()
+
     insert_cols = []
     insert_vals = []
     params = []
 
     # map payload keys -> db cols by normalized name match
-    for k, raw_val in (payload or {}).items():
+    for k, raw_val in payload.items():
         nk = _norm(k)
         if nk not in idx:
             continue
-        dbcol = idx[nk]
 
+        dbcol = idx[nk]
         val = _clean_val(raw_val)
         dtype = (col_types.get(dbcol) or "").lower()
 
         if dtype in ("date", "datetime", "datetime2", "smalldatetime"):
-            val = _parse_date(val)
+            val = _parse_iso_date(val)
+
         elif dtype == "time":
             val = _parse_time(val)
         elif dtype in ("int", "bigint", "smallint", "tinyint"):
@@ -1119,6 +1228,8 @@ def _insert_dynamic(schema_table: str, payload: dict):
     return True, "Saved"
 
 
+
+
 # ✅ Provide multiple endpoints to eliminate route mismatch (404 fix)
 @app.post("/api/weekly-plan")
 @app.post("/api/weeklyplan")
@@ -1129,8 +1240,18 @@ def api_weekly_plan_save():
 
     payload = request.get_json(force=True) or {}
 
-    # Change ONLY if your table name is different.
-    # Keeping generic insert so your current frontend payload can work.
+    # ✅ (optional) extra safety: normalize visit_date here also
+    if "visit_date" not in payload:
+        payload["visit_date"] = (
+            payload.get("visitDate")
+            or payload.get("VisitDate")
+            or payload.get("visit date")
+            or payload.get("Visit Date")
+        )
+    vd = payload.get("visit_date")
+    if isinstance(vd, str) and "T" in vd:
+        payload["visit_date"] = vd.split("T", 1)[0].strip()
+
     table_name = "dbo.Planning"
 
     try:
@@ -1141,12 +1262,6 @@ def api_weekly_plan_save():
     except Exception as e:
         return jsonify({"ok": False, "message": f"Weekly Plan save error: {e}"}), 500
 
-
-# ===================== WSR INSERT (UNCHANGED) =====================
-# (Your WSR section remains exactly as you had it previously; not touched here.)
-# If you want, paste your full WSR insert part below this comment exactly as-is,
-# or keep it where it already exists in your file.
-# ===================== WSR INSERT (RESTORE + 404 FIX) =====================
 
 def _wsr_clean_val(v):
     if v is None:
@@ -1249,8 +1364,8 @@ def api_wsr():
     mcno_col  = _find_col(cols, aliases=["M/C No", "MC No", "MCNo", "Machine No", "MachineNo"], must_contain=["mc", "no"])
     serial_col= _find_col(cols, aliases=["Serial No", "SerialNo", "Serial_No", "SERIAL NO", "Serial"], must_contain=["serial"])
 
-    turnon_col  = _find_col(cols, aliases=["Turn on Time", "TurnOnTime"], must_contain=["turn", "time"])
-    printon_col = _find_col(cols, aliases=["Print on time", "PrintOnTime"], must_contain=["print", "time"])
+    turnon_col  = _find_col(cols, aliases=["Turn on Time", "TurnOnTime"])
+    printon_col = _find_col(cols, aliases=["Print on time", "PrintOnTime"])
 
     tstart_col = _find_col(cols, aliases=["Travel Start (HH:MM)", "TravelStart", "Travel Start"], must_contain=["travel", "start"])
     tend_col   = _find_col(cols, aliases=["Travel End (HH:MM)", "TravelEnd", "Travel End"], must_contain=["travel", "end"])
@@ -1503,7 +1618,7 @@ def _installbase_payload_to_db(cols, payload: dict):
 
         # type-safe conversions
         if dtype in ("date", "datetime", "datetime2", "smalldatetime"):
-            val = _parse_date(val)
+            val = _parse_iso_date(val)
         elif dtype in ("time",):
             val = _parse_time_any(val)
         elif dtype in ("int", "bigint", "smallint", "tinyint"):
@@ -1631,8 +1746,8 @@ def api_installbase_save():
         return jsonify({"ok": False, "message": f"InstallBase save error: {e}"}), 500
     
 
-    # ===================== INSTALLBASE DELETE =====================
-@app.get("/api/installbase/delete")          # optional (if you want GET support)
+# ===================== INSTALLBASE DELETE =====================
+@app.get("/api/installbase/delete")  
 @app.post("/api/installbase/delete")         # main (frontend safe)
 @app.delete("/api/installbase/delete")       # if browser supports DELETE
 def api_installbase_delete():
@@ -1698,6 +1813,120 @@ def api_installbase_delete():
         return jsonify({"ok": False, "message": f"Delete error: {e}"}), 500
 
 
+# ===================== WEEKLY PLAN REPORT (dbo.Planning) =====================
+
+def _planning_scope_where(cols):
+    role = (session.get("role") or "").strip().lower()
+    zone = (session.get("zone") or "").strip()
+    eng  = (session.get("engineer") or "").strip()
+
+    if role == "admin":
+        return "", []
+
+    zone_col = _find_col(cols, aliases=["Zone", "ZONE", "zone"], must_contain=["zone"])
+    eng_col  = _find_col(cols, aliases=["EngineerName", "Engineer Name", "engineer_name", "engineer"], must_contain=["engineer", "name"])
+
+    where = []
+    params = []
+
+    # Manager/Team Leader => only zone
+    if _is_manager_like(role):
+        if zone and zone_col:
+            where.append(f"{_cmp_ci_trim(zone_col)} = UPPER(?)")
+            params.append(zone)
+        return (" WHERE " + " AND ".join(where)) if where else "", params
+
+    # User => zone + engineer
+    if zone and zone_col:
+        where.append(f"{_cmp_ci_trim(zone_col)} = UPPER(?)")
+        params.append(zone)
+
+    if eng and eng_col:
+        where.append(f"{_cmp_ci_trim(eng_col)} = UPPER(?)")
+        params.append(eng)
+
+    return (" WHERE " + " AND ".join(where)) if where else "", params
+
+
+@app.get("/api/weeklyplan/report")
+@app.get("/api/weekly-plan/report")
+@app.get("/api/weekly_plan/report")
+def api_weeklyplan_report():
+    need = _require_login_json()
+    if need:
+        return need
+
+    limit = int(request.args.get("limit", "500"))
+    limit = max(1, min(limit, 5000))
+    q = (request.args.get("q") or "").strip()
+
+    from_date = _parse_iso_date(request.args.get("from"))
+    to_date   = _parse_iso_date(request.args.get("to"))
+
+    cols = _table_columns("dbo.Planning")
+    if not cols:
+        return jsonify({"columns": [], "rows": []})
+
+    base_where, base_params = _planning_scope_where(cols)
+
+    preferred = [
+        "zone", "engineerName", "engineer_name",
+        "customerName", "customer_name",
+        "location", "serial", "serial_no",
+        "clusterCode", "cluster_code",
+        "visit_date", "visitDate"
+    ]
+    search_where, search_params = _build_token_search_where(q, cols, preferred)
+
+    visit_col = _find_col(cols, aliases=["visit_date", "VisitDate", "Visit Date", "Planning Date"], must_contain=["visit", "date"])
+    id_col    = _find_col(cols, aliases=["Id", "ID"], must_contain=["id"])
+
+    where_parts = []
+    params = []
+
+    if base_where:
+        where_parts.append(base_where.replace(" WHERE ", "", 1))
+        params += base_params
+
+    if search_where:
+        where_parts.append(search_where)
+        params += search_params
+
+    if visit_col:
+        if from_date:
+            where_parts.append(f"{_qcol(visit_col)} >= ?")
+            params.append(from_date)
+        if to_date:
+            where_parts.append(f"{_qcol(visit_col)} <= ?")
+            params.append(to_date)
+
+    where_sql = (" WHERE " + " AND ".join(where_parts)) if where_parts else ""
+
+    order_by = (
+        f"{_qcol(visit_col)} DESC" if visit_col else
+        (f"{_qcol(id_col)} DESC" if id_col else f"{_qcol(cols[0])} DESC")
+    )
+
+    select_cols = ", ".join([_qcol(c) for c in cols])
+    sql = f"SELECT TOP {limit} {select_cols} FROM dbo.Planning{where_sql} ORDER BY {order_by}"
+
+    try:
+        with get_conn() as conn:
+            cur = conn.cursor()
+            cur.execute(sql, params)
+            rows = cur.fetchall()
+
+        out_rows = []
+        for r in rows:
+            obj = {}
+            for i, c in enumerate(cols):
+                obj[c] = _json_safe(r[i])
+            out_rows.append(obj)
+
+        return jsonify({"columns": cols, "rows": out_rows})
+
+    except Exception as e:
+        return _json_err(f"WeeklyPlan report error: {e}", 500)
 
 
 

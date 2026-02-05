@@ -39,11 +39,10 @@
     .pill{padding:8px 10px;border-radius:999px;background:#f1f5ff;border:1px solid #dbe6ff;font-size:13px;}
     .logout{background:#fff;border:1px solid var(--border);padding:8px 12px;border-radius:10px;cursor:pointer;}
 
-    .cards{background-color:#f9f9fa;:margin-top:14px;display:grid;grid-template-columns:repeat(4,1fr);gap:12px;}
-    .card{background:#4a75b3(--card);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);padding:14px;}
+    .cards{background-color:#f9f9fa;margin-top:14px;display:grid;grid-template-columns:repeat(4,1fr);gap:12px;}
+    .card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);padding:14px;}
     .card .kpi{font-size:22px;font-weight:800}
-    .card .label{color:#64748b(--muted);font-size:13px}
-
+    .card .label{color:var(--muted);font-size:13px;}
     .section{margin-top:14px;background:var(--card);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);padding:16px;display:none;}
     .section.active{display:block;}
     .sectionHeader{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;}
@@ -61,34 +60,30 @@
     .btn.gray{background:#f1f5f9;border:1px solid var(--border);}
 
     .tableWrap{overflow:auto;border:1px solid var(--border);border-radius:12px;}
-    table{  width:max-content;   border-collapse:collapse;  font-size:13px;  min-width:1600px;}
+    table{width:max-content;border-collapse:collapse;font-size:13px;min-width:1600px;}
     thead th{position:sticky;top:0;background:#0b2a55;color:#fff;padding:10px;text-align:left;white-space:nowrap;}
     tbody td{border-top:1px solid var(--border);padding:10px;white-space:nowrap;}
 
-
     thead th:nth-child(6),
     tbody td:nth-child(6){
-      width:180px;        /* yaha kam/zyada kar sakte ho */
+      width:180px;
       max-width:180px;
       overflow:hidden;
       text-overflow:ellipsis;
-      white-space:nowrap; /* wrap nahi hoga */
+      white-space:nowrap;
     }
-
-    /* ✅ Master toolbar exactly like report toolbar */
 
     .searchRow{
      display:flex;
      align-items:center;
      gap:12px;
-     flex-wrap:nowrap;          /* ✅ single line */
-     overflow-x:auto;           /* ✅ mobile pe scroll */
+     flex-wrap:nowrap;
+     overflow-x:auto;
      white-space:nowrap;
      -webkit-overflow-scrolling:touch;
      margin-bottom:10px;
     }
 
-    /* ✅ Master search input small (same as report) */
     .searchRow input{
       height:38px;
       padding:0 14px;
@@ -97,7 +92,7 @@
       font-size:14px;
       outline:none;
       background:#fff;
-      width:10cm;      /* ✅ chota */
+      width:10cm;
       min-width:0;
       flex:0 0 auto;
     }
@@ -109,13 +104,12 @@
       background:#fff;
       cursor:pointer;
       font-weight:700;
-      flex:0 0 auto; 
+      flex:0 0 auto;
     }
     .searchRow .tb-export{
       background:#eaf2ff;
       border-color:#cfe0ff;
     }
-
 
     .suggestBox{
       position:absolute; display:none; background:#fff; border:1px solid #e5e7eb; border-radius:12px;
@@ -133,12 +127,8 @@
     .tb-datewrap{display:inline-flex;align-items:center;gap:10px;flex:0 0 auto;}
     .tb-lbl{font-size:13px;color:var(--muted);font-weight:600;}
     .tb-export{background:#eaf2ff;border-color:#cfe0ff;}
-    .tb-date{  height:38px;  padding:0 12px;  border:1px solid var(--border);  border-radius:12px;  font-size:14px;  outline:none;  background:#fff;  width:150px;   /* ✅ smaller */  min-width:150px;}
+    .tb-date{height:38px;padding:0 12px;border:1px solid var(--border);border-radius:12px;font-size:14px;outline:none;background:#fff;width:150px;min-width:150px;}
 
-    
-
-
-    /* ✅✅ GLOBAL LOADING - CENTER OVERLAY (NO side floater) */
     #globalLoadingOverlay{
       position:fixed;
       inset:0;
@@ -183,14 +173,11 @@
       .grid{grid-template-columns:1fr}
       table{min-width:1200px}
       .sidebarFooter{position:relative;left:0;right:0;bottom:0;margin-top:12px;}
-
-      
     }
   </style>
 </head>
 
 <body>
-  <!-- ✅ Center Loading Overlay -->
   <div id="globalLoadingOverlay">
     <div class="glBox">
       <span class="glSpinner"></span>
@@ -222,7 +209,7 @@
                 onclick="showSection('weeklyPlanSection', this);">✅ Weekly Plan</button>
 
         <button id="btnWeeklyPlanView" data-roles="Admin,Manager,Team Leader,User"
-                onclick="showSection('weeklyWiewPlanSection', this);">✅ Weekly Plan Report</button>
+                onclick="showSection('weeklyWiewPlanSection', this); loadWeeklyPlanReport();">✅ Weekly Plan Report</button>
 
         <button id="btnMasterView" data-roles="Admin,Manager,Team Leader,User"
                 onclick="showSection('masterSection', this); openMaster();">📄 Master Installbase View</button>
@@ -253,12 +240,15 @@
           <button class="logout" onclick="logout()">Logout</button>
         </div>
       </div>
+
       <section id="dashboardSection" class="section active">
         <div class="sectionHeader">
           <h2>Overview</h2>
           <small>Welcome to KGK Service Team </small>
         </div>
-        <div style="color:#180702(--muted); line-height:1.6">
+
+        <!-- fixed invalid color -->
+        <div style="color:var(--muted); line-height:1.6">
           <div class="cards">
             <div class="card">
               <div class="kpi" id="kpiTotal">—</div>
@@ -297,7 +287,6 @@
             <button class="btn gray" onclick="masterClear()">✖ Clear</button>
             <button class="btn gray" onclick="openMaster()">🔄 Refresh</button>
             <button class="btn gray" type="button" onclick="exportMaster()">⬇️Excel Export</button>
-
           </div>
           <div id="masterSuggest" class="suggestBox"></div>
           <div id="masterErr" class="err"></div>
@@ -306,7 +295,6 @@
         <div id="masterTable"></div>
       </section>
 
-      <!-- ✅✅ WEEKLY PLAN (FIXED ID: weeklyPlanSection) -->
       <section id="weeklyPlanSection" class="section">
         <div class="sectionHeader">
           <h2>Weekly Plan</h2>
@@ -319,7 +307,8 @@
             <div><label>Engineer Name</label><input id="wp_engineer" name="engineerName" readonly></div>
 
             <div><label>Cluster Code</label><input id="wp_clusterCode" name="clusterCode"></div>
-            <div><label>Planing Date</label><input type="date" name="date"></div>
+            
+            <div><label>Planning Date</label><input type="date" name="visit_date" Required></div>
 
             <div style="position:relative;">
               <label>Customer Name</label>
@@ -346,11 +335,11 @@
               </select>
             </div>
 
-            <div><label>Distance from Base / Last Customer (KM)</label><input name="distance"></div>
+            <div><label>Distance from Base / Last Customer (KM)</label> <input name="distance_km"></div>
 
             <div>
               <label>Mode of Transport</label>
-              <select name="transportMode">
+              <select name="mode_of_transport">
                 <option value="">--Select--</option>
                 <option>Bike</option><option>Car</option><option>Bus</option><option>Train</option><option>Flight</option>
               </select>
@@ -366,7 +355,7 @@
 
             <div style="position:relative;">
               <label>Printer SR. No.</label>
-              <input id="wp_serialNo" name="printerSerial" autocomplete="off">
+              <input id="wp_serialNo" name="printer_sr_no" autocomplete="off">
               <div id="wpSerialSuggest" class="suggestBox" style="top:calc(100% + 6px); width:100%;"></div>
             </div>
 
@@ -382,8 +371,8 @@
 
             <div><label>Last Visit Date</label><input type="date" name="lastVisitDate"></div>
 
-            <div><label>TOT</label><input name="tot"></div>
-            <div><label>POT</label><input name="pot"></div>
+            <div><label>Last TOT</label><input name="tot"></div>
+            <div><label>Last POT</label><input name="pot"></div>
 
             <div><label>INK</label><input name="ink"></div>
             <div><label>Solvent</label><input name="solvent"></div>
@@ -405,9 +394,15 @@
               <select name="paymentCollected"><option value="">--Select--</option><option>YES</option><option>NO</option></select>
             </div>
 
-            <div><label>Ink Expiry Follow-up</label><input name="inkExpiryFollowup"></div>
-            <div><label>AMC Follow-up</label><input name="amcFollowup"></div>
-            <div><label>Filter Kit Follow-up</label><input name="filterKitFollowup"></div>
+            <div><label>Ink Expiry Follow-up</label>
+              <select name="inkexpiryfollow-up"><option value=""">--Select--</option><option>YES</option><option>NO</option></select>
+            </div>
+            <div><label>AMC Follow-up</label>
+              <select name="amcFollowup"><option value="">--Select--</option><option >YES</option><option>NO</option></select>
+            </div>
+            <div><label>Filter Kit Follow-up</label>
+              <select name="filterKitFollowup"><option value="">--Select--</option><option >YES</option>NO</option></select>
+            </div>
 
             <div><label>Stock Check</label>
               <select name="stockCheck"><option value="">--Select--</option><option>OK</option><option>NOT OK</option></select>
@@ -429,7 +424,6 @@
         </form>
       </section>
 
-      <!-- ✅ WSR FORM -->
       <section id="wsrSection" class="section">
         <div class="sectionHeader">
           <h2>WSR Report Form</h2>
@@ -508,7 +502,7 @@
             <div><label>Turn on Time</label><input name="turnOnTime"></div>
             <div><label>Print on Time</label><input name="printOnTime"></div>
 
-            <div><label>Visit Date</label><input type="date" name="visitDate"></div>
+            <div><label>Visit Date</label><input type="date" name="visitDate">required</div>
 
             <div><label>Travel Start (HH:MM)</label><input type="time" name="travelStart"></div>
             <div><label>Travel End (HH:MM)</label><input type="time" name="travelEnd"></div>
@@ -561,9 +555,8 @@
           <input id="reportSearch" class="tb-search"
           placeholder="Search report (customer / MMM-YY / engineer / zone...)"
           autocomplete="off">
-          <label>Form</label><input type="date" class="tb-date" id="fromDate">
+          <label>From</label><input type="date" class="tb-date" id="fromDate">
           <label>To</label><input type="date" class="tb-date" id="toDate">         
-
 
           <button class="tb-btn" onclick="reportDoSearch()">🔎 Search</button>
           <button class="tb-btn" onclick="reportClear()">✖ Clear</button>
@@ -573,28 +566,45 @@
         <div id="reportSuggest" class="suggestBox"></div>
         <div id="reportErr" class="err"></div>     
         <div id="reportWrap" class="tableWrap">
-         <table id="dataTable">
-          <thead></thead>
-          <tbody></tbody>
-        </table>
-      </div>
-    </section>
-    <section id="breakdownSection" class="section">
-      <div class="sectionHeader">
-        <h2>Breakdown Login</h2>
-        <small>Coming soon</small>
-      </div>
-      <div style="color:var(--muted); line-height:1.6">
-        ✅ Breakdown module will be added here.
-      </div>
+          <table id="dataTable">
+            <thead></thead>
+            <tbody></tbody>
+          </table>
+        </div>
       </section>
-      <section id="weeklyWiewPlanSection" class="section">
+
+      <section id="breakdownSection" class="section">
         <div class="sectionHeader">
-          <h2>Planning Report</h2>
+          <h2>Breakdown Login</h2>
           <small>Coming soon</small>
         </div>
         <div style="color:var(--muted); line-height:1.6">
-          ✅ Planing module will be added Soon.
+          ✅ Breakdown module will be added here.
+        </div>
+      </section>
+
+      <section id="weeklyWiewPlanSection" class="section">
+        <div class="sectionHeader">
+          <h2>Weekly Plan Report</h2>
+          <small>dbo.WeeklyPlan table view</small>
+        </div>
+        <div class="report-toolbar">
+          <input id="wpReportSearch" class="tb-search"
+          placeholder="Search weekly plan (customer / engineer / zone / serial / location...)"
+          autocomplete="off">
+          <label>From</label><input type="date" class="tb-date" id="wpFromDate">
+          <label>To</label><input type="date" class="tb-date" id="wpToDate">
+          <button class="tb-btn" onclick="wpReportDoSearch()">🔎 Search</button>
+          <button class="tb-btn" onclick="wpReportClear()">✖ Clear</button>
+          <button class="tb-btn" onclick="loadWeeklyPlanReport()">🔄 Refresh</button>
+          <button class="tb-btn tb-export" onclick="exportWeeklyPlanReport()">⬇️Export</button>
+        </div>
+        <div id="wpReportErr" class="err"></div>
+        <div id="wpReportWrap" class="tableWrap">
+          <table id="wpReportTable">
+            <thead></thead>
+            <tbody></tbody>
+          </table>
         </div>
       </section>
 
@@ -602,6 +612,23 @@
   </div>
 
 <script>
+  const _abortMap = new Map();
+function abortPrev(key){
+  const c = _abortMap.get(key);
+  if(c) c.abort();
+  const nc = new AbortController();
+  _abortMap.set(key, nc);
+  return nc;
+}
+function debounce(fn, ms=200){
+  let t=null;
+
+  return (...args)=>{
+    clearTimeout(t);
+    t=setTimeout(()=>fn(...args), ms);
+  };
+}
+
 /* ===========================
    SERVER VARIABLES
 =========================== */
@@ -810,7 +837,7 @@ const visitCode2Map = {
   "NA": ["NA"],
   "CLUSTER": ["Gen PM", "Filter PM", "Courtesy"],
   "BREAKDOWN": ["First Visit", "Carryover", "Repeat Visit"],
-  "SALES_SUPPORT":["Demo Install","Demo Carryover","Site Survey","Sampling","Exhibition","Demo in Office"],
+  "SALES SUPPORTS":["Demo Install","Demo Carryover","Site Survey","Sampling","Exhibition","Demo in Office"],
   "SPECIAL_APPLICATION":["Line Study","First Visit","Carryover Visit"],
   "TRAINING":["Onsite","Other Venue","KGK Office"],
   "REFURBISHMENT":["Onsite","KGK Workshop"],
@@ -920,12 +947,9 @@ function setupListSuggest({ inputId, boxId, getList, onPick }){
     if(onPick) onPick(v);
   });
 
+  // ✅ generic blur: only hide its own box
   inp.addEventListener("blur", ()=>{
-    setTimeout(()=>{
-      hideSuggest(boxId);
-      const v = (inp.value || "").trim();
-      if(v && onPick) onPick(v);
-    }, 200);
+    setTimeout(()=> hideSuggest(boxId), 200);
   });
 }
 
@@ -1124,11 +1148,12 @@ function setupCustomerSuggest(){
     loadWsrCustomer(v);
   });
 
+  // ✅ blur: if user typed and left field, still load customer
   inp.addEventListener("blur", ()=>{
     setTimeout(()=>{
       hideSuggest("customerSuggest");
       const v = (inp.value || "").trim();
-      if (v){
+      if(v){
         resetWsrCascades();
         loadWsrCustomer(v);
       }
@@ -1365,84 +1390,166 @@ async function openMaster(){
   const hint = document.getElementById("masterHint");
   const holder = document.getElementById("masterTable");
   const errBox = document.getElementById("masterErr");
-  errBox.textContent = "";
-  hint.textContent = "Loading...";
-  holder.innerHTML = "Loading...";
-  const q = (document.getElementById("masterSearch").value || "").trim();
+  if(errBox) errBox.textContent = "";
+  if(hint) hint.textContent = "Loading...";
+  if(holder) holder.innerHTML = "Loading...";
+
+  const q = (document.getElementById("masterSearch")?.value || "").trim();
   showLoading("Loading master...");
   try {
     const res = await fetch("/api/master/installbase?limit=2000&q=" + encodeURIComponent(q));
     const data = await res.json();
     if (!res.ok) {
-      hint.textContent = "Error";
-      errBox.textContent = data.error || "Error";
-      holder.innerHTML = "";
+      if(hint) hint.textContent = "Error";
+      if(errBox) errBox.textContent = data.error || "Error";
+      if(holder) holder.innerHTML = "";
       return;
     }
-    hint.textContent = `Rows: ${(data.rows||[]).length}`;
-    holder.innerHTML = renderTable(data.columns || [], data.rows || []);
+    if(hint) hint.textContent = `Rows: ${(data.rows||[]).length}`;
+    if(holder) holder.innerHTML = renderTable(data.columns || [], data.rows || []);
     loadKpis();
   } catch (e) {
-    hint.textContent = "Network error";
-    errBox.textContent = String(e);
-    holder.innerHTML = "";
+    if(hint) hint.textContent = "Network error";
+    if(errBox) errBox.textContent = String(e);
+    if(holder) holder.innerHTML = "";
   } finally {
     hideLoading();
   }
 }
 function masterDoSearch(){ openMaster(); }
+
 function reportClear(){
   const s = document.getElementById("reportSearch");
   const f = document.getElementById("fromDate");
   const t = document.getElementById("toDate");
-
   if(s) s.value = "";
   if(f) f.value = "";
   if(t) t.value = "";
-
   hideSuggest("reportSuggest");
-
-  // reload view with no filters
   loadReport();
 }
-function masterClear(){
-  const ms = document.getElementById("masterSearch");
-  if(ms) ms.value = "";
 
-  hideSuggest("masterSuggest");
+function wpReportDoSearch(){ loadWeeklyPlanReport(); }
 
-  // Master view reload (no filters)
-  openMaster();
+function wpReportClear(){
+  const s = document.getElementById("wpReportSearch");
+  const f = document.getElementById("wpFromDate");
+  const t = document.getElementById("wpToDate");
+  if(s) s.value = "";
+  if(f) f.value = "";
+  if(t) t.value = "";
+  loadWeeklyPlanReport();
 }
 
+async function loadWeeklyPlanReport(){
+  const errBox = document.getElementById("wpReportErr");
+  if(errBox) errBox.textContent = "";
 
-document.getElementById("masterSearch").addEventListener("input", async (e)=>{
-  const q = (e.target.value || "").trim();
-  const box = document.getElementById("masterSuggest");
-  if (q.length < 2){ hideSuggest("masterSuggest"); return; }
-  box.innerHTML = `<div class="suggestItem loading">Loading...</div>`;
-  box.style.display = "block";
-  showLoading("Loading suggestions...");
+  const q = (document.getElementById("wpReportSearch")?.value || "").trim();
+  const from = document.getElementById("wpFromDate")?.value || "";
+  const to   = document.getElementById("wpToDate")?.value || "";
+
+  const params = new URLSearchParams();
+  params.set("limit","2000");
+  if(q) params.set("q", q);
+  if(from) params.set("from", from);
+  if(to) params.set("to", to);
+
+  showLoading("Loading weekly plan report...");
   try{
-    const res = await fetch("/api/master/installbase/suggest?q=" + encodeURIComponent(q));
+    const res = await fetch("/api/weeklyplan/report?" + params.toString());
     const data = await res.json();
-    const items = data.items || [];
-    if (!items.length){ hideSuggest("masterSuggest"); return; }
-    box.innerHTML = items.map(v => `<div class="suggestItem" data-v="${escapeHtml(v)}">${escapeHtml(v)}</div>`).join("");
-    box.style.display = "block";
-  }catch{
-    hideSuggest("masterSuggest");
+
+    if(!res.ok || data.error){
+      if(errBox) errBox.textContent = data.error || "Weekly plan report load error";
+      return;
+    }
+
+    const table = document.getElementById("wpReportTable");
+    if(!table) return;
+    const thead = table.querySelector("thead");
+    const tbody = table.querySelector("tbody");
+    if(!thead || !tbody) return;
+    thead.innerHTML = "";
+    tbody.innerHTML = "";
+
+    const cols = data.columns || [];
+    const rows = data.rows || [];
+    if(!cols.length) return;
+
+    const trh = document.createElement("tr");
+    cols.forEach(c=>{
+      const th = document.createElement("th");
+      th.textContent = c;
+      trh.appendChild(th);
+    });
+    thead.appendChild(trh);
+
+    rows.forEach(r=>{
+      const tr = document.createElement("tr");
+      cols.forEach(c=>{
+        const td = document.createElement("td");
+        td.textContent = (r[c] ?? "");
+        tr.appendChild(td);
+      });
+      tbody.appendChild(tr);
+    });
+  }catch(e){
+    if(errBox) errBox.textContent = String(e);
   }finally{
     hideLoading();
   }
-});
-document.getElementById("masterSuggest").addEventListener("click", (e)=>{
-  const it = e.target.closest(".suggestItem");
-  if (!it || it.classList.contains("loading")) return;
-  document.getElementById("masterSearch").value = it.getAttribute("data-v") || "";
+}
+
+function masterClear(){
+  const ms = document.getElementById("masterSearch");
+  if(ms) ms.value = "";
   hideSuggest("masterSuggest");
   openMaster();
-});
+}
+
+/* master search listeners (null safe) */
+
+const _ms = document.getElementById("masterSearch");
+if(_ms){
+  _ms.addEventListener("input", debounce(async (e)=>{
+    const q = (e.target.value || "").trim();
+    const box = document.getElementById("masterSuggest");
+    if(!box) return;
+
+    if (q.length < 2){ hideSuggest("masterSuggest"); return; }
+
+    box.innerHTML = `<div class="suggestItem loading">Loading...</div>`;
+    box.style.display = "block";
+
+    try{
+      const ac = abortPrev("masterSuggest");
+      const res = await fetch("/api/master/installbase/suggest?q=" + encodeURIComponent(q), { signal: ac.signal });
+      const data = await res.json();
+      const items = data.items || [];
+      if (!items.length){ hideSuggest("masterSuggest"); return; }
+
+      box.innerHTML = items
+        .map(v => `<div class="suggestItem" data-v="${escapeHtml(v)}">${escapeHtml(v)}</div>`)
+        .join("");
+      box.style.display = "block";
+    }catch{
+      hideSuggest("masterSuggest");
+    }
+  }, 250));
+}
+
+const _msBox = document.getElementById("masterSuggest");
+if(_msBox){
+  _msBox.addEventListener("click", (e)=>{
+    const it = e.target.closest(".suggestItem");
+    if (!it || it.classList.contains("loading")) return;
+    const ms = document.getElementById("masterSearch");
+    if(ms) ms.value = it.getAttribute("data-v") || "";
+    hideSuggest("masterSuggest");
+    openMaster();
+  });
+}
 
 /* ===========================
    REPORT (unchanged)
@@ -1451,9 +1558,9 @@ function reportDoSearch(){ loadReport(); }
 
 async function loadReport(){
   const errBox = document.getElementById("reportErr");
-  errBox.textContent = "";
+  if(errBox) errBox.textContent = "";
 
-  const q = (document.getElementById("reportSearch").value || "").trim();
+  const q = (document.getElementById("reportSearch")?.value || "").trim();
   const from = document.getElementById("fromDate")?.value || "";
   const to   = document.getElementById("toDate")?.value || "";
 
@@ -1469,12 +1576,13 @@ async function loadReport(){
     const data = await res.json();
 
     if (!res.ok || data.error){
-      errBox.textContent = data.error || "Report load error";
+      if(errBox) errBox.textContent = data.error || "Report load error";
       return;
     }
 
     const thead = document.querySelector("#dataTable thead");
     const tbody = document.querySelector("#dataTable tbody");
+    if(!thead || !tbody) return;
     thead.innerHTML = "";
     tbody.innerHTML = "";
 
@@ -1500,97 +1608,108 @@ async function loadReport(){
       tbody.appendChild(tr);
     });
   }catch(e){
-    errBox.textContent = String(e);
+    if(errBox) errBox.textContent = String(e);
   }finally{
     hideLoading();
   }
 }
 
 /* ===========================
-   ✅✅ WSR SUBMIT (RESTORED / WORKING)
+   ✅✅ WSR SUBMIT
 =========================== */
-document.getElementById("wsrForm").addEventListener("submit", function(e){
-  e.preventDefault();
-  const form = e.target;
-  const data = Object.fromEntries(new FormData(form).entries());
+const _wsrForm = document.getElementById("wsrForm");
+if(_wsrForm){
+  _wsrForm.addEventListener("submit", function(e){
+    e.preventDefault();
+    const form = e.target;
+    const data = Object.fromEntries(new FormData(form).entries());
 
-  data.engineerName = SERVER_ENGINEER || "";
-  data.zone = SERVER_ZONE || "";
+    data.engineerName = SERVER_ENGINEER || "";
+    data.zone = SERVER_ZONE || "";
 
-  showLoading("Saving WSR...");
-  fetch("/api/wsr", {
-    method: "POST",
-    headers: {"Content-Type":"application/json"},
-    body: JSON.stringify(data)
-  })
-  .then(async (r) => {
-    let res = {};
-    try { res = await r.json(); } catch {}
-    if(!r.ok){
-      const msg = res.error || res.message || ("HTTP " + r.status);
-      throw new Error(msg);
-    }
-    return res;
-  })
-  .then(res => {
-    alert(res.message || "Saved");
-    if (res.ok){
-      form.reset();
-      refillReadonly();
-      resetWsrCascades();
-      loadReport();
-    }
-  })
-  .catch((err)=> alert("WSR Save Failed: " + (err?.message || err)))
-  .finally(()=> hideLoading());
-});
+    showLoading("Saving WSR...");
+    fetch("/api/wsr", {
+      method: "POST",
+      headers: {"Content-Type":"application/json"},
+      body: JSON.stringify(data)
+    })
+    .then(async (r) => {
+      let res = {};
+      try { res = await r.json(); } catch {}
+      if(!r.ok){
+        const msg = res.error || res.message || ("HTTP " + r.status);
+        throw new Error(msg);
+      }
+      return res;
+    })
+    .then(res => {
+      alert(res.message || "Saved");
+      if (res.ok){
+        form.reset();
+        refillReadonly();
+        resetWsrCascades();
+        loadReport();
+      }
+    })
+    .catch((err)=> alert("WSR Save Failed: " + (err?.message || err)))
+    .finally(()=> hideLoading());
+  });
+}
 
 /* ===========================
-   ✅✅ WEEKLY PLAN SUBMIT (RESTORED / WORKING)
+   ✅✅ WEEKLY PLAN SUBMIT
 =========================== */
-document.getElementById("weeklyPlanForm").addEventListener("submit", function(e){
-  e.preventDefault();
-  const form = e.target;
-  const data = Object.fromEntries(new FormData(form).entries());
+const _wpForm = document.getElementById("weeklyPlanForm");
+if(_wpForm){
+  _wpForm.addEventListener("submit", function(e){
+    e.preventDefault();
+    const form = e.target;
+    const data = Object.fromEntries(new FormData(form).entries());
 
-  data.engineerName = SERVER_ENGINEER || "";
-  data.zone = SERVER_ZONE || "";
+    data.engineerName = SERVER_ENGINEER || "";
+    data.zone = SERVER_ZONE || "";
 
-  showLoading("Saving Weekly Plan...");
-  fetch("/api/weeklyplan", {
-    method: "POST",
-    headers: {"Content-Type":"application/json"},
-    body: JSON.stringify(data)
-  })
-  .then(async (r) => {
-    let res = {};
-    try { res = await r.json(); } catch {}
-    if(!r.ok){
-      const msg = res.error || res.message || ("HTTP " + r.status);
-      throw new Error(msg);
-    }
-    return res;
-  })
-  .then(res => {
-    alert(res.message || "Saved");
-    if(res.ok){
-      form.reset();
-      refillReadonly();
-      resetWpCascades();
-    }
-  })
-  .catch((err)=> alert("Weekly Plan Save Failed: " + (err?.message || err)))
-  .finally(()=> hideLoading());
-});
+    showLoading("Saving Weekly Plan...");
+    fetch("/api/weeklyplan", {
+      method: "POST",
+      headers: {"Content-Type":"application/json"},
+      body: JSON.stringify(data)
+    })
+    .then(async (r) => {
+      let res = {};
+      try { res = await r.json(); } catch {}
+      if(!r.ok){
+        const msg = res.error || res.message || ("HTTP " + r.status);
+        throw new Error(msg);
+      }
+      return res;
+    })
+    .then(res => {
+      alert(res.message || "Saved");
+      if(res.ok){
+        form.reset();
+        refillReadonly();
+        resetWpCascades();
+      }
+    })
+    .catch((err)=> alert("Weekly Plan Save Failed: " + (err?.message || err)))
+    .finally(()=> hideLoading());
+  });
+}
 
 /* ===========================
    INIT
 =========================== */
 window.onload = function(){
-  document.getElementById("engName").textContent = SERVER_ENGINEER || "-";
-  document.getElementById("zoneName").textContent = SERVER_ZONE || "-";
-  document.getElementById("sbEngineer").textContent = SERVER_ROLENAME || "-";
-  document.getElementById("sbZone").textContent = SERVER_TEAM || "-";
+  const engName = document.getElementById("engName");
+  const zoneName = document.getElementById("zoneName");
+  const sbEngineer = document.getElementById("sbEngineer");
+  const sbZone = document.getElementById("sbZone");
+
+  if(engName) engName.textContent = SERVER_ENGINEER || "-";
+  if(zoneName) zoneName.textContent = SERVER_ZONE || "-";
+  if(sbEngineer) sbEngineer.textContent = SERVER_ROLENAME || "-";
+  if(sbZone) sbZone.textContent = SERVER_TEAM || "-";
 
   refillReadonly();
   setupMonthYear();
@@ -1637,7 +1756,10 @@ window.onload = function(){
     inputId:"wp_serialNo",
     boxId:"wpSerialSuggest",
     getList: ()=> uniq(wpFilteredByLocModel().map(getSerialFromRow)),
-    onPick: ()=> onWpSerialPicked()
+    onPick: (v)=> {
+      onWpSerialPicked();
+      fillBySerial(v);
+    }
   });
 
   resetWsrCascades();
@@ -1691,15 +1813,49 @@ window.onload = function(){
 </script>
 
 <script>
-/* ✅ OPTIONAL: Serial details auto fill (kept safe - uses name selectors) */
+/* ✅ Serial details auto fill (FAST) */
+
+const _serialCache = new Map();        // serial -> data
+let _serialAbortCtrl = null;           // abort previous fetch
+
 async function fillBySerial(serial) {
   serial = (serial || "").trim();
   if (!serial) return;
 
-  const res = await fetch(`/api/serial/details?serial=${encodeURIComponent(serial)}`);
-  const data = await res.json();
-  if (!data || !data.ok) return;
+  // ✅ cache hit (instant fill)
+  if (_serialCache.has(serial)) {
+    applySerialData(_serialCache.get(serial));
+    return;
+  }
 
+  // ✅ abort previous request if user changes quickly
+  if (_serialAbortCtrl) _serialAbortCtrl.abort();
+  _serialAbortCtrl = new AbortController();
+
+  try {
+    // optional: overlay mat dikhao, ya delayed dikhao
+    // showLoading("Loading serial details...");
+
+    const res = await fetch(
+      `/api/serial/details?serial=${encodeURIComponent(serial)}`,
+      { signal: _serialAbortCtrl.signal }
+    );
+
+    const data = await res.json();
+    if (!data || !data.ok) return;
+
+    _serialCache.set(serial, data);
+    applySerialData(data);
+
+  } catch (e) {
+    if (e?.name === "AbortError") return; // ignore abort
+    console.log("fillBySerial error:", e);
+  } finally {
+    // hideLoading();
+  }
+}
+
+function applySerialData(data){
   const wsr = data.wsr || {};
   const ib  = data.installbase || {};
 
@@ -1728,17 +1884,11 @@ async function fillBySerial(serial) {
   if (amcDue) amcDue.value = ib.amc_due || "";
 }
 
-document.addEventListener("DOMContentLoaded", () => {
-  // weekly plan serial input
-  const serialEl = document.getElementById("wp_serialNo");
-  if (!serialEl) return;
-  serialEl.addEventListener("change", () => fillBySerial(serialEl.value));
-});
+
 </script>
 
 <script>
 function exportMaster(){
-  // Master table renderTable() se #masterTable ke andar <table> ban raha hai
   const wrap = document.getElementById("masterTable");
   const table = wrap ? wrap.querySelector("table") : null;
 
@@ -1760,11 +1910,9 @@ function exportMaster(){
     return;
   }
 
-  // headers
   const headers = Array.from(theadRow.querySelectorAll("th")).map(th => th.innerText.trim());
   out.push(headers.map(csvEscape).join(","));
 
-  // visible rows only (filtered view)
   table.querySelectorAll("tbody tr").forEach(tr=>{
     const cols = Array.from(tr.querySelectorAll("td")).map(td => td.innerText.trim());
     out.push(cols.map(csvEscape).join(","));
@@ -1790,9 +1938,6 @@ function exportMaster(){
   URL.revokeObjectURL(url);
 }
 
-
-
-
 function exportReport(){
   const table = document.getElementById("dataTable");
   if(!table){
@@ -1800,20 +1945,16 @@ function exportReport(){
     return;
   }
 
-  // take filters for filename
   const q = (document.getElementById("reportSearch")?.value || "").trim();
   const from = document.getElementById("fromDate")?.value || "";
   const to   = document.getElementById("toDate")?.value || "";
 
-  // helper: escape for CSV
   const csvEscape = (val) => {
     const s = String(val ?? "");
-    // If contains comma, quote, newline -> wrap in quotes and double quotes
     if (/[",\n\r]/.test(s)) return `"${s.replace(/"/g,'""')}"`;
     return s;
   };
 
-  // headers
   const rows = [];
   const theadRow = table.querySelector("thead tr");
   if(!theadRow){
@@ -1824,7 +1965,6 @@ function exportReport(){
   const headers = Array.from(theadRow.querySelectorAll("th")).map(th => th.innerText.trim());
   rows.push(headers.map(csvEscape).join(","));
 
-  // body rows
   const bodyRows = table.querySelectorAll("tbody tr");
   bodyRows.forEach(tr=>{
     const cols = Array.from(tr.querySelectorAll("td")).map(td => td.innerText.trim());
@@ -1836,12 +1976,10 @@ function exportReport(){
     return;
   }
 
-  // CSV content (Excel friendly BOM)
   const csv = "\uFEFF" + rows.join("\r\n");
   const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
   const url = URL.createObjectURL(blob);
 
-  // filename
   const safe = (s) => String(s || "").replace(/[^\w\-]+/g, "_");
   const nameParts = ["WSR_Report"];
   if(from) nameParts.push("From_" + from);
@@ -1849,7 +1987,65 @@ function exportReport(){
   if(q) nameParts.push("Q_" + safe(q).slice(0,30));
   const filename = nameParts.join("_") + ".csv";
 
-  // download
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+function exportWeeklyPlanReport(){
+  const table = document.getElementById("wpReportTable");
+  if(!table){
+    alert("Weekly Plan table not found!");
+    return;
+  }
+
+  const theadRow = table.querySelector("thead tr");
+  if(!theadRow){
+    alert("No data to export!");
+    return;
+  }
+
+  const csvEscape = (val) => {
+    const s = String(val ?? "");
+    if (/[",\n\r]/.test(s)) return `"${s.replace(/"/g,'""')}"`;
+    return s;
+  };
+
+  const rows = [];
+  const headers = Array.from(theadRow.querySelectorAll("th")).map(th => th.innerText.trim());
+  rows.push(headers.map(csvEscape).join(","));
+
+  const bodyRows = table.querySelectorAll("tbody tr");
+  bodyRows.forEach(tr=>{
+    const cols = Array.from(tr.querySelectorAll("td")).map(td => td.innerText.trim());
+    rows.push(cols.map(csvEscape).join(","));
+  });
+
+  if(rows.length <= 1){
+    alert("No rows to export!");
+    return;
+  }
+
+  const q = (document.getElementById("wpReportSearch")?.value || "").trim();
+  const from = document.getElementById("wpFromDate")?.value || "";
+  const to   = document.getElementById("wpToDate")?.value || "";
+
+  const safe = (s) => String(s || "").replace(/[^\w\-]+/g, "_");
+
+  const nameParts = ["WeeklyPlan_Report"];
+  if(from) nameParts.push("From_" + from);
+  if(to)   nameParts.push("To_" + to);
+  if(q)    nameParts.push("Q_" + safe(q).slice(0,30));
+  const filename = nameParts.join("_") + ".csv";
+
+  const csv = "\uFEFF" + rows.join("\r\n");
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+
   const a = document.createElement("a");
   a.href = url;
   a.download = filename;
@@ -1859,7 +2055,6 @@ function exportReport(){
   URL.revokeObjectURL(url);
 }
 </script>
-
 
 </body>
 </html>
