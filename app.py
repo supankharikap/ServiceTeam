@@ -3,7 +3,7 @@ import os
 import pyodbc
 from dotenv import load_dotenv
 from pathlib import Path
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 from werkzeug.middleware.proxy_fix import ProxyFix
 from decimal import Decimal, InvalidOperation
 
@@ -1927,6 +1927,184 @@ def api_weeklyplan_report():
 
     except Exception as e:
         return _json_err(f"WeeklyPlan report error: {e}", 500)
+
+@app.get("/api/weeklyplan/summary")
+@app.get("/api/weekly-plan/summary")
+@app.get("/api/weekly_plan/summary")
+def api_weeklyplan_summary():
+    need = _require_login_json()
+    if need:
+        return need
+
+    cols = _table_columns("dbo.Planning")
+    if not cols:
+        return _json_err("dbo.Planning not found", 400)
+
+    base_where, base_params = _planning_scope_where(cols)
+
+    visit_col = _find_col(cols, aliases=["visit_date","VisitDate","Visit Date","Planning Date"], must_contain=["visit","date"])
+    type_col  = _find_col(cols, aliases=["visitType","VisitType","visit_type","Visit Type"], must_contain=["visit","type"])
+    eng_col   = _find_col(cols, aliases=["engineer_name","EngineerName","Engineer Name","engineer"], must_contain=["engineer","name"])
+
+    if not visit_col:
+        return _json_err("visit_date column not found in dbo.Planning", 400)
+    if not type_col:
+        return _json_err("visitType column not found in dbo.Planning", 400)
+
+    # optional engineer filter
+    engineer = (request.args.get("engineer") or "").strip()
+
+    # scope where
+    where_parts = []
+    params = []
+    if base_where:
+        where_parts.append(base_where.replace(" WHERE ", "", 1))
+        params += base_params
+
+    if engineer and eng_col:
+        where_parts.append(f"{_cmp_ci_trim(eng_col)} = UPPER(?)")
+        params.append(engineer)
+
+    where_sql = (" WHERE " + " AND ".join(where_parts)) if where_parts else ""
+
+    try:
+        with get_conn() as conn:
+            cur = conn.cursor()
+
+            # prev7: today-7 to yesterday
+            sql_prev = f"""
+                SELECT COUNT(*) 
+                FROM dbo.Planning
+                {where_sql}
+                {" AND " if where_sql else " WHERE "}
+                {_qcol(visit_col)} >= DATEADD(day,-7, CAST(GETDATE() AS date))
+                AND {_qcol(visit_col)} <  CAST(GETDATE() AS date)
+            """
+            cur.execute(sql_prev, params)
+            prev7 = int(cur.fetchone()[0] or 0)
+
+            # next7: today to today+6
+            sql_next = f"""
+                SELECT COUNT(*) 
+                FROM dbo.Planning
+                {where_sql}
+                {" AND " if where_sql else " WHERE "}
+                {_qcol(visit_col)} >= CAST(GETDATE() AS date)
+                AND {_qcol(visit_col)} <  DATEADD(day,7, CAST(GETDATE() AS date))
+            """
+            cur.execute(sql_next, params)
+            next7 = int(cur.fetchone()[0] or 0)
+
+            # by type: last7 + next7 total 14 days window
+            sql_type = f"""
+                SELECT CAST({_qcol(type_col)} AS NVARCHAR(200)) AS t, COUNT(*) AS c
+                FROM dbo.Planning
+                {where_sql}
+                {" AND " if where_sql else " WHERE "}
+                {_qcol(visit_col)} >= DATEADD(day,-7, CAST(GETDATE() AS date))
+                AND {_qcol(visit_col)} <  DATEADD(day,7, CAST(GETDATE() AS date))
+                GROUP BY CAST({_qcol(type_col)} AS NVARCHAR(200))
+            """
+            cur.execute(sql_type, params)
+            rows = cur.fetchall()
+
+        by_type = {"breakdown": 0, "cluster": 0, "sales_support": 0, "other": 0}
+
+        for t, c in rows:
+            tt = (t or "").strip().lower()
+            c = int(c or 0)
+
+            if "break" in tt:
+                by_type["breakdown"] += c
+            elif "cluster" in tt:
+                by_type["cluster"] += c
+            elif "sales" in tt:
+                by_type["sales_support"] += c
+            else:
+                by_type["other"] += c
+
+        total14 = prev7 + next7
+
+        return jsonify({
+            "prev7": prev7,
+            "next7": next7,
+            "total14": total14,
+            "by_type": by_type
+        })
+
+    except Exception as e:
+        return _json_err(f"Weeklyplan summary error: {e}", 500)
+
+@app.get("/api/wsr/summary_month")
+def api_wsr_summary_month():
+    need = _require_login_json()
+    if need:
+        return need
+
+    cols = _table_columns("dbo.WSR")
+    if not cols:
+        return _json_err("dbo.WSR not found", 400)
+
+    visit_col = _find_col(cols, aliases=["VisitDate", "Visit Date"], must_contain=["visit", "date"])
+    vc1_col   = _find_col(cols, aliases=["VisitCode1", "Visit Code 1"], must_contain=["visit", "code", "1"])
+
+    if not visit_col:
+        return _json_err("VisitDate column not found in dbo.WSR", 400)
+    if not vc1_col:
+        return _json_err("VisitCode1 column not found in dbo.WSR", 400)
+
+    base_where, base_params = _wsr_scope_where(cols)
+
+    where_parts = []
+    params = []
+
+    if base_where:
+        where_parts.append(base_where.replace(" WHERE ", "", 1))
+        params += base_params
+
+    # ✅ current month filter ALWAYS apply
+    where_parts.append(f"{_qcol(visit_col)} >= DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()), 1)")
+    where_parts.append(f"{_qcol(visit_col)} <  DATEADD(month, 1, DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()), 1))")
+
+    where_sql = " WHERE " + " AND ".join(where_parts)
+
+    sql = f"""
+        SELECT CAST({_qcol(vc1_col)} AS NVARCHAR(200)) AS t, COUNT(*) AS c
+        FROM dbo.WSR
+        {where_sql}
+        GROUP BY CAST({_qcol(vc1_col)} AS NVARCHAR(200))
+    """
+
+    try:
+        with get_conn() as conn:
+            cur = conn.cursor()
+            cur.execute(sql, params)
+            rows = cur.fetchall()
+
+        counts = {"Cluster": 0, "Breakdown": 0, "Sales Support": 0, "Other": 0}
+
+        for t, c in rows:
+            tt = (t or "").strip().lower()
+            c = int(c or 0)
+
+            if "break" in tt:
+                counts["Breakdown"] += c
+            elif "cluster" in tt:
+                counts["Cluster"] += c
+            elif "sales" in tt:
+                counts["Sales Support"] += c
+            else:
+                counts["Other"] += c
+
+        total = sum(counts.values())
+        return jsonify({"ok": True, "total": total, "counts": counts})
+
+    except Exception as e:
+        return _json_err(f"WSR summary month error: {e}", 500)
+    
+
+    
+
 
 
 

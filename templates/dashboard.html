@@ -30,6 +30,14 @@
     .sidebarFooter{position:absolute;left:18px;right:18px;bottom:18px;background:rgba(255,255,255,.08);border-radius:12px;padding:12px;font-size:13px;color:rgba(255,255,255,.85);}
     .sidebarFooter b{color:#fff}
 
+    .donutGrid{margin-top:14px;display:grid;grid-template-columns: 1fr 1fr; gap:12px;}
+    .donutCard{background: var(--card);border: 1px solid var(--border);border-radius: var(--radius); box-shadow: var(--shadow); padding:16px;}
+
+    @media (max-width:1100px){
+      .donutGrid{ grid-template-columns: 1fr;}
+    }
+
+
     .main{padding:18px 18px 28px;}
     .topbar{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);padding:14px 16px;display:flex;gap:14px;justify-content:space-between;align-items:center;}
     .topbar .title{display:flex;flex-direction:column;}
@@ -119,7 +127,7 @@
     .suggestItem{padding:10px 12px;cursor:pointer;border-bottom:1px solid #f1f5f9;}
     .suggestItem:hover{background:#f8fafc;}
     .suggestItem.loading{cursor:default;color:var(--muted);font-weight:700;}
-    
+
     .report-toolbar{ display:flex;align-items:center; gap:20px; flex-wrap:nowrap;overflow-x:auto;white-space:nowrap;
       -webkit-overflow-scrolling:touch;
     }
@@ -173,6 +181,205 @@
       .grid{grid-template-columns:1fr}
       table{min-width:1200px}
       .sidebarFooter{position:relative;left:0;right:0;bottom:0;margin-top:12px;}
+    }
+    /* ===== Dashboard cards spacing fix ===== */
+    .cards{
+      background-color:transparent;      /* remove grey patch */
+      margin-top:14px;
+      display:grid;
+      grid-template-columns:repeat(4,1fr);
+      gap:12px;
+    }
+    /* ===== Weekly donut card ===== */
+    .weeklyCard{
+      margin-top:14px;
+      padding:16px;
+    }
+    .weeklyTitle{
+      font-size:13px;
+      color:var(--muted);
+      font-weight:700;
+      margin-bottom:10px;
+    }
+    .donutWrap{
+      display:flex;
+      align-items:center;
+      gap:18px;
+      justify-content:flex-start;
+    }
+
+    .donut{
+      width:140px;
+      height:140px;
+      position:relative;
+      flex:0 0 auto;
+    }
+    .donut svg{
+      width:140px;
+      height:140px;
+      display:block;
+    }
+    .donut .centerText{
+      position:absolute;
+      inset:0;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      flex-direction:column;
+      text-align:center;
+      font-weight:900;
+    }
+    .donut .centerText .pct{
+      font-size:22px;
+      line-height:1.1;
+      color:var(--text);
+    }
+    .donut .centerText .sub{
+      font-size:12px;
+      color:var(--muted);
+      font-weight:700;
+      margin-top:4px;
+    }
+    .donutMeta{
+      display:flex;
+      flex-direction:column;
+      gap:6px;
+      min-width:220px;
+    }
+    .donutMeta .kpi{
+      font-size:28px;
+      font-weight:900;
+      margin:0;
+    }
+    .donutMeta .label{
+      font-size:13px;
+      color:var(--muted);
+      font-weight:700;
+    }
+    /* responsive */
+    @media (max-width:1100px){
+      .donutWrap{flex-direction:column; align-items:flex-start;}
+      .donutMeta{min-width:auto;}
+    }
+
+    /* ===== Weekly donut mini charts (only inside #weeklyDonut) ===== */
+    #weeklyDonut{
+      width:100%;
+      min-height:140px;
+      display:flex;
+      flex-direction:column;
+      gap:10px;
+      align-items:center;
+      justify-content:center;
+    }
+    #weeklyDonut .donutRow{
+      display:flex;
+      gap:18px;
+      align-items:center;
+      justify-content:center;
+      flex-wrap:wrap;
+    }
+    #weeklyDonut .mDonut{
+      width:72px;
+      height:72px;
+      position:relative;
+      flex:0 0 auto;
+    }
+    #weeklyDonut .mDonut .ring{
+      width:72px;
+      height:72px;
+      border-radius:50%;
+      background: conic-gradient(#e5e7eb 0deg 360deg);
+      position:relative;
+    }
+    #weeklyDonut .mDonut .ring::after{
+      content:"";
+      position:absolute;
+      inset:12px;
+      background: var(--card);
+      border-radius:50%;
+      box-shadow: inset 0 0 0 1px var(--border);
+    }
+    #weeklyDonut .mDonut .center{
+      position:absolute;
+      inset:0;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      font-weight:900;
+      font-size:13px;
+      color: var(--text);
+      z-index:2;
+    }
+    #weeklyDonut .legendRow{
+      display:flex;
+      gap:14px;
+      align-items:center;
+      justify-content:center;
+      flex-wrap:wrap;
+    }
+    #weeklyDonut .legendItem{
+      display:flex;
+      align-items:center;
+      gap:8px;
+      font-size:12px;
+      color: var(--muted);
+      font-weight:700;
+    }
+    #weeklyDonut .legendDot{
+      width:10px;height:10px;border-radius:999px;
+    }
+
+    .donutCanvasBox{
+      position:relative;
+      width:160px;
+      height:160px;
+    }
+    #weeklyDonutChart{
+      width:160px !important;
+      height:160px !important;
+      display:block;
+    }
+    .donutCenter{
+      position:absolute;
+      inset:0;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      flex-direction:column;
+      pointer-events:none;
+    }
+    .donutCenterBig{
+      font-size:28px;
+      font-weight:900;
+      color:var(--text);
+      line-height:1;
+    }
+    .donutCenterSmall{
+      font-size:12px;
+      font-weight:700;
+      color:var(--muted);
+      margin-top:4px;
+    }
+    /* legend */
+    .legendItem2{display:flex;align-items:center;gap:10px;margin:6px 0;}
+    .legendDot2{width:10px;height:10px;border-radius:999px;display:inline-block;}
+    .legendCount2{margin-left:auto;font-weight:900;color:var(--text);}
+
+    .cssDonut{
+      width:160px;
+      height:160px;
+      border-radius:50%;
+      background: conic-gradient(#e5e7eb 0deg 360deg);
+      position:relative;
+    }
+    .cssDonut::after{
+      content:"";
+      position:absolute;
+      inset:26px;           /* donut thickness control */
+      background: var(--card);
+      border-radius:50%;
+      box-shadow: inset 0 0 0 1px var(--border);
     }
   </style>
 </head>
@@ -247,7 +454,6 @@
           <small>Welcome to KGK Service Team </small>
         </div>
 
-        <!-- fixed invalid color -->
         <div style="color:var(--muted); line-height:1.6">
           <div class="cards">
             <div class="card">
@@ -260,7 +466,7 @@
             </div>
             <div class="card">
               <div class="kpi" id="kpiPending">0</div>
-              <div class="label">Breakdown Task Pending</div>            
+              <div class="label">Breakdown Task Pending</div>
             </div>
             <div class="card">
               <div class="kpi" id="kpiCustomers">—</div>
@@ -271,6 +477,37 @@
           ✅ View pending tasks.<br>
           ✅ Use left menu to open WSR Form, Report View, Weekly Plan, Master InstallBase.<br>
           ✅ Updating is in progress.
+          <div class="donutGrid">
+            <div class="donutWrap donutCard">
+              <div class="donutCanvasBox">
+                <div id="weeklyDonutChart" class="cssDonut"></div>
+                <div class="donutCenter">
+                  <div class="donutCenterBig" id="donutTotal">0</div>
+                  <div class="donutCenterSmall">Total</div>
+                </div>
+              </div>
+              <div class="donutMeta">
+                <div class="kpi" id="kpiWeekly14">—</div>
+                <div class="label">Planned ±7 Days</div>
+                <div id="donutLegend" style="margin-top:10px;"></div>
+              </div>
+            </div>
+            <!-- WSR DONUT -->
+             <div class="donutWrap donutCard">
+              <div class="donutCanvasBox">
+                <div id="wsrDonutChart" class="cssDonut"></div>
+                <div class="donutCenter">
+                  <div class="donutCenterBig" id="wsrDonutTotal">0</div>
+                  <div class="donutCenterSmall">Total</div>
+                </div>
+              </div>
+              <div class="donutMeta">
+                <div class="kpi" id="kpiWsrMonth">—</div>
+                <div class="label">WSR Reports (Current Month)</div>
+                <div id="wsrDonutLegend" style="margin-top:10px;"></div>
+              </div>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -307,7 +544,7 @@
             <div><label>Engineer Name</label><input id="wp_engineer" name="engineerName" readonly></div>
 
             <div><label>Cluster Code</label><input id="wp_clusterCode" name="clusterCode"></div>
-            
+
             <div><label>Planning Date</label><input type="date" name="visit_date" Required></div>
 
             <div style="position:relative;">
@@ -395,13 +632,13 @@
             </div>
 
             <div><label>Ink Expiry Follow-up</label>
-              <select name="inkexpiryfollow-up"><option value=""">--Select--</option><option>YES</option><option>NO</option></select>
+              <select name="inkexpiryfollow-up"><option value="">--Select--</option><option>YES</option><option>NO</option></select>
             </div>
             <div><label>AMC Follow-up</label>
               <select name="amcFollowup"><option value="">--Select--</option><option >YES</option><option>NO</option></select>
             </div>
             <div><label>Filter Kit Follow-up</label>
-              <select name="filterKitFollowup"><option value="">--Select--</option><option >YES</option>NO</option></select>
+              <select name="filterKitFollowup"><option value="">--Select--</option><option >YES</option><option>NO</option></select>
             </div>
 
             <div><label>Stock Check</label>
@@ -427,7 +664,7 @@
       <section id="wsrSection" class="section">
         <div class="sectionHeader">
           <h2>WSR Report Form</h2>
-          <small>Submit service activity</small> 
+          <small>Submit service activity</small>
         </div>
         <form id="wsrForm">
           <div class="grid">
@@ -502,7 +739,7 @@
             <div><label>Turn on Time</label><input name="turnOnTime"></div>
             <div><label>Print on Time</label><input name="printOnTime"></div>
 
-            <div><label>Visit Date</label><input type="date" name="visitDate">required</div>
+            <div><label>Visit Date</label><input type="date" name="visitDate"required></div>
 
             <div><label>Travel Start (HH:MM)</label><input type="time" name="travelStart"></div>
             <div><label>Travel End (HH:MM)</label><input type="time" name="travelEnd"></div>
@@ -549,22 +786,22 @@
       <section id="reportSection" class="section">
         <div class="sectionHeader">
           <h2>Report View</h2>
-          <small>dbo.WSR table view</small>
+          <small> WSR Total  • Rows: <b id="reportRowCount">0</b></small>
         </div>
         <div class="report-toolbar">
           <input id="reportSearch" class="tb-search"
           placeholder="Search report (customer / MMM-YY / engineer / zone...)"
           autocomplete="off">
           <label>From</label><input type="date" class="tb-date" id="fromDate">
-          <label>To</label><input type="date" class="tb-date" id="toDate">         
+          <label>To</label><input type="date" class="tb-date" id="toDate">
 
           <button class="tb-btn" onclick="reportDoSearch()">🔎 Search</button>
           <button class="tb-btn" onclick="reportClear()">✖ Clear</button>
           <button class="tb-btn" onclick="loadReport()">🔄 Refresh</button>
-          <button class="tb-btn tb-export" onclick="exportReport()">⬇️Report Export</button>  
+          <button class="tb-btn tb-export" onclick="exportReport()">⬇️Report Export</button>
         </div>
         <div id="reportSuggest" class="suggestBox"></div>
-        <div id="reportErr" class="err"></div>     
+        <div id="reportErr" class="err"></div>
         <div id="reportWrap" class="tableWrap">
           <table id="dataTable">
             <thead></thead>
@@ -586,7 +823,7 @@
       <section id="weeklyWiewPlanSection" class="section">
         <div class="sectionHeader">
           <h2>Weekly Plan Report</h2>
-          <small>dbo.WeeklyPlan table view</small>
+          <small>Weekly Plan • Rows: <b id="wpRowCount">0</b></small>
         </div>
         <div class="report-toolbar">
           <input id="wpReportSearch" class="tb-search"
@@ -636,6 +873,10 @@ const SERVER_ENGINEER = "{{ engineer|e }}";
 const SERVER_ZONE = "{{ zone|e }}";
 const SERVER_ROLENAME = "{{ role|e }}";
 const SERVER_TEAM = "{{ team|e }}";
+function isUserRole(){
+  return (SERVER_ROLENAME || "").trim().toLowerCase() === "user";
+}
+
 
 /* ===========================
    LOADING OVERLAY (CENTER)
@@ -1485,6 +1726,11 @@ async function loadWeeklyPlanReport(){
     });
     thead.appendChild(trh);
 
+      
+    const rc = document.getElementById("wpRowCount");
+    if(rc) rc.textContent = String(rows.length || 0);
+
+
     rows.forEach(r=>{
       const tr = document.createElement("tr");
       cols.forEach(c=>{
@@ -1559,11 +1805,12 @@ function reportDoSearch(){ loadReport(); }
 async function loadReport(){
   const errBox = document.getElementById("reportErr");
   if(errBox) errBox.textContent = "";
+  
 
   const q = (document.getElementById("reportSearch")?.value || "").trim();
   const from = document.getElementById("fromDate")?.value || "";
   const to   = document.getElementById("toDate")?.value || "";
-
+  
   const params = new URLSearchParams();
   params.set("limit","2000");
   if(q) params.set("q", q);
@@ -1579,6 +1826,9 @@ async function loadReport(){
       if(errBox) errBox.textContent = data.error || "Report load error";
       return;
     }
+
+    
+
 
     const thead = document.querySelector("#dataTable thead");
     const tbody = document.querySelector("#dataTable tbody");
@@ -1597,6 +1847,9 @@ async function loadReport(){
       trh.appendChild(th);
     });
     thead.appendChild(trh);
+    const rc = document.getElementById("reportRowCount");
+    if(rc) rc.textContent = String(rows.length || 0);
+
 
     rows.forEach(r=>{
       const tr = document.createElement("tr");
@@ -1708,15 +1961,23 @@ window.onload = function(){
 
   if(engName) engName.textContent = SERVER_ENGINEER || "-";
   if(zoneName) zoneName.textContent = SERVER_ZONE || "-";
-  if(sbEngineer) sbEngineer.textContent = SERVER_ROLENAME || "-";
-  if(sbZone) sbZone.textContent = SERVER_TEAM || "-";
 
+  // ✅ only change here
+  if(sbEngineer) sbEngineer.textContent = SERVER_ENGINEER || "-";
+
+  if(sbZone) sbZone.textContent = SERVER_TEAM || "-";
   refillReadonly();
+  
+
   setupMonthYear();
+  loadWeeklyDonut();   // real API
 
   loadKpis();
   applyRoleAccess(SERVER_ROLENAME);
   fillVisitCode2();
+  loadWsrDonutMonth();   // ✅ WSR donut (This Month)
+
+
 
   setupCustomerSuggest();
   setupWeeklyCustomerSuggest();
@@ -1765,9 +2026,9 @@ window.onload = function(){
   resetWsrCascades();
   resetWpCascades();
 };
-</script>
 
-<script>
+
+
 /* ===========================
    AUTO TIME CALC (unchanged)
 =========================== */
@@ -1883,8 +2144,6 @@ function applySerialData(data){
   const amcDue = document.querySelector(`[name="amcDueDate"]`);
   if (amcDue) amcDue.value = ib.amc_due || "";
 }
-
-
 </script>
 
 <script>
@@ -2053,6 +2312,298 @@ function exportWeeklyPlanReport(){
   a.click();
   a.remove();
   URL.revokeObjectURL(url);
+}
+</script>
+
+<script>
+function renderMiniDonutsInWeeklyDonut(items){
+  const host = document.getElementById("weeklyDonut");
+  if(!host) return;
+  const clean = (items || []);
+  const total = clean.reduce((s,it)=> s + Number(it?.value||0), 0);
+  if(total === 0){
+    host.innerHTML = `
+      <div style="display:flex;align-items:center;justify-content:center;height:140px;color:var(--muted);font-weight:800;">
+        No plan ±7 Days
+      </div>`;
+      return;
+  }
+
+  host.innerHTML = `<div class="donutRow"></div><div class="legendRow"></div>`;
+  const row = host.querySelector(".donutRow");
+  const leg = host.querySelector(".legendRow");
+
+  clean.forEach(it=>{
+    const value = Number(it.value || 0);
+    const max   = Math.max(1, Number(it.max || 100));
+    const pct   = Math.max(0, Math.min(100, (value / max) * 100));
+    const deg   = pct * 3.6;
+
+    const d = document.createElement("div");
+    d.className = "mDonut";
+    d.innerHTML = `<div class="ring"></div><div class="center">${value}</div>`;
+    d.querySelector(".ring").style.background =
+      `conic-gradient(${it.color} 0deg ${deg}deg, #e5e7eb ${deg}deg 360deg)`;
+    row.appendChild(d);
+
+    const li = document.createElement("div");
+    li.className = "legendItem";
+    li.innerHTML = `<span class="legendDot" style="background:${it.color}"></span>${it.label}`;
+    leg.appendChild(li);
+  });
+}
+</script>
+
+<script>
+function renderCssDonut(labels, values){
+  const total = values.reduce((a,b)=>a+b,0);
+  const ring = document.getElementById("weeklyDonutChart");
+  if(!ring) return;
+
+  if(total <= 0){
+    ring.style.background = "conic-gradient(#e5e7eb 0deg 360deg)";
+    return;
+  }
+
+  let acc = 0;
+  const parts = labels.map((l,i)=>{
+    const v = Number(values[i]||0);
+    const start = (acc/total)*360;
+    acc += v;
+    const end = (acc/total)*360;
+    const color = VISIT_TYPE_COLOR[l] || "#64748b";
+    return `${color} ${start}deg ${end}deg`;
+  });
+
+  ring.style.background = `conic-gradient(${parts.join(",")})`;
+}
+
+// fixed colors per visit type
+const VISIT_TYPE_COLOR = {
+  "Cluster": "#1a73e8",
+  "Breakdown": "#e53935",
+  "Sales Support": "#2e7d32",
+  "Other": "#8e24aa"
+};
+
+function renderVisitTypeLegend(labels, colors, values){
+  const legendHost = document.getElementById("donutLegend");
+  if(!legendHost) return;
+
+  legendHost.innerHTML = "";
+  labels.forEach((name, i)=>{
+    const row = document.createElement("div");
+    row.className = "legendItem2";
+    row.style.cursor = "pointer";
+
+    const dot = document.createElement("span");
+    dot.className = "legendDot2";
+    dot.style.background = colors[i];
+
+    const title = document.createElement("span");
+    title.textContent = name;
+
+    const cnt = document.createElement("span");
+    cnt.className = "legendCount2";
+    cnt.textContent = values[i];
+
+    row.appendChild(dot);
+    row.appendChild(title);
+    row.appendChild(cnt);
+
+    // legend click => filter
+    row.addEventListener("click", ()=> applyVisitTypeFilter(name));
+
+    legendHost.appendChild(row);
+  });
+}
+
+// when user clicks a visit type => open Weekly Plan Report and filter it
+function applyVisitTypeFilter(visitType){
+  const btn = document.getElementById("btnWeeklyPlanView");
+  showSection("weeklyWiewPlanSection", btn);
+
+  const s = document.getElementById("wpReportSearch");
+  if(s) s.value = visitType;
+
+  loadWeeklyPlanReport();
+}
+
+async function loadWeeklyDonut(){
+  showLoading("Loading 14 days plan...");
+
+  try{
+    const res = await fetch("/api/weeklyplan/summary");
+    const text = await res.text();
+
+    let data = {};
+    try { data = JSON.parse(text); }
+    catch { data = {}; }
+
+    // backend returns: { total14, by_type:{cluster,breakdown,sales_support,other} }
+    const by = data.by_type || {};
+    const labels = ["Cluster","Breakdown","Sales Support","Other"];
+    const values = [
+      Number(by.cluster || 0),
+      Number(by.breakdown || 0),
+      Number(by.sales_support || 0),
+      Number(by.other || 0),
+    ];
+
+    const total = Number(data.total14 ?? values.reduce((a,b)=>a+b,0));
+
+    const donutTotalEl = document.getElementById("donutTotal");
+    const kpiEl = document.getElementById("kpiWeekly14");
+    if(donutTotalEl) donutTotalEl.textContent = total;
+    if(kpiEl) kpiEl.textContent = total;
+
+    renderCssDonut(labels, values);
+    renderVisitTypeLegend(
+      labels,
+      labels.map(l => VISIT_TYPE_COLOR[l] || "#64748b"),
+      values
+    );
+
+  }catch(e){
+    console.log("loadWeeklyDonut failed:", e);
+
+    const donutTotalEl = document.getElementById("donutTotal");
+    const kpiEl = document.getElementById("kpiWeekly14");
+    if(donutTotalEl) donutTotalEl.textContent = "0";
+    if(kpiEl) kpiEl.textContent = "0";
+
+    renderCssDonut(["Cluster","Breakdown","Sales Support","Other"], [0,0,0,0]);
+    renderVisitTypeLegend(
+      ["Cluster","Breakdown","Sales Support","Other"],
+      ["#1a73e8","#e53935","#2e7d32","#8e24aa"],
+      [0,0,0,0]
+    );
+  }finally{
+    hideLoading();
+  }
+}
+</script>
+
+<script>
+function renderCssDonutTo(elId, labels, values){
+  const total = values.reduce((a,b)=>a+b,0);
+  const ring = document.getElementById(elId);
+  if(!ring) return;
+
+  if(total <= 0){
+    ring.style.background = "conic-gradient(#e5e7eb 0deg 360deg)";
+    return;
+  }
+
+  let acc = 0;
+  const parts = labels.map((l,i)=>{
+    const v = Number(values[i]||0);
+    const start = (acc/total)*360;
+    acc += v;
+    const end = (acc/total)*360;
+    const color = VISIT_TYPE_COLOR[l] || "#64748b";
+    return `${color} ${start}deg ${end}deg`;
+  });
+
+  ring.style.background = `conic-gradient(${parts.join(",")})`;
+}
+
+function renderLegendTo(hostId, labels, colors, values, onClick){
+  const host = document.getElementById(hostId);
+  if(!host) return;
+  host.innerHTML = "";
+
+  labels.forEach((name, i)=>{
+    const row = document.createElement("div");
+    row.className = "legendItem2";
+    row.style.cursor = "pointer";
+
+    const dot = document.createElement("span");
+    dot.className = "legendDot2";
+    dot.style.background = colors[i];
+
+    const title = document.createElement("span");
+    title.textContent = name;
+
+    const cnt = document.createElement("span");
+    cnt.className = "legendCount2";
+    cnt.textContent = values[i];
+
+    row.appendChild(dot);
+    row.appendChild(title);
+    row.appendChild(cnt);
+
+    if(onClick){
+      row.addEventListener("click", ()=> onClick(name));
+    }
+    host.appendChild(row);
+  });
+}
+
+async function loadWsrDonutMonth(){
+  showLoading("Loading WSR this month...");
+
+  try{
+    const res = await fetch("/api/wsr/summary_month");
+    const text = await res.text();
+    let data = null;
+    try{ data = JSON.parse(text); }catch{ data = { ok:false }; }
+
+    if(!res.ok || data?.ok === false){
+      document.getElementById("wsrDonutTotal").textContent = "0";
+      document.getElementById("kpiWsrMonth").textContent = "0";
+      renderCssDonutTo("wsrDonutChart", ["Cluster","Breakdown","Sales Support","Other"], [0,0,0,0]);
+      renderLegendTo("wsrDonutLegend",
+        ["Cluster","Breakdown","Sales Support","Other"],
+        ["#1a73e8","#e53935","#2e7d32","#8e24aa"], [0,0,0,0],
+        (vtype)=> applyWsrVisitTypeFilter(vtype)
+      );
+      return;
+    }
+
+    const counts = data.counts || {};
+    const labels = ["Cluster","Breakdown","Sales Support","Other"];
+    const values = labels.map(l => Number(counts[l] || 0));
+    const total = Number(data.total || values.reduce((a,b)=>a+b,0));
+
+    document.getElementById("wsrDonutTotal").textContent = total;
+    document.getElementById("kpiWsrMonth").textContent = total;
+
+    renderCssDonutTo("wsrDonutChart", labels, values);
+    renderLegendTo("wsrDonutLegend",
+      labels,
+      labels.map(l => VISIT_TYPE_COLOR[l] || "#64748b"),
+      values,
+      (vtype)=> applyWsrVisitTypeFilter(vtype)
+    );
+
+  }catch(e){
+    console.log("loadWsrDonutMonth failed:", e);
+  }finally{
+    hideLoading();
+  }
+}
+
+// ✅ legend click => open Report View and filter by VisitCode1
+function applyWsrVisitTypeFilter(visitType){
+  const btn = document.getElementById("btnReport");
+  showSection("reportSection", btn);
+
+  const s = document.getElementById("reportSearch");
+  if(s) s.value = visitType;
+
+  // this month date range set (optional)
+  const f = document.getElementById("fromDate");
+  const t = document.getElementById("toDate");
+  if(f && t){
+    const now = new Date();
+    const y = now.getFullYear();
+    const m = String(now.getMonth()+1).padStart(2,"0");
+    f.value = `${y}-${m}-01`;
+    t.value = ""; // let backend upto today or keep blank
+  }
+
+  loadReport();
 }
 </script>
 
