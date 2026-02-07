@@ -254,6 +254,7 @@ def login_post():
 def dashboard():
     if "user" not in session:
         return redirect(url_for("home"))
+    
 
     return render_template(
         "dashboard.html",
@@ -262,6 +263,22 @@ def dashboard():
         role=session.get("role", ""),
         team=session.get("team", "")
     )
+
+@app.get("/weekly-plan-report")
+def weekly_plan_report_page():
+    if "user" not in session:
+        return redirect(url_for("home"))
+
+    # ye template new tab me open hoga
+    return render_template(
+        "weeklyPlanReport.html",
+        engineer=session.get("engineer", ""),
+        zone=session.get("zone", ""),
+        role=session.get("role", ""),
+        team=session.get("team", ""),
+        visitType=(request.args.get("visitType") or "").strip()
+    )
+
 
 
 @app.get("/logout")
@@ -375,6 +392,7 @@ def _build_token_search_where(q: str, cols: list, preferred_cols: list):
 
 
 # ===================== KPI =====================
+# ===================== KPI =====================
 @app.get("/api/kpi")
 def api_kpi():
     need = _require_login_json()
@@ -390,9 +408,12 @@ def api_kpi():
     try:
         with get_conn() as conn:
             cur = conn.cursor()
-            cur.execute(f"SELECT COUNT(*) FROM dbo.InstallBase{where_sql}", params)
-            installbase_total = int(cur.fetchone()[0])
 
+            # 1) InstallBase total
+            cur.execute(f"SELECT COUNT(*) FROM dbo.InstallBase{where_sql}", params)
+            installbase_total = int(cur.fetchone()[0] or 0)
+
+            # 2) Customers count
             cust_col = _find_col(
                 install_cols,
                 aliases=["CUSTOMER_NAME", "CUSTOMER NAME", "CustomerName", "Customer Name"],
@@ -400,8 +421,64 @@ def api_kpi():
             )
             customers = 0
             if cust_col:
-                cur.execute(f"SELECT COUNT(DISTINCT {_qcol(cust_col)}) FROM dbo.InstallBase{where_sql}", params)
-                customers = int(cur.fetchone()[0])
+                cur.execute(
+                    f"SELECT COUNT(DISTINCT {_qcol(cust_col)}) FROM dbo.InstallBase{where_sql}",
+                    params
+                )
+                customers = int(cur.fetchone()[0] or 0)
+
+            # 3) This Month Cluster Plan (InstallBase -> Cluster Visit Plan)
+            cluster_no_col = _find_col(
+                install_cols,
+                aliases=["Cluster No", "Cluster_No", "CLUSTER NO", "Cluster No."],
+                must_contain=["cluster"]
+            )
+            plan_col = _find_col(
+                install_cols,
+                aliases=["Cluster Visit Plan", "ClusterVisitPlan", "CLUSTER VISIT PLAN"],
+                must_contain=["cluster", "visit", "plan"]
+            )
+
+            this_month_cluster_plan = 0
+            if cluster_no_col and plan_col:
+
+                # ✅ text date -> date safe conversion (yyyy-mm-dd OR dd-mm-yyyy)
+                plan_date_expr = (
+                    f"COALESCE("
+                    f"TRY_CONVERT(date, {_qcol(plan_col)}, 23),"   # yyyy-mm-dd
+                    f"TRY_CONVERT(date, {_qcol(plan_col)}, 105),"  # dd-mm-yyyy
+                    f"TRY_CONVERT(date, {_qcol(plan_col)})"
+                    f")"
+                )
+
+                where_parts = []
+                p = []
+
+                # add scope
+                if where_sql:
+                    where_parts.append(where_sql.replace(" WHERE ", "", 1))
+                    p += params
+
+                # cluster not blank
+                where_parts.append(
+                    f"NULLIF(LTRIM(RTRIM(CAST({_qcol(cluster_no_col)} AS NVARCHAR(200)))), '') IS NOT NULL"
+                )
+
+                # plan date valid
+                where_parts.append(f"{plan_date_expr} IS NOT NULL")
+
+                # current month filter
+                where_parts.append(
+                    f"{plan_date_expr} >= DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()), 1)"
+                )
+                where_parts.append(
+                    f"{plan_date_expr} <  DATEADD(month, 1, DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()), 1))"
+                )
+
+                w = " WHERE " + " AND ".join(where_parts)
+
+                cur.execute(f"SELECT COUNT(*) FROM dbo.InstallBase{w}", p)
+                this_month_cluster_plan = int(cur.fetchone()[0] or 0)
 
     except Exception as e:
         return _json_err(f"InstallBase KPI error: {e}", 500)
@@ -409,7 +486,7 @@ def api_kpi():
     return jsonify({
         "installbase_total": installbase_total,
         "customers": customers,
-        "this_month_reports": 0,
+        "this_month_cluster_plan": this_month_cluster_plan,
         "pending": 0
     })
 
@@ -1848,9 +1925,10 @@ def _planning_scope_where(cols):
     return (" WHERE " + " AND ".join(where)) if where else "", params
 
 
-@app.get("/api/weeklyplan/report")
-@app.get("/api/weekly-plan/report")
-@app.get("/api/weekly_plan/report")
+@app.get("/api/weeklyplan/report", endpoint="weeklyplan_report")
+@app.get("/api/weekly-plan/report", endpoint="weeklyplan_report")
+@app.get("/api/weekly_plan/report", endpoint="weeklyplan_report")
+
 def api_weeklyplan_report():
     need = _require_login_json()
     if need:
@@ -1858,7 +1936,9 @@ def api_weeklyplan_report():
 
     limit = int(request.args.get("limit", "500"))
     limit = max(1, min(limit, 5000))
+
     q = (request.args.get("q") or "").strip()
+    visit_type = (request.args.get("visitType") or "").strip()
 
     from_date = _parse_iso_date(request.args.get("from"))
     to_date   = _parse_iso_date(request.args.get("to"))
@@ -1870,28 +1950,44 @@ def api_weeklyplan_report():
     base_where, base_params = _planning_scope_where(cols)
 
     preferred = [
-        "zone", "engineerName", "engineer_name",
-        "customerName", "customer_name",
+        "zone", "engineer_name", "engineerName",
+        "customer_name", "customerName",
         "location", "serial", "serial_no",
-        "clusterCode", "cluster_code",
+        "cluster", "cluster_code",
+        "visit_type", "visitType",
         "visit_date", "visitDate"
     ]
+
     search_where, search_params = _build_token_search_where(q, cols, preferred)
 
-    visit_col = _find_col(cols, aliases=["visit_date", "VisitDate", "Visit Date", "Planning Date"], must_contain=["visit", "date"])
-    id_col    = _find_col(cols, aliases=["Id", "ID"], must_contain=["id"])
+    visit_col = _find_col(
+        cols,
+        aliases=["visit_date", "VisitDate", "Visit Date", "Planning Date"],
+        must_contain=["visit", "date"]
+    )
+
+    type_col = _find_col(
+        cols,
+        aliases=["visitType", "VisitType", "visit_type", "Visit Type"],
+        must_contain=["visit", "type"]
+    )
+
+    id_col = _find_col(cols, aliases=["Id", "ID"], must_contain=["id"])
 
     where_parts = []
     params = []
 
+    # scope (zone / engineer)
     if base_where:
         where_parts.append(base_where.replace(" WHERE ", "", 1))
         params += base_params
 
+    # search
     if search_where:
         where_parts.append(search_where)
         params += search_params
 
+    # date filter
     if visit_col:
         if from_date:
             where_parts.append(f"{_qcol(visit_col)} >= ?")
@@ -1900,15 +1996,43 @@ def api_weeklyplan_report():
             where_parts.append(f"{_qcol(visit_col)} <= ?")
             params.append(to_date)
 
+    # ✅ visitType filter (Cluster / Breakdown / Sales Support / Other)
+    if visit_type and type_col:
+        vt = visit_type.strip().lower()
+        # normalize DB value: trim + lower
+        tc = f"LOWER(LTRIM(RTRIM(COALESCE(CAST({_qcol(type_col)} AS NVARCHAR(200)), ''))))"
+        if vt in ("other", "others", "__other__"):
+            where_parts.append(
+                f"({tc} = '' OR {tc} LIKE '%other%' OR "
+                f"({tc} NOT LIKE '%cluster%' AND {tc} NOT LIKE '%break%' AND {tc} NOT LIKE '%sales%'))"
+            )
+        elif "sales" in vt:
+            where_parts.append(f"{tc} LIKE '%sales%'")
+        elif "break" in vt:
+            where_parts.append(f"{tc} LIKE '%break%'")
+        elif "cluster" in vt:
+            where_parts.append(f"{tc} LIKE '%cluster%'")
+        else:
+            where_parts.append(f"{tc} LIKE ?")
+            params.append(f"%{vt}%")
+
+
+
     where_sql = (" WHERE " + " AND ".join(where_parts)) if where_parts else ""
 
     order_by = (
-        f"{_qcol(visit_col)} DESC" if visit_col else
-        (f"{_qcol(id_col)} DESC" if id_col else f"{_qcol(cols[0])} DESC")
+        f"{_qcol(visit_col)} DESC"
+        if visit_col
+        else (f"{_qcol(id_col)} DESC" if id_col else f"{_qcol(cols[0])} DESC")
     )
 
     select_cols = ", ".join([_qcol(c) for c in cols])
-    sql = f"SELECT TOP {limit} {select_cols} FROM dbo.Planning{where_sql} ORDER BY {order_by}"
+    sql = f"""
+        SELECT TOP {limit} {select_cols}
+        FROM dbo.Planning
+        {where_sql}
+        ORDER BY {order_by}
+    """
 
     try:
         with get_conn() as conn:
@@ -2021,7 +2145,8 @@ def api_weeklyplan_summary():
             elif "sales" in tt:
                 by_type["sales_support"] += c
             else:
-                by_type["other"] += c
+                if tt:   # ✅ only non-blank
+                    by_type["other"] += c
 
         total14 = prev7 + next7
 
@@ -2105,8 +2230,206 @@ def api_wsr_summary_month():
 
     
 
+from datetime import datetime
 
+@app.get("/api/weeklyplan/summary_range")
+def weeklyplan_summary_range():
+    need = _require_login_json()
+    if need:
+        return need
 
+    from_s = (request.args.get("from") or "").strip()
+    to_s   = (request.args.get("to") or "").strip()
+
+    try:
+        from_d = datetime.strptime(from_s, "%Y-%m-%d").date()
+        to_d   = datetime.strptime(to_s, "%Y-%m-%d").date()
+    except Exception:
+        return jsonify({"ok": False, "error": "Invalid from/to. Use YYYY-MM-DD"}), 400
+
+    cols = _table_columns("dbo.Planning")
+    if not cols:
+        return jsonify({"ok": False, "error": "dbo.Planning not found"}), 400
+
+    # ✅ apply same scope logic (zone/engineer/manager/admin)
+    base_where, base_params = _planning_scope_where(cols)
+
+    visit_col = _find_col(cols, aliases=["visit_date","VisitDate","Visit Date","Planning Date"], must_contain=["visit","date"])
+    type_col  = _find_col(cols, aliases=["visitType","VisitType","visit_type","Visit Type"], must_contain=["visit","type"])
+
+    if not visit_col:
+        return jsonify({"ok": False, "error": "visit_date column not found"}), 400
+    if not type_col:
+        return jsonify({"ok": False, "error": "visitType column not found"}), 400
+
+    where_parts = []
+    params = []
+
+    if base_where:
+        where_parts.append(base_where.replace(" WHERE ", "", 1))
+        params += base_params
+
+    # ✅ date range
+    where_parts.append(f"CAST({_qcol(visit_col)} AS date) >= ?")
+    params.append(from_d)
+    where_parts.append(f"CAST({_qcol(visit_col)} AS date) <= ?")
+    params.append(to_d)
+
+    where_sql = " WHERE " + " AND ".join(where_parts)
+
+    sql = f"""
+        SELECT
+          COALESCE(CAST({_qcol(type_col)} AS NVARCHAR(200)),'') AS visitType,
+          COUNT(*) AS cnt
+        FROM dbo.Planning
+        {where_sql}
+        GROUP BY COALESCE(CAST({_qcol(type_col)} AS NVARCHAR(200)),'')
+    """
+
+    try:
+        with get_conn() as conn:
+            cur = conn.cursor()
+            cur.execute(sql, params)
+            rows = cur.fetchall()
+
+        by = {"cluster": 0, "breakdown": 0, "sales_support": 0, "other": 0}
+
+        for vt, cnt in rows:
+            vt = (vt or "").strip().lower()
+            c  = int(cnt or 0)
+
+            if "cluster" in vt:
+                by["cluster"] += c
+            elif "break" in vt:
+                by["breakdown"] += c
+            elif "sales" in vt:
+                by["sales_support"] += c
+            else:
+                by["other"] += c
+
+        total = sum(by.values())
+        return jsonify({"ok": True, "total": total, "by_type": by, "from": from_s, "to": to_s})
+
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
+
+@app.get("/api/wsr-report")
+@app.get("/api/wsr_report")
+@app.get("/api/wsrreport")
+def api_wsr_report():
+    need = _require_login_json()
+    if need:
+        return need
+
+    limit = int(request.args.get("limit", "2000"))
+    limit = max(1, min(limit, 5000))
+
+    visit_type = (request.args.get("visitType") or "").strip()
+    q = (request.args.get("q") or "").strip()
+
+    from_date = _parse_iso_date(request.args.get("from"))
+    to_date   = _parse_iso_date(request.args.get("to"))
+
+    cols = _table_columns("dbo.WSR")
+    if not cols:
+        return jsonify({"columns": [], "rows": []})
+
+    base_where, base_params = _wsr_scope_where(cols)
+
+    # find columns
+    visit_col = _find_col(cols, aliases=["VisitDate", "Visit Date"], must_contain=["visit", "date"])
+    vc1_col   = _find_col(cols, aliases=["VisitCode1", "Visit Code 1"], must_contain=["visit", "code", "1"])
+
+    # ✅ ROBUST date expression (TEXT date ko bhi date bana dega)
+    visit_date_expr = None
+    if visit_col:
+        visit_date_expr = (
+            f"COALESCE("
+            f"TRY_CONVERT(date, {_qcol(visit_col)}, 23),"   # yyyy-mm-dd
+            f"TRY_CONVERT(date, {_qcol(visit_col)}, 105),"  # dd-mm-yyyy
+            f"TRY_CONVERT(date, {_qcol(visit_col)}, 103),"  # dd/mm/yyyy
+            f"TRY_CONVERT(date, {_qcol(visit_col)})"
+            f")"
+        )
+
+    preferred = ["Zone", "EngineerName", "CustomerName", "Location", "MMM-YY", "Serial", "Model", "VisitDate"]
+    search_where, search_params = _build_token_search_where(q, cols, preferred)
+
+    where_parts = []
+    params = []
+
+    # scope
+    if base_where:
+        where_parts.append(base_where.replace(" WHERE ", "", 1))
+        params += base_params
+
+    # search
+    if search_where:
+        where_parts.append(search_where)
+        params += search_params
+
+    # ✅ DATE FILTER (works even if VisitDate text)
+    if visit_date_expr:
+        where_parts.append(f"{visit_date_expr} IS NOT NULL")
+        if from_date:
+            where_parts.append(f"{visit_date_expr} >= ?")
+            params.append(from_date)
+        if to_date:
+            where_parts.append(f"{visit_date_expr} <= ?")
+            params.append(to_date)
+
+    # ✅ Visit Type filter (case-insensitive, partial match safe)
+    if visit_type and vc1_col:
+        where_parts.append(f"{_cmp_ci_trim(vc1_col)} LIKE ?")
+        params.append(f"%{visit_type.strip().upper()}%")
+
+    where_sql = (" WHERE " + " AND ".join(where_parts)) if where_parts else ""
+
+    id_col = _find_col(cols, aliases=["Id", "ID"], must_contain=["id"])
+
+    # ✅ order by converted date
+    order_by = (
+        f"{visit_date_expr} DESC"
+        if visit_date_expr
+        else (f"{_qcol(id_col)} DESC" if id_col else f"{_qcol(cols[0])} DESC")
+    )
+
+    select_cols = ", ".join([_qcol(c) for c in cols])
+    sql = f"SELECT TOP {limit} {select_cols} FROM dbo.WSR{where_sql} ORDER BY {order_by}"
+
+    try:
+        with get_conn() as conn:
+            cur = conn.cursor()
+            cur.execute(sql, params)
+            rows = cur.fetchall()
+
+        out_rows = []
+        for r in rows:
+            obj = {}
+            for i, c in enumerate(cols):
+                obj[c] = _json_safe(r[i])
+            out_rows.append(obj)
+
+        return jsonify({"columns": cols, "rows": out_rows})
+
+    except Exception as e:
+        return _json_err(str(e), 500)
+
+@app.get("/wsr-report")
+def wsr_report_page():
+    if "user" not in session:
+        return redirect(url_for("home"))
+
+    return render_template(
+        "WSRReport.html",   # ✅ yaha aapki template file ka exact naam
+        engineer=session.get("engineer", ""),
+        zone=session.get("zone", ""),
+        role=session.get("role", ""),
+        team=session.get("team", ""),
+        visitType=(request.args.get("visitType") or "").strip(),
+        from_date=(request.args.get("from") or "").strip(),
+        to_date=(request.args.get("to") or "").strip(),
+    )
 
 
 # ===================== RUN =====================

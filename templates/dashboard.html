@@ -600,7 +600,7 @@
 
             <div>
               <label>Visit Type</label>
-              <select name="visitType">
+              <select name="visitType"required
                 <option value="">--Select--</option>
                 <option>Cluster</option><option>Breakdown</option><option>Sales Support</option><option>Other</option>
               </select>
@@ -715,7 +715,7 @@
 
             <div>
               <label>Visit Code 2</label>
-              <select id="visitCode2" name="visitCode2">
+              <select id="visitCode2" name="visitCode2"required
                 <option value="">--Select--</option>
               </select>
             </div>
@@ -1064,7 +1064,7 @@ function loadKpis(){
       if (k.error) return;
       document.getElementById("kpiTotal").textContent = k.installbase_total ?? 0;
       document.getElementById("kpiCustomers").textContent = k.customers ?? 0;
-      document.getElementById("kpiMonth").textContent = k.this_month_reports ?? 0;
+      document.getElementById("kpiMonth").textContent = k.this_month_cluster_plan ?? 0;
       document.getElementById("kpiPending").textContent = k.pending ?? 0;
     })
     .catch(()=>{})
@@ -1819,7 +1819,8 @@ async function loadReport(){
 
   showLoading("Loading report...");
   try{
-    const res = await fetch("/api/report?" + params.toString());
+    const res = await fetch("/api/wsr-report?" + params.toString());
+
     const data = await res.json();
 
     if (!res.ok || data.error){
@@ -2022,6 +2023,30 @@ window.onload = function(){
       fillBySerial(v);
     }
   });
+
+
+  (function openReportIfQuery(){
+    const p = new URLSearchParams(location.search);
+    const open = p.get("open");
+    const visitType = p.get("visitType") || "";
+    const from = p.get("from") || "";
+    const to = p.get("to") || "";
+
+    if(open === "report"){
+      const btn = document.getElementById("btnReport");
+      showSection("reportSection", btn);
+
+      const s = document.getElementById("reportSearch");
+      const f = document.getElementById("fromDate");
+      const t = document.getElementById("toDate");
+
+      if(s) s.value = visitType;
+      if(f) f.value = from;
+      if(t) t.value = to;
+      loadReport();
+    }
+  })();
+
 
   resetWsrCascades();
   resetWpCascades();
@@ -2412,7 +2437,7 @@ function renderVisitTypeLegend(labels, colors, values){
     row.appendChild(cnt);
 
     // legend click => filter
-    row.addEventListener("click", ()=> applyVisitTypeFilter(name));
+    row.addEventListener("click", ()=> openWeekly14Days(name));
 
     legendHost.appendChild(row);
   });
@@ -2585,27 +2610,80 @@ async function loadWsrDonutMonth(){
 }
 
 // ✅ legend click => open Report View and filter by VisitCode1
+// ✅ legend click => open Report View and filter by VisitCode1
 function applyWsrVisitTypeFilter(visitType){
-  const btn = document.getElementById("btnReport");
-  showSection("reportSection", btn);
+  const MAP = {
+    "Cluster": "CLUSTER",
+    "Breakdown": "BREAKDOWN",
+    "Sales Support": "SALES SUPPORTS",
+    "Other": "OTHERS TEC"
+  };
+  const code = MAP[visitType] || visitType;
 
-  const s = document.getElementById("reportSearch");
-  if(s) s.value = visitType;
+  const pad = n => String(n).padStart(2,'0');
+  const now = new Date();
 
-  // this month date range set (optional)
-  const f = document.getElementById("fromDate");
-  const t = document.getElementById("toDate");
-  if(f && t){
-    const now = new Date();
-    const y = now.getFullYear();
-    const m = String(now.getMonth()+1).padStart(2,"0");
-    f.value = `${y}-${m}-01`;
-    t.value = ""; // let backend upto today or keep blank
-  }
+  const fromD = new Date(now.getFullYear(), now.getMonth(), 1);
+  const toD   = new Date(now.getFullYear(), now.getMonth()+1, 0);
 
-  loadReport();
+  const from = `${fromD.getFullYear()}-${pad(fromD.getMonth()+1)}-${pad(fromD.getDate())}`;
+  const to   = `${toD.getFullYear()}-${pad(toD.getMonth()+1)}-${pad(toD.getDate())}`;
+
+  const url = `/wsr-report?visitType=${encodeURIComponent(code)}&from=${from}&to=${to}`;
+
+  // ✅ DIRECT URL open
+  const win = window.open(url, "_blank", "noopener,noreferrer");
+  
 }
+ 
+
 </script>
+<script>
+function openWeekly14Days(type){
+  const pad = n => String(n).padStart(2,'0');
+  const today = new Date();
+
+  const fromD = new Date(today); fromD.setDate(fromD.getDate() - 7);
+  const toD   = new Date(today); toD.setDate(toD.getDate() + 17);
+
+  const from = `${fromD.getFullYear()}-${pad(fromD.getMonth()+1)}-${pad(fromD.getDate())}`;
+  const to   = `${toD.getFullYear()}-${pad(toD.getMonth()+1)}-${pad(toD.getDate())}`;
+
+  
+  // ✅ NEW TAB (popup-safe)
+  const url = `${window.location.origin}/weekly-plan-report?visitType=${encodeURIComponent(type)}&from=${from}&to=${to}`;
+
+  window.open(url, "_blank", "noopener,noreferrer");
+}
+
+function openWSRReport(visitType){
+  const MAP = {
+    "Cluster": "CLUSTER",
+    "Breakdown": "BREAKDOWN",
+    "Sales Support": "SALES SUPPORTS",
+    "Other": "OTHERS TEC"
+  };
+  const code = MAP[visitType] || visitType;
+
+  const pad = n => String(n).padStart(2,'0');
+  const now = new Date();
+
+  // Current month
+  const fromD = new Date(now.getFullYear(), now.getMonth(), 1);
+  const toD   = new Date(now.getFullYear(), now.getMonth()+1, 0);
+
+  const from = `${fromD.getFullYear()}-${pad(fromD.getMonth()+1)}-${pad(fromD.getDate())}`;
+  const to   = `${toD.getFullYear()}-${pad(toD.getMonth()+1)}-${pad(toD.getDate())}`;
+
+  // ✅ Weekly jaisa URL
+  const url =`${window.location.origin}/wsr-report` + `?visitType=${encodeURIComponent(code)}` + `&from=${from}&to=${to}`;
+  // ✅ Weekly jaisa NEW TAB
+  const win = window.open(url, "_blank", "noopener,noreferrer");
+  
+}
+
+</script>
+
 
 </body>
 </html>
