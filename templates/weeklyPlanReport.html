@@ -12,6 +12,36 @@
     }
     *{box-sizing:border-box}
     body{margin:0;font-family:"Segoe UI",system-ui,-apple-system,Arial;background:var(--bg);color:var(--text);}
+
+    /* ✅ overlay blur + loader */
+    .overlay{
+      position:fixed; inset:0;
+      background:rgba(15, 23, 42, 0.10);
+      backdrop-filter: blur(3px);
+      display:none;
+      align-items:center;
+      justify-content:center;
+      z-index:9999;
+    }
+    .overlay.show{ display:flex; }
+    .loaderBox{
+      background:#fff;border:1px solid var(--border);border-radius:14px;
+      box-shadow:var(--shadow);
+      padding:16px 18px;
+      display:flex; align-items:center; gap:10px;
+      font-weight:800;
+      color:var(--text);
+      min-width:220px;
+      justify-content:center;
+    }
+    .spinner{
+      width:18px;height:18px;border-radius:50%;
+      border:3px solid #cbd5e1;
+      border-top-color: var(--primary);
+      animation: spin 0.9s linear infinite;
+    }
+    @keyframes spin{ to{ transform: rotate(360deg); } }
+
     .wrap{max-width:1200px;margin:18px auto;padding:0 14px;}
     .topbar{
       background:var(--card);border:1px solid var(--border);border-radius:var(--radius);
@@ -41,6 +71,14 @@
   </style>
 </head>
 <body>
+
+<!-- ✅ Blur + Loading -->
+<div id="overlay" class="overlay">
+  <div class="loaderBox">
+    <div class="spinner"></div>
+    <div>Loading report...</div>
+  </div>
+</div>
 
 <div class="wrap">
   <div class="topbar">
@@ -95,8 +133,12 @@ function setInputsFromUrl(){
   document.getElementById("to").value = t;
 }
 
-// ✅ IMPORTANT: backend API yahi use hoga
-// aapke dashboard me already yeh endpoint use ho raha hai: /api/weeklyplan/report?...
+function showLoading(show){
+  const ov = document.getElementById("overlay");
+  if(show) ov.classList.add("show");
+  else ov.classList.remove("show");
+}
+
 async function load(){
   const err = document.getElementById("err");
   err.textContent = "";
@@ -107,9 +149,11 @@ async function load(){
 
   const params = new URLSearchParams();
   params.set("limit","2000");
-  if(vt) params.set("q", vt);     // ✅ visitType ko q me pass (same as your existing report)
+  if(vt) params.set("q", vt);
   if(f)  params.set("from", f);
   if(t)  params.set("to", t);
+
+  showLoading(true);
 
   try{
     const res = await fetch("/api/weeklyplan/report?" + params.toString());
@@ -151,6 +195,8 @@ async function load(){
 
   }catch(e){
     err.textContent = String(e);
+  }finally{
+    showLoading(false);
   }
 }
 
