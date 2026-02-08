@@ -2430,6 +2430,97 @@ def wsr_report_page():
         from_date=(request.args.get("from") or "").strip(),
         to_date=(request.args.get("to") or "").strip(),
     )
+# ===================== USERS (dbo.UserLogin) =====================
+
+@app.get("/api/users")
+def api_get_users():
+    need = _require_login_json()
+    if need:
+        return need
+
+    try:
+        with get_conn() as cn:
+            cur = cn.cursor()
+            cur.execute("""
+                SELECT
+                    UserId, Username, FullName, Zone, RoleName, Team,Password,
+                    IsActive,
+                    CONVERT(varchar(19), CreatedAt, 120) AS CreatedAt,
+                    CONVERT(varchar(19), LastLoginAt, 120) AS LastLoginAt
+                FROM dbo.UserLogin
+                ORDER BY UserId DESC
+            """)
+            rows = cur.fetchall()
+            cols = [c[0] for c in cur.description]
+            data = [dict(zip(cols, r)) for r in rows]
+
+        return jsonify(data)
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.post("/api/users")
+def api_create_user():
+    need = _require_login_json()
+    if need:
+        return need
+
+    payload = request.get_json(force=True) or {}
+
+    username = (payload.get("Username") or "").strip()
+    fullname = (payload.get("FullName") or "").strip()
+    zone     = (payload.get("Zone") or "").strip()
+    role     = (payload.get("RoleName") or "").strip()
+    team     = (payload.get("Team") or "").strip()
+    password = (payload.get("Password") or "").strip()
+
+    if not username or not fullname or not zone or not role or not password:
+        return jsonify({"message": "Username, FullName, Zone, RoleName, Password required"}), 400
+
+    try:
+        with get_conn() as cn:
+            cur = cn.cursor()
+
+            # duplicate username check
+            cur.execute("SELECT COUNT(*) FROM dbo.UserLogin WHERE Username = ?", (username,))
+            if int(cur.fetchone()[0] or 0) > 0:
+                return jsonify({"message": "Username already exists"}), 400
+
+            cur.execute("""
+                INSERT INTO dbo.UserLogin
+                (Username, FullName, Zone, RoleName, Team, IsActive, CreatedAt, LastLoginAt, Password)
+                VALUES (?, ?, ?, ?, ?, 1, GETDATE(), NULL, ?)
+            """, (username, fullname, zone, role, team, password))
+
+            cn.commit()
+
+        return jsonify({"message": "User created successfully"}), 201
+
+    except Exception as e:
+        return jsonify({"message": f"Create user error: {e}"}), 500
+
+
+@app.patch("/api/users/<int:user_id>/active")
+def api_user_toggle_active(user_id):
+    need = _require_login_json()
+    if need:
+        return need
+
+    payload = request.get_json(force=True) or {}
+    is_active = 1 if payload.get("IsActive") else 0
+
+    try:
+        with get_conn() as cn:
+            cur = cn.cursor()
+            cur.execute("UPDATE dbo.UserLogin SET IsActive=? WHERE UserId=?", (is_active, user_id))
+            cn.commit()
+
+        return jsonify({"message": "Status updated"})
+    except Exception as e:
+        return jsonify({"message": f"Update error: {e}"}), 500
+
+
 
 
 # ===================== RUN =====================

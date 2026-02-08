@@ -137,6 +137,17 @@
     .tb-export{background:#eaf2ff;border-color:#cfe0ff;}
     .tb-date{height:38px;padding:0 12px;border:1px solid var(--border);border-radius:12px;font-size:14px;outline:none;background:#fff;width:150px;min-width:150px;}
 
+    /* Users table: Team column chota */
+    #usercreateSection table th:nth-child(6),
+    #usercreateSection table td:nth-child(6){
+    width: 90px;
+    max-width: 90px;
+    text-align: center;
+    white-space: nowrap;
+    }
+
+
+
     #globalLoadingOverlay{
       position:fixed;
       inset:0;
@@ -426,6 +437,10 @@
 
         <button id="btnBreakdown" data-roles="Admin,Manager,Team Leader,User"
                 onclick="showSection('breakdownSection', this);">🛠 Breakdown Login</button>
+
+        <button id="btnusercreate" data-roles="Admin"
+        onclick="openUserCreate(this)">👤 User Create</button>
+   
       </div>
 
       <div class="sidebarFooter">
@@ -600,7 +615,7 @@
 
             <div>
               <label>Visit Type</label>
-              <select name="visitType"required
+              <select name="visitType"required>
                 <option value="">--Select--</option>
                 <option>Cluster</option><option>Breakdown</option><option>Sales Support</option><option>Other</option>
               </select>
@@ -632,7 +647,7 @@
             </div>
 
             <div><label>Ink Expiry Follow-up</label>
-              <select name="inkexpiryfollow-up"><option value="">--Select--</option><option>YES</option><option>NO</option></select>
+              <select name="inkexpiryfollowup"><option value="">--Select--</option><option>YES</option><option>NO</option></select>
             </div>
             <div><label>AMC Follow-up</label>
               <select name="amcFollowup"><option value="">--Select--</option><option >YES</option><option>NO</option></select>
@@ -715,8 +730,8 @@
 
             <div>
               <label>Visit Code 2</label>
-              <select id="visitCode2" name="visitCode2"required
-                <option value="">--Select--</option>
+              <select id="visitCode2" name="visitCode2" required>
+              <option value="">--Select--</option>
               </select>
             </div>
 
@@ -845,10 +860,113 @@
         </div>
       </section>
 
+
+      <section id="usercreateSection" class="section">
+
+        <h2>User Create</h2>
+        <form onsubmit="createUser(event)" class="card">
+          <input id="cuUsername" placeholder="Username" required>
+          <input id="cuFullName" placeholder="Full Name" required>
+          <select id="cuZone" required>
+            <option value="EAST">EAST</option>
+            <option value="WEST">WEST</option>
+            <option value="NORTH">NORTH</option>
+            <option value="SOUTH">SOUTH</option>
+          </select>
+          <select id="cuRole" required>
+            <option value="User">User</option>
+            <option value="Team Leader">Team Leader</option>
+            <option value="Manager">Manager</option>
+            <option value="Admin">Admin</option>
+          </select>
+          <input id="cuTeam" placeholder="Team (E3/All/B1 etc)" required>
+          <input id="cuPassword" placeholder="Password" type="password" required>
+          <button type="submit">Create User</button>
+        </form>
+        <h3 style="margin-top:18px;">Users List</h3>
+        <table border="1" width="100%">
+          <thead>
+            <tr>
+              <th>UserId</th><th>Username</th><th>FullName</th><th>Zone</th>
+              <th>Role</th><th>Team</th><th>Password</th><th>Active</th><th>CreatedAt</th><th>Action</th>
+            </tr>
+          </thead>
+          <tbody id="usersTableBody"></tbody>
+        </table>
+      </section>
     </main>
   </div>
+  <script>
+  
+  // ----- LOAD USERS TABLE -----
+  async function loadUsers(){
+    const tbody = document.querySelector("#usersTableBody");
+    tbody.innerHTML = `<tr><td colspan="10">Loading...</td></tr>`;
+    const res = await fetch("/api/users");
+    const data = await res.json();
+    tbody.innerHTML = "";
+    data.forEach(u => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+      <td>${u.UserId}</td>
+      <td>${u.Username}</td>
+      <td>${u.FullName}</td>
+      <td>${u.Zone}</td>
+      <td>${u.RoleName}</td>
+      <td>${u.Team}</td>
+      <td>${u.Password || ""}</td>
+      <td>${u.IsActive ? "True" : "False"}</td>
+      <td>${u.CreatedAt || ""}</td>
+      <td>
+        <button onclick="toggleActive(${u.UserId}, ${u.IsActive ? "false" : "true"})">
+          ${u.IsActive ? "Deactivate" : "Activate"}
+        </button>
+      </td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
 
-<script>
+  // ----- CREATE USER -----
+  async function createUser(e){
+    e.preventDefault();
+
+    const payload = {
+      Username: document.getElementById("cuUsername").value.trim(),
+      FullName: document.getElementById("cuFullName").value.trim(),
+      Zone: document.getElementById("cuZone").value,
+      RoleName: document.getElementById("cuRole").value,
+      Team: document.getElementById("cuTeam").value,
+      Password: document.getElementById("cuPassword").value
+    };
+
+    const res = await fetch("/api/users", {
+      method: "POST",
+      headers: {"Content-Type":"application/json"},
+      body: JSON.stringify(payload)
+    });
+
+    const out = await res.json();
+    alert(out.message || "Done");
+
+    if(res.ok){
+      e.target.reset();
+      loadUsers();
+    }
+  }
+
+  // ----- ACTIVE TOGGLE -----
+  async function toggleActive(userId, newState){
+    const res = await fetch(`/api/users/${userId}/active`, {
+      method: "PATCH",
+      headers: {"Content-Type":"application/json"},
+      body: JSON.stringify({IsActive: newState})
+    });
+    const out = await res.json();
+    alert(out.message || "Updated");
+    if(res.ok) loadUsers();
+  }
+
   const _abortMap = new Map();
 function abortPrev(key){
   const c = _abortMap.get(key);
@@ -2096,9 +2214,7 @@ window.onload = function(){
     bind("workStart", "workEnd", "workTime");
   });
 })();
-</script>
 
-<script>
 /* ✅ Serial details auto fill (FAST) */
 
 const _serialCache = new Map();        // serial -> data
@@ -2169,9 +2285,7 @@ function applySerialData(data){
   const amcDue = document.querySelector(`[name="amcDueDate"]`);
   if (amcDue) amcDue.value = ib.amc_due || "";
 }
-</script>
 
-<script>
 function exportMaster(){
   const wrap = document.getElementById("masterTable");
   const table = wrap ? wrap.querySelector("table") : null;
@@ -2338,9 +2452,7 @@ function exportWeeklyPlanReport(){
   a.remove();
   URL.revokeObjectURL(url);
 }
-</script>
 
-<script>
 function renderMiniDonutsInWeeklyDonut(items){
   const host = document.getElementById("weeklyDonut");
   if(!host) return;
@@ -2377,9 +2489,7 @@ function renderMiniDonutsInWeeklyDonut(items){
     leg.appendChild(li);
   });
 }
-</script>
 
-<script>
 function renderCssDonut(labels, values){
   const total = values.reduce((a,b)=>a+b,0);
   const ring = document.getElementById("weeklyDonutChart");
@@ -2505,9 +2615,7 @@ async function loadWeeklyDonut(){
     hideLoading();
   }
 }
-</script>
 
-<script>
 function renderCssDonutTo(elId, labels, values){
   const total = values.reduce((a,b)=>a+b,0);
   const ring = document.getElementById(elId);
@@ -2680,7 +2788,13 @@ function openWSRReport(visitType){
   
 }
 
+
+function openUserCreate(btn){
+  showSection('usercreateSection', btn);
+  loadUsers();   // 👈 same page ke niche users list load karega
+}
 </script>
+
 
 
 </body>
