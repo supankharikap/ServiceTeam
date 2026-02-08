@@ -421,7 +421,7 @@
         <button id="btnMasterView" data-roles="Admin,Manager,Team Leader,User"
                 onclick="showSection('masterSection', this); openMaster();">📄 Master Installbase View</button>
 
-        <button id="btnMasterUpdate" data-roles="Admin,Manager" type="button"
+        <button id="btnMasterUpdate" data-roles="Admin,Manager,Team Leader,User" type="button"
                 onclick="window.open('/installbase/update','_blank','noopener');"> Master Installbase Update</button>
 
         <button id="btnBreakdown" data-roles="Admin,Manager,Team Leader,User"
@@ -461,7 +461,7 @@
               <div class="label">Total InstallBase</div>
             </div>
             <div class="card">
-              <div class="kpi" id="kpiMonth">—</div>
+              <div class="kpi" id="kpiMonth"></div>
               <div class="label">This Month Cluster Plan</div>
             </div>
             <div class="card">
@@ -2592,7 +2592,7 @@ async function loadWsrDonutMonth(){
     const total = Number(data.total || values.reduce((a,b)=>a+b,0));
 
     document.getElementById("wsrDonutTotal").textContent = total;
-    document.getElementById("kpiWsrMonth").textContent = total;
+   // document.getElementById("kpiWsrMonth").textContent = total;
 
     renderCssDonutTo("wsrDonutChart", labels, values);
     renderLegendTo("wsrDonutLegend",
