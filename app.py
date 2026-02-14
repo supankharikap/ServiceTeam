@@ -1755,6 +1755,123 @@ def wsr_report_page():
         q=(request.args.get("q") or "").strip(),
     )
 
+    # ===================== USERS API (dbo.UserLogin) =====================
+
+def _require_admin_json():
+    need = _require_login_json()
+    if need:
+        return need
+    role = (session.get("role") or "").strip().lower()
+    if role != "admin":
+        return jsonify({"error": "forbidden"}), 403
+    return None
+
+
+@app.get("/api/users")
+def api_users_list():
+    need = _require_admin_json()
+    if need:
+        return need
+
+    try:
+        with get_conn() as conn:
+            cur = conn.cursor()
+            cur.execute("""
+                SELECT UserId, Username, FullName, Zone, RoleName, Team, IsActive, CreatedAt
+                FROM dbo.UserLogin
+                ORDER BY UserId DESC
+            """)
+            rows = cur.fetchall()
+
+        out = []
+        for r in rows:
+            out.append({
+                "UserId": int(r[0]) if r[0] is not None else 0,
+                "Username": (r[1] or "").strip(),
+                "FullName": (r[2] or "").strip(),
+                "Zone": (r[3] or "").strip(),
+                "RoleName": (r[4] or "").strip(),
+                "Team": (r[5] or "").strip(),
+                "IsActive": bool(r[6]),
+                "CreatedAt": _json_safe(r[7]),
+            })
+        return jsonify(out)
+
+    except Exception as e:
+        return jsonify({"error": f"Users list error: {e}"}), 500
+
+
+@app.post("/api/users")
+def api_users_create():
+    need = _require_admin_json()
+    if need:
+        return need
+
+    payload = request.get_json(force=True) or {}
+
+    username = (payload.get("Username") or "").strip()
+    fullname = (payload.get("FullName") or "").strip()
+    zone     = (payload.get("Zone") or "").strip()
+    role     = (payload.get("RoleName") or "").strip()
+    team     = (payload.get("Team") or "").strip()
+    password = (payload.get("Password") or "").strip()
+
+    if not username or not fullname or not zone or not role or not team or not password:
+        return jsonify({"message": "All fields required"}), 400
+
+    try:
+        with get_conn() as conn:
+            cur = conn.cursor()
+
+            # unique username check
+            cur.execute("SELECT TOP 1 1 FROM dbo.UserLogin WHERE Username = ?", (username,))
+            if cur.fetchone():
+                return jsonify({"message": "Username already exists"}), 409
+
+            # insert
+            cur.execute("""
+                INSERT INTO dbo.UserLogin
+                    (Username, FullName, Zone, RoleName, Team, Password, IsActive, CreatedAt)
+                VALUES
+                    (?, ?, ?, ?, ?, ?, 1, GETUTCDATE())
+            """, (username, fullname, zone, role, team, password))
+
+            conn.commit()
+
+        return jsonify({"message": "User created successfully"}), 200
+
+    except Exception as e:
+        return jsonify({"message": f"Create user error: {e}"}), 500
+
+
+@app.patch("/api/users/<int:user_id>/active")
+def api_users_toggle_active(user_id: int):
+    need = _require_admin_json()
+    if need:
+        return need
+
+    payload = request.get_json(force=True) or {}
+    is_active = payload.get("IsActive", None)
+    if is_active is None:
+        return jsonify({"message": "IsActive required"}), 400
+
+    # allow true/false/1/0
+    new_state = 1 if bool(is_active) else 0
+
+    try:
+        with get_conn() as conn:
+            cur = conn.cursor()
+            cur.execute("UPDATE dbo.UserLogin SET IsActive = ? WHERE UserId = ?", (new_state, user_id))
+            if cur.rowcount == 0:
+                return jsonify({"message": "User not found"}), 404
+            conn.commit()
+
+        return jsonify({"message": "User status updated"}), 200
+
+    except Exception as e:
+        return jsonify({"message": f"Toggle active error: {e}"}), 500
+
+
 
 # ===================== RUN =====================
 if __name__ == "__main__":
