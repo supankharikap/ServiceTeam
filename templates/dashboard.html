@@ -211,6 +211,47 @@
     .legendItem2{display:flex;align-items:center;gap:10px;margin:6px 0;}
     .legendDot2{width:10px;height:10px;border-radius:999px;display:inline-block;}
     .legendCount2{margin-left:auto;font-weight:900;color:var(--text);}
+
+    /* ===== User Create compact & centered ===== */
+    #usercreateSection{
+      max-width: 980px;          /* chhota width */
+      margin: 14px auto;         /* center */
+      padding: 14px;
+    }
+    #usercreateSection h2{
+      margin: 0 0 10px;
+      font-size: 18px;
+    }
+    /* form card compact */
+    #usercreateSection form.card{
+      padding: 12px;
+      gap: 8px !important;
+      grid-template-columns: 1.2fr 1fr;  /* left a bit wider */
+    }
+    /* compact inputs */
+    #usercreateSection input,
+    #usercreateSection select{
+      padding: 8px 10px;
+      height: 38px;
+      border-radius: 10px;
+      font-size: 13px;
+    }
+    /* button compact */
+    #usercreateSection button[type="submit"]{
+      padding: 9px 12px !important;
+      border-radius: 10px !important;
+      font-size: 13px;
+    }
+    /* Users table responsive */
+    #usercreateSection table{
+      width: 100%;
+      min-width: 900px; /* table big rahe but container scroll kare */
+    }
+    #usercreateSection .userTableWrap{
+      overflow: auto;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+    }
   </style>
 </head>
 
@@ -713,15 +754,17 @@
         </form>
 
         <h3 style="margin-top:18px;">Users List</h3>
-        <table border="1" width="100%">
-          <thead>
-            <tr>
-              <th>UserId</th><th>Username</th><th>FullName</th><th>Zone</th>
-              <th>Role</th><th>Team</th><th>Active</th><th>CreatedAt</th><th>Action</th>
-            </tr>
-          </thead>
-          <tbody id="usersTableBody"></tbody>
-        </table>
+        <div class="userTableWrap">
+          <table border="1" width="100%">
+            <thead>
+              <tr>
+                <th>UserId</th><th>Username</th><th>FullName</th><th>Zone</th>
+                <th>Role</th><th>Team</th><th>Active</th><th>CreatedAt</th><th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="usersTableBody"></tbody>
+          </table>
+        </div>
       </section>
     </main>
   </div>

@@ -17,25 +17,12 @@
     .header{
       position:relative;
       display:flex;
-      justify-content:center;   /* title center */
+      justify-content:center;
       align-items:center;
       margin-bottom:14px;
     }
-    .header .title{color: #16a34a;   /* green */}
-    .header .sub{ color:#ef4444;   /* grey (soft) */}
-
-    
-    /* left wala title/subtitle block center */
-    .header > div:first-child{
-      text-align:center;
-    }
-    /* time pill right side fix */
-    #todayPill{
-      position:absolute;
-       right:0;
-        top:0;
-      }
-
+    .header > div:first-child{ text-align:center; }
+    #todayPill{ position:absolute; right:0; top:0; }
 
     .title{font-size:18px;font-weight:800;color:#0f172a;line-height:1.15}
     .sub{color:var(--muted);font-size:13px;margin-top:6px}
@@ -59,12 +46,12 @@
     .actions{display:flex;gap:10px;justify-content:flex-end;margin-top:10px;}
     .btn{border:1px solid var(--border); background:#fff; padding:10px 14px;border-radius:12px; cursor:pointer; font-weight:800;}
     .btn.primary{background:var(--primary);border-color:var(--primary);color:#fff;}
+    .btn.danger{background:#ef4444;border-color:#ef4444;color:#fff;}
 
     .pill{display:inline-flex;gap:8px;align-items:center;padding:6px 10px;border-radius:999px;border:1px solid var(--border);
       color:var(--muted);font-size:12px;background:#fff;white-space:nowrap;}
     .pill strong{color:#0f172a}
 
-    /* ✅ CENTER LOADING OVERLAY (WSR jaisa) */
     .overlay{
       position:fixed; inset:0; display:none;
       background:rgba(15,23,42,.18);
@@ -89,25 +76,49 @@
     }
     @keyframes spin{to{transform:rotate(360deg)}}
 
+    /* ✅ custom dropdown (single click) */
+    .dd{
+      position:absolute;
+      left:0; right:0;
+      top: calc(100% + 4px);
+      background:#fff;
+      border:1px solid var(--border);
+      border-radius:12px;
+      box-shadow: 0 12px 30px rgba(0,0,0,.12);
+      max-height:220px;
+      overflow:auto;
+      display:none;
+      z-index:999;
+    }
+    .dd.show{display:block;}
+    .dd .item{padding:10px 12px;cursor:pointer;font-size:14px;}
+    .dd .item:hover{background:#f3f4f6;}
+    .dd .muted{padding:10px 12px;color:#64748b;font-size:13px;}
+
+    .toast{
+      position:fixed; left:50%; bottom:18px; transform:translateX(-50%);
+      background:#0f172a; color:#fff; padding:10px 14px; border-radius:999px;
+      box-shadow:0 10px 25px rgba(0,0,0,.18);
+      font-weight:700; font-size:13px;
+      opacity:0; pointer-events:none;
+      transition:opacity .18s ease, transform .18s ease;
+      z-index:99999;
+    }
+    .toast.show{opacity:1; transform:translateX(-50%) translateY(-6px);}
+
     @media (max-width: 980px){
       .f{grid-column:span 6;}
       .f.span-6{grid-column:span 12;}
     }
     @media (max-width: 520px){
       .f{grid-column:span 12;}
-      .header{flex-direction:column;align-items:center;} /* center */
-      .headerText{position:static;transform:none; text-align:center;  margin-bottom:8px;  }
+      .header{flex-direction:column;align-items:center;}
       .actions{justify-content:stretch}
       .btn{width:100%}
     }
     @media (max-width:520px){
-      #todayPill{
-        position:static;
-        margin-top:8px;
-      }
+      #todayPill{ position:static; margin-top:8px; }
     }
-
-    
   </style>
 </head>
 
@@ -120,12 +131,13 @@
     </div>
   </div>
 
+  <div class="toast" id="toast"></div>
+
   <div class="wrap">
     <div class="header">
       <div>
-        <div class="title">KGK Jet India</div>
-        <div class="title">InstallBase Entry Form</div>
-        
+        <div class="title" style="color:#16a34a;">KGK Jet India</div>
+        <div class="title" style="color:#0f172a;">InstallBase Entry Form</div>        
       </div>
 
       <div style="display:flex;gap:10px;align-items:center;">
@@ -134,22 +146,25 @@
     </div>
 
     <form class="card" id="installbaseForm" autocomplete="off">
+      <input type="hidden" id="id" name="id" />
 
-      <!-- SEARCH / UPDATE -->
+      <!-- ✅ Search / Update -->
       <fieldset>
         <legend>Search / Update</legend>
         <div class="grid">
-          <div class="f span-6">
+
+          <div class="f span-6" style="position:relative;">
             <label for="customer_name">Customer Name *</label>
-            <input id="customer_name" name="customer_name" required list="dl_customer" placeholder="Type customer..." />
-            <datalist id="dl_customer"></datalist>
+            <input id="customer_name" name="customer_name" required placeholder="Type customer..." autocomplete="off" />
+            <div class="dd" id="custDD"></div>
           </div>
 
-          <div class="f span-6">
+          <div class="f span-6" style="position:relative;">
             <label for="serial_no">Serial No *</label>
-            <input id="serial_no" name="serial_no" required list="dl_serial" placeholder="Type serial..." />
-            <datalist id="dl_serial"></datalist>
+            <input id="serial_no" name="serial_no" required placeholder="Type serial..." autocomplete="off" />
+            <div class="dd" id="serialDD"></div>
           </div>
+
         </div>
       </fieldset>
 
@@ -360,7 +375,7 @@
         </div>
       </fieldset>
 
-      <!-- CLUSTER / PLAN -->
+      <!-- VISIT PLAN -->
       <fieldset>
         <legend>Visit Plan</legend>
         <div class="grid">
@@ -398,370 +413,396 @@
         </div>
       </fieldset>
 
-      <!-- actions -->
       <div class="actions">
         <button class="btn" type="reset">Reset</button>
         <button class="btn primary" type="submit">Save</button>
-         <button class="btn" type="button" id="btnDelete">Delete</button>
+        <button class="btn danger" type="button" id="btnDelete">Delete</button>
       </div>
-    </form> 
+    </form>
+  </div>
 
-  <script>
-    // Today pill
-    const today = new Date();
-    document.getElementById("todayPill").innerHTML = "📅 Today: <strong>" + today.toISOString().slice(0,10) + "</strong>";
+<script>
+  // ========================= UI HELPERS =========================
+  const today = new Date();
+  document.getElementById("todayPill").innerHTML = "📅 Today: <strong>" + today.toISOString().slice(0,10) + "</strong>";
 
-    // ✅ Center overlay loader
-    const overlay = document.getElementById("overlay");
-    const overlayText = document.getElementById("overlayText");
-    function showLoading(text="Loading…"){
-      overlayText.textContent = text;
-      overlay.classList.add("show");
-    }
-    function hideLoading(){
-      overlay.classList.remove("show");
-    }
+  const overlay = document.getElementById("overlay");
+  const overlayText = document.getElementById("overlayText");
+  function showLoading(text="Loading…"){ overlayText.textContent = text; overlay.classList.add("show"); }
+  function hideLoading(){ overlay.classList.remove("show"); }
 
-    function debounce(fn, delay=250){
-      let t; return (...args)=>{ clearTimeout(t); t=setTimeout(()=>fn(...args), delay); };
-    }
+  const toast = document.getElementById("toast");
+  let toastT = null;
+  function showToast(msg){
+    toast.textContent = msg;
+    toast.classList.add("show");
+    clearTimeout(toastT);
+    toastT = setTimeout(()=>toast.classList.remove("show"), 1800);
+  }
 
-    async function safeJson(url){
-      const r = await fetch(url, {
-        method: "GET",
-        credentials: "include",
-        headers: {"Accept":"application/json"}
-      });
-      if(!r.ok) return null;
+  function debounce(fn, delay=250){
+    let t; return (...args)=>{ clearTimeout(t); t=setTimeout(()=>fn(...args), delay); };
+  }
+
+  async function safeJson(url, opt){
+    const r = await fetch(url, opt || {
+      method: "GET",
+      credentials: "include",
+      headers: {"Accept":"application/json"}
+    });
+    if(!r.ok){
+      // try json error
       const ct = (r.headers.get("content-type") || "").toLowerCase();
-      if(!ct.includes("application/json")) return null;
-      return await r.json().catch(()=>null);
-    }
-
-    async function loadSuggest(apiBase, q, datalistId){
-      try{
-        if((q || "").trim().length > 0 && (q || "").trim().length < 2) return;
-        const data = await safeJson(apiBase + encodeURIComponent(q || ""));
-        if(!data) return;
-        const dl = document.getElementById(datalistId);
-        if(!dl) return;
-        dl.innerHTML = (data.items || [])
-          .map(x => `<option value="${String(x).replace(/"/g,'&quot;')}"></option>`)
-          .join("");
-      }catch(e){
-        console.log("Suggest error:", e);
+      if(ct.includes("application/json")){
+        const j = await r.json().catch(()=>null);
+        return j || null;
       }
+      return null;
     }
+    const ct = (r.headers.get("content-type") || "").toLowerCase();
+    if(!ct.includes("application/json")) return null;
+    return await r.json().catch(()=>null);
+  }
 
-    // Inputs
-    const cust = document.getElementById("customer_name");
-    const serial = document.getElementById("serial_no");
+  // ========================= CUSTOM DROPDOWN =========================
+  const cust = document.getElementById("customer_name");
+  const serial = document.getElementById("serial_no");
+  const custDD = document.getElementById("custDD");
+  const serialDD = document.getElementById("serialDD");
 
-    // CUSTOMER suggest
-    cust.addEventListener("input", debounce(() => {
-      loadSuggest("/api/installbase/customer_suggest?q=", cust.value.trim(), "dl_customer");
-    }, 350));
-    cust.addEventListener("focus", () => loadSuggest("/api/installbase/customer_suggest?q=", "", "dl_customer"));
+  function clearDD(dd){ dd.innerHTML = ""; dd.classList.remove("show"); }
+  function showDD(dd){ dd.classList.add("show"); }
 
-    // SERIAL suggest (global)
-    serial.addEventListener("input", debounce(() => {
-      loadSuggest("/api/installbase/serial_suggest?q=", serial.value.trim(), "dl_serial");
-    }, 350));
-    serial.addEventListener("focus", () => loadSuggest("/api/installbase/serial_suggest?q=", "", "dl_serial"));
-
-    function normKey(s){
-      return String(s || "").toLowerCase().replace(/[^a-z0-9]/g,'');
+  function renderDD(dd, items, onPick){
+    dd.innerHTML = "";
+    if(!items || items.length === 0){
+      dd.innerHTML = `<div class="muted">No results</div>`;
+      showDD(dd);
+      return;
     }
+    dd.innerHTML = items.map(v => `<div class="item" data-v="${String(v).replace(/"/g,'&quot;')}">${v}</div>`).join("");
+    showDD(dd);
 
-    function formElements(){
-      return Array.from(document.querySelectorAll("#installbaseForm input[name], #installbaseForm textarea[name]"));
-    }
-
-    // ✅ DB column → form field mapping (IMPORTANT)
-    // Backend returns DB style names (like "Contact Person1"), but form uses snake_case.
-    const DB_TO_FORM = {
-      // required keys
-      "customername": "customer_name",
-      "customername1": "customer_name",
-      "customername2": "customer_name",
-      "customername_": "customer_name",
-      "customer_name": "customer_name",
-
-      "serialno": "serial_no",
-      "serialno.": "serial_no",
-      "serial_no": "serial_no",
-
-      // basic
-      "zone": "zone",
-      "salesengr": "sales_engr",
-      "serviceengr": "service_engr",
-      "clusterno": "cluster_no",
-      "clusterno.": "cluster_no",
-      // location
-      "location": "location",
-      "state": "state",
-      "address": "address",
-      // contact 1
-      "contactperson1": "contact_person1",
-      "contact_person1": "contact_person1",
-      "designation1": "designation1",
-      "contactno1": "contact_no1",
-      "emailid1": "email_id1",
-
-      "contactperson2": "contact_person2",
-      "designation2": "designation2",
-      "contactno2": "contact_no2",
-      "emailid2": "email_id2",
-      // segment
-      "segment": "segment",
-      "subsegment": "sub_segment",
-      // machine
-      "machinetype": "machine_type",
-      "model": "model",
-      "inktype": "ink_type","activestatus": "active_status", "mcstatus": "mc_status",
-      // sales/install
-      "salesinvoiceno": "sales_invoice_no","invoicedate": "invoice_date", "installedon": "installed_on",
-      // AMC
-      "amcinvoicedate": "amc_invoice_date",
-      "amcfrom": "amc_from",  "amcto": "amc_to", "noofvisits": "no_of_visits", "amcamount": "amc_amount",
-      "amcduedate": "amc_due_date",
-      "amcdaysremaining": "amc_days_remaining",
-      // filter
-      "filterinvoicedate": "filter_invoice_date",
-      "filterdays": "filter_days",
-      "nextfilterduedate": "next_filter_due_date",
-      "filterdaysremaining": "filter_days_remaining",
-      // visit plan
-      "clustervisitplan": "cluster_visit_plan",
-      "actualvisit": "actual_visit",
-      "cluster": "cluster",
-      // remarks/territory
-      "remarks": "remarks",
-      "teritoryno": "teritory_no",
-      "nextter2plan": "next_ter2_plan",
-    };
-
-
-    function setFormValueByName(formName, value){
-      const el = document.querySelector(`#installbaseForm [name="${formName}"]`);
-      if(el) el.value = (value ?? "");
-    }
-
-    // ✅ Fill form from a DB row (DB columns)
-    function fillFromDbRow(dbRow){
-      if(!dbRow) return;
-
-      // 1) direct fill for fields where keys match form names
-      formElements().forEach(el => {
-        const k = el.name;
-        if(dbRow[k] !== undefined){
-          el.value = (dbRow[k] ?? "");
-        }
+    dd.querySelectorAll(".item").forEach(el=>{
+      // mousedown => blur/focus ke pehle select ho jata hai (double click issue gone)
+      el.addEventListener("mousedown", (e)=>{
+        e.preventDefault();
+        onPick(el.getAttribute("data-v") || "");
+        clearDD(dd);
       });
+    });
+  }
 
-      // 2) DB column mapping fill
-      Object.keys(dbRow).forEach(dbKey => {
-        const nk = normKey(dbKey);
-        const formName = DB_TO_FORM[nk];
-        if(formName){
-          // don't overwrite customer_name / serial_no incorrectly:
-          setFormValueByName(formName, dbRow[dbKey]);
-        }
-      });
+  document.addEventListener("click", (e)=>{
+    if(!custDD.contains(e.target) && e.target !== cust) clearDD(custDD);
+    if(!serialDD.contains(e.target) && e.target !== serial) clearDD(serialDD);
+  });
 
-      // Keep customer_name visible as typed (if backend column differs)
-      if(cust.value.trim()){
-        setFormValueByName("customer_name", cust.value.trim());
-      }
-      if(serial.value.trim()){
-        setFormValueByName("serial_no", serial.value.trim());
-      }
+  // ========================= FORM FILL MAP =========================
+  function normKey(s){ return String(s || "").toLowerCase().replace(/[^a-z0-9]/g,''); }
+
+  const DB_TO_FORM = {
+    "id":"id",
+    "customername":"customer_name",
+    "serialno":"serial_no",
+    "zone":"zone",
+    "salesengr":"sales_engr",
+    "serviceengr":"service_engr",
+    "clusterno":"cluster_no",
+    "location":"location",
+    "state":"state",
+    "address":"address",
+
+    "contactperson1":"contact_person1",
+    "designation":"designation1",
+    "contactno":"contact_no1",
+    "emailid":"email_id1",
+
+    "contactperson2":"contact_person2",
+    "designation2":"designation2",
+    "contactno2":"contact_no2",
+    "emailid2":"email_id2",
+
+    "segment":"segment",
+    "subsegment":"sub_segment",
+
+    "machinetype":"machine_type",
+    "model":"model",
+    "inktype":"ink_type",
+    "activestatus":"active_status",
+    "mcstatus":"mc_status",
+
+    "salesinvoiceno":"sales_invoice_no",
+    "invoicedate":"invoice_date",
+    "installedon":"installed_on",
+
+    "amcinvoicedate":"amc_invoice_date",
+    "amcfrom":"amc_from",
+    "amcto":"amc_to",
+    "noofvisits":"no_of_visits",
+    "amcamount":"amc_amount",
+    "amcduedate":"amc_due_date",
+    "amcdaysremaining":"amc_days_remaining",
+
+    "filterinvoicedate":"filter_invoice_date",
+    "filterdays":"filter_days",
+    "nextfilterduedate":"next_filter_due_date",
+    "filterdaysremaining":"filter_days_remaining",
+
+    "clustervisitplan":"cluster_visit_plan",
+    "actualvisit":"actual_visit",
+    "cluster":"cluster",
+
+    "remarks":"remarks",
+    "teritoryno":"teritory_no",
+    "nextter2plan":"next_ter2_plan",
+  };
+
+  function setFormValueByName(formName, value){
+    const el = document.querySelector(`#installbaseForm [name="${formName}"]`);
+    if(el) el.value = (value ?? "");
+  }
+
+  function fillFromDbRow(dbRow){
+    if(!dbRow) return;
+    Object.keys(dbRow).forEach(dbKey => {
+      const nk = normKey(dbKey);
+      const formName = DB_TO_FORM[nk];
+      if(formName) setFormValueByName(formName, dbRow[dbKey]);
+    });
+  }
+
+  function uniqueList(arr){
+    const seen = new Set();
+    const out = [];
+    for(const x of arr || []){
+      const v = String(x||"").trim();
+      if(!v) continue;
+      const k = v.toLowerCase();
+      if(seen.has(k)) continue;
+      seen.add(k);
+      out.push(v);
     }
+    return out;
+  }
 
-    function uniqueList(arr){
-      const seen = new Set();
-      const out = [];
-      for(const x of arr){
-        const v = String(x||"").trim();
-        if(!v) continue;
-        const k = v.toLowerCase();
-        if(seen.has(k)) continue;
-        seen.add(k);
-        out.push(v);
-      }
-      return out;
-    }
+  function getSerialFromRow(r){
+    return (r["Serial No."] ?? r["Serial No"] ?? r["SERIAL NO"] ?? r["SerialNo"] ?? r["Serial_No"] ?? r["serial_no"] ?? r["serialno"] ?? "");
+  }
 
-    // ✅ Customer select -> load rows, fill first row full, and build serial list for that customer
-    async function loadByCustomer(customer){
-      if(!customer) return;
-      showLoading("Loading customer…");
-      try{
-        const data = await safeJson(`/api/installbase/rows?customer=${encodeURIComponent(customer)}`);
-        if(!data || !data.ok) return;
+  // ========================= CUSTOMER -> SERIAL LIST =========================
+  async function loadCustomerSuggest(q){
+    const qq = (q||"").trim();
+    const data = await safeJson("/api/installbase/customer_suggest?q=" + encodeURIComponent(qq));
+    return (data && data.items) ? data.items : [];
+  }
 
-        const rows = data.rows || [];
-        if(rows.length === 0) return;
+  // single click open
+  cust.addEventListener("pointerdown", async ()=>{
+    const items = await loadCustomerSuggest(cust.value);
+    renderDD(custDD, items, async (v)=>{
+      cust.value = v;
+      await loadByCustomer(v);
+      serial.focus();
+    });
+  });
 
-        // serial list for this customer (customer->multiple machines)
-        const serials = uniqueList(rows.map(r =>
-          r["Serial No."] || r["Serial No"] || r["Serial_No"] || r["SERIAL NO"] || r["SerialNo"] || r["Serial"] || r["serial_no"] || ""
-        ));
-        const dl = document.getElementById("dl_serial");
-        if(dl){
-          dl.innerHTML = serials.map(v => `<option value="${String(v).replace(/"/g,'&quot;')}"></option>`).join("");
-        }
+  cust.addEventListener("input", debounce(async ()=>{
+    const items = await loadCustomerSuggest(cust.value);
+    renderDD(custDD, items, async (v)=>{
+      cust.value = v;
+      await loadByCustomer(v);
+      serial.focus();
+    });
+  }, 200));
 
-        // Fill FIRST machine full (pehle jaisa)
-        fillFromDbRow(rows[0]);
-
-        // Set serial box to first machine serial (so full load visible)
-        if(serials.length > 0){
-          serial.value = serials[0];
-          // Also load exact machine row (ensures computed fields etc)
-          await loadBySerial(serial.value.trim(), false);
-        }
-      } finally {
-        hideLoading();
-      }
-    }
-
-    // ✅ Serial select -> load exact row and fill full
-    async function loadBySerial(s, showLoader=true){
-      if(!s) return;
-      if(showLoader) showLoading("Loading serial…");
-      try{
-        const data = await safeJson(`/api/installbase/by-serial?serial=${encodeURIComponent(s)}`);
-        if(!data || !data.ok || !data.row) return;
-
-        // Keep customer name in box if backend sends different spacing
-        const dbCust = data.row["CUSTOMER NAME"] || data.row["Customer Name"] || data.row["CustomerName"] || data.row["CUSTOMER_NAME"];
-        if(dbCust && !cust.value.trim()){
-          cust.value = String(dbCust).trim();
-        }
-        fillFromDbRow(data.row);
-      } finally {
-        if(showLoader) hideLoading();
-      }
-    }
-
-    // Events
-    cust.addEventListener("change", () => loadByCustomer(cust.value.trim()));
-    cust.addEventListener("blur",   () => loadByCustomer(cust.value.trim()));
-
-    serial.addEventListener("change", () => loadBySerial(serial.value.trim()));
-    serial.addEventListener("blur",   () => loadBySerial(serial.value.trim()));
-
-    // ✅ SAVE with confirm update if exists
-    document.getElementById("installbaseForm").addEventListener("submit", async (e) => {
-      e.preventDefault();
-
-      const fd = new FormData(e.target);
-      const payload = Object.fromEntries(fd.entries());
-
-      if(!payload.customer_name || !payload.serial_no){
-        alert("Customer Name & Serial No required!");
+  async function loadByCustomer(customer){
+    if(!customer) return;
+    showLoading("Loading customer…");
+    try{
+      const data = await safeJson(`/api/installbase/rows?customer=${encodeURIComponent(customer)}`);
+      if(!data || !data.ok) {
+        showToast("Customer load failed");
         return;
       }
 
-      showLoading("Checking…");
-      try{
-        const chk = await safeJson(`/api/installbase/exists?serial=${encodeURIComponent(payload.serial_no)}`);
-
-        if(chk && chk.ok && chk.exists === true){
-          hideLoading();
-          const yes = confirm("This Serial Number already exists in the database.\nDo you want to UPDATE it?");
-
-          if(!yes){
-            alert("Update cancelled.");
-            return;
-          }
-        }
-
-        showLoading("Saving…");
-        const r = await fetch("/api/installbase/save", {
-          method: "POST",
-          credentials: "include",
-          headers: {"Content-Type":"application/json", "Accept":"application/json"},
-          body: JSON.stringify(payload)
-        });
-
-        const j = await r.json().catch(()=>null);
-        if(!r.ok || !j || !j.ok){
-          alert((j && j.message) ? j.message : "Save failed");
-          return;
-        }
-        alert(j.message || "Saved!");
-        e.target.reset();
-        document.getElementById("dl_serial").innerHTML = "";
-        // optional: datalist customer bhi clear chahiye to:
-        document.getElementById("dl_customer").innerHTML = "";
-        // focus customer box again
-        cust.value = "";
-        serial.value = "";
-        cust.focus();
-
-
-      }catch(err){
-        console.log(err);
-        alert("Network error while saving.");
-      }finally{
-        hideLoading();
+      const rows = data.rows || [];
+      if(rows.length === 0){
+        clearDD(serialDD);
+        showToast("No machines for this customer");
+        return;
       }
 
-    });
+      // build serial list from rows
+      const serials = uniqueList(rows.map(getSerialFromRow));
 
-    // ✅ DELETE selected serial row
-    document.getElementById("btnDelete").addEventListener("click", async () => {
-    const s = (serial.value || "").trim();
-    if(!s){
-    alert("Serial No required!");
-    return;
-    }const yes = confirm(`Confirm Delete\nSerial No. ${s} will be permanently deleted. This action cannot be undone.`);
-    
-    if(!yes) return;
+      // show serial dropdown immediately
+      renderDD(serialDD, serials, async (sv)=>{
+        serial.value = sv;
+        await loadBySerial(sv, true);
+      });
+
+      // auto pick first serial (optional)
+      if(serials.length > 0){
+        serial.value = serials[0];
+        await loadBySerial(serials[0], false);
+      }else{
+        // fallback fill first row data (if no serial)
+        fillFromDbRow(rows[0]);
+      }
+    } finally {
+      hideLoading();
+    }
+  }
+
+  async function loadBySerial(s, showLoader=true){
+    if(!s) return;
+    if(showLoader) showLoading("Loading serial…");
+    try{
+      const data = await safeJson(`/api/installbase/by-serial?serial=${encodeURIComponent(s)}`);
+      if(!data || !data.ok) {
+        showToast("Serial load failed");
+        return;
+      }
+      const row = data.row || {};
+      // set customer from DB if exists
+      const dbCust = row["CUSTOMER NAME"] || row["Customer Name"] || row["CustomerName"] || row["CUSTOMER_NAME"];
+      if(dbCust) cust.value = String(dbCust).trim();
+
+      fillFromDbRow(row);
+      showToast("Loaded");
+    } finally {
+      if(showLoader) hideLoading();
+    }
+  }
+
+  // serial input open on click (if list already loaded)
+  serial.addEventListener("pointerdown", ()=>{
+    if(serialDD.innerHTML.trim()) showDD(serialDD);
+  });
+
+  // typing serial -> global suggest (optional)
+  serial.addEventListener("input", debounce(async ()=>{
+    const q = serial.value.trim();
+    if(q.length < 2) return;
+
+    const data = await safeJson("/api/installbase/serial_suggest?q=" + encodeURIComponent(q));
+    const items = (data && data.items) ? data.items : [];
+    renderDD(serialDD, items, async (sv)=>{
+      serial.value = sv;
+      await loadBySerial(sv, true);
+    });
+  }, 220));
+
+  serial.addEventListener("change", ()=> loadBySerial(serial.value.trim(), true));
+
+  // ========================= SAVE / DELETE =========================
+
+  // ✅ Update me sirf ye fields bhejna hai (aapke list ke hisab se)
+  const UPDATE_FIELDS = new Set([
+    "id",
+    "zone","sales_engr","service_engr","cluster_no",
+    "customer_name","location","state","address",
+    "contact_person1","designation1","contact_no1","email_id1",
+    "contact_person2","designation2","contact_no2","email_id2",
+    "segment","sub_segment",
+    "machine_type","model","serial_no","ink_type","active_status","mc_status",
+    "sales_invoice_no","invoice_date","installed_on",
+    "amc_invoice_date","amc_from","amc_to","no_of_visits","amc_amount",
+    "filter_invoice_date",
+    "cluster_visit_plan","actual_visit",
+    "remarks","teritory_no","next_ter2_plan"
+  ]);
+
+  // ✅ Insert me: sab bhejo (agar chahe to yaha bhi restrict kar sakte ho)
+  const FORM = document.getElementById("installbaseForm");
+  const btnDelete = document.getElementById("btnDelete");
+
+  function getFormPayload(restrictToUpdateFields=false){
+    const payload = {};
+    const els = Array.from(FORM.querySelectorAll("input[name], textarea[name]"));
+    for(const el of els){
+      const name = el.name;
+      if(restrictToUpdateFields && !UPDATE_FIELDS.has(name)) continue;
+      payload[name] = (el.value ?? "").trim();
+    }
+    return payload;
+  }
+
+  async function checkExists(serialNo){
+    const j = await safeJson("/api/installbase/exists?serial=" + encodeURIComponent(serialNo));
+    return !!(j && j.ok && j.exists);
+  }
+
+  FORM.addEventListener("submit", async (e)=>{
+    e.preventDefault();
+
+    const customerName = cust.value.trim();
+    const serialNo = serial.value.trim();
+    if(!customerName || !serialNo){
+      showToast("Customer & Serial required");
+      return;
+    }
+
+    showLoading("Saving…");
+    try{
+      const exists = await checkExists(serialNo);
+
+      // exists => update payload restricted (formula fields not overwritten)
+      const payload = exists ? getFormPayload(true) : getFormPayload(false);
+
+      // always enforce required keys
+      payload.customer_name = customerName;
+      payload.serial_no = serialNo;
+
+      const res = await safeJson("/api/installbase/save", {
+        method:"POST",
+        credentials:"include",
+        headers:{ "Content-Type":"application/json", "Accept":"application/json" },
+        body: JSON.stringify(payload)
+      });
+
+      if(res && res.ok){
+        showToast(res.message || "Saved");
+      }else{
+        showToast((res && (res.message || res.error)) ? (res.message || res.error) : "Save failed");
+      }
+    } finally {
+      hideLoading();
+    }
+  });
+
+  btnDelete.addEventListener("click", async ()=>{
+    const serialNo = serial.value.trim();
+    if(!serialNo){
+      showToast("Serial required to delete");
+      return;
+    }
+    if(!confirm("Delete this Serial No?\n\n" + serialNo)) return;
+
     showLoading("Deleting…");
     try{
-    const r = await fetch(`/api/installbase/delete?serial=${encodeURIComponent(s)}`, {
-    method: "POST",
-    credentials: "include",
-    headers: {"Accept":"application/json"}
-    });
-    const j = await r.json().catch(()=>null);
-    if(!r.ok || !j || !j.ok){
-    alert((j && j.message) ? j.message : "Delete failed");
-    return;
-    }
-    alert(j.message || "Deleted!");
+      const res = await safeJson("/api/installbase/delete", {
+        method:"POST",
+        credentials:"include",
+        headers:{ "Content-Type":"application/json", "Accept":"application/json" },
+        body: JSON.stringify({ serial: serialNo })
+      });
 
-    // ✅ clear form after delete
-    document.getElementById("installbaseForm").reset();
-    cust.value = "";
-    serial.value = "";
-    cust.focus();
-
-    // ✅ remove deleted serial from datalist dropdown (optional)
-    const dl = document.getElementById("dl_serial");
-    if(dl){
-      const opts = Array.from(dl.querySelectorAll("option"));
-      for(const o of opts){
-        if((o.value || "").trim().toLowerCase() === s.toLowerCase()){
-          o.remove();
-        }
+      if(res && res.ok){
+        FORM.reset();
+        clearDD(serialDD);
+        clearDD(custDD);
+        showToast(res.message || "Deleted");
+      }else{
+        showToast((res && (res.message || res.error)) ? (res.message || res.error) : "Delete failed");
       }
+    } finally {
+      hideLoading();
     }
-  }catch(err){
-    console.log(err);
-    alert("Network error while deleting.");
-  }finally{
-    hideLoading();
-  }
-});
+  });
 
+</script>
 
-
-
-
-  </script>
 </body>
 </html>
