@@ -214,21 +214,19 @@
 
     /* ===== User Create compact & centered ===== */
     #usercreateSection{
-      max-width: 980px;          /* chhota width */
-      margin: 14px auto;         /* center */
+      max-width: 980px;
+      margin: 14px auto;
       padding: 14px;
     }
     #usercreateSection h2{
       margin: 0 0 10px;
       font-size: 18px;
     }
-    /* form card compact */
     #usercreateSection form.card{
       padding: 12px;
       gap: 8px !important;
-      grid-template-columns: 1.2fr 1fr;  /* left a bit wider */
+      grid-template-columns: 1.2fr 1fr;
     }
-    /* compact inputs */
     #usercreateSection input,
     #usercreateSection select{
       padding: 8px 10px;
@@ -236,16 +234,14 @@
       border-radius: 10px;
       font-size: 13px;
     }
-    /* button compact */
     #usercreateSection button[type="submit"]{
       padding: 9px 12px !important;
       border-radius: 10px !important;
       font-size: 13px;
     }
-    /* Users table responsive */
     #usercreateSection table{
       width: 100%;
-      min-width: 900px; /* table big rahe but container scroll kare */
+      min-width: 900px;
     }
     #usercreateSection .userTableWrap{
       overflow: auto;
@@ -289,8 +285,6 @@
         <button id="btnWeeklyPlanView" data-roles="Admin,Manager,Team Leader,User"
                 onclick="showSection('weeklyViewPlanSection', this); loadWeeklyPlanReport();">📊 Weekly Plan Report</button>
 
-       
-
         <button id="btnMasterUpdate" data-roles="Admin,Manager,Team Leader" type="button"
                 onclick="window.open('/installbase/update','_blank','noopener');">📝 Master Installbase Update</button>
 
@@ -330,10 +324,10 @@
 
         <div style="color:var(--muted); line-height:1.6">
           <div class="cards">
-            <div class="card" style="cursor:pointer;"
-              onclick="showSection('masterSection', document.getElementById('btnMasterView')); openMaster();">
-              <div class="kpi" id="kpiTotal">—</div>
-              <div class="label">Total InstallBase</div>
+             <div class="card" style="cursor:pointer;"
+             onclick="showSection('masterSection', null); openMaster();">
+             <div class="kpi" id="kpiTotal">—</div>
+             <div class="label">Total InstallBase</div>
             </div>
             <div class="card">
               <div class="kpi" id="kpiMonth"></div>
@@ -486,15 +480,16 @@
 
             <div><label>Last Visit Date</label><input type="date" name="lastVisitDate"></div>
 
-            <div><label>Last TOT</label><input name="tot"></div>
-            <div><label>Last POT</label><input name="pot"></div>
+            <div><label>Last TOT</label><input id="wp_tot" name="tot"></div>
+            <div><label>Last POT</label><input id="wp_pot" name="pot"></div>
+            <div><label>INK</label><input id="wp_ink" name="ink"></div>
+            <div><label>Solvent</label><input id="wp_solvent" name="solvent"></div>
+            <div><label>CNC</label><input id="wp_cnc" name="cnc"></div>
 
-            <div><label>INK</label><input name="ink"></div>
-            <div><label>Solvent</label><input name="solvent"></div>
-            <div><label>CNC</label><input name="cnc"></div>
 
-            <div><label>AMC Due Date</label><input type="date" name="amcDueDate"></div>
-            <div><label>Filter Due Date / Hrs</label><input name="filterDue"></div>
+            <div><label>AMC Due Date</label><input type="date" name="amcDueDate" id="wp_amcDueDate"></div>
+            <div><label>Filter Due Date / Hrs</label><input name="filterDue" id="wp_filterDue"></div>
+
             <div><label>SMS Expiry Date</label><input type="date" name="smsExpiry"></div>
 
             <div><label>Outstanding Amount</label><input name="outstandingAmount"></div>
@@ -571,15 +566,17 @@
               <div id="wsrLocationSuggest" class="suggestBox" style="top:calc(100% + 6px); width:100%;"></div>
             </div>
 
-            <div><label>Contact Person Name</label><input name="contactPerson"></div>
-            <div><label>Designation</label><input name="designation"></div>
-            <div><label>Contact Number</label><input name="contactNumber"></div>
-            <div><label>E-mail id</label><input name="email"></div>
+            <div><label>Contact Person Name</label><input id="wsr_contactPerson" name="contactPerson"></div>
+            <div><label>Designation</label><input id="wsr_designation" name="designation"></div>
+            <div><label>Contact Number</label><input id="wsr_contactNumber" name="contactNumber"></div>
+            <div><label>E-mail id</label><input id="wsr_email" name="email"></div>
 
             <div><label>Call Logged Date</label><input type="date" name="callLoggedDate"></div>
             <div><label>Problem reported</label><input name="problemReported"></div>
 
-            <div><label>Machine Status</label><input name="machineStatus"></div>
+            <div><label>AMC Status</label><input id="wsr_amcStatus" name="amcStatus"></div>
+
+
 
             <div>
               <label>Visit Code 1</label>
@@ -606,7 +603,7 @@
               <div id="wsrModelSuggest" class="suggestBox" style="top:calc(100% + 6px); width:100%;"></div>
             </div>
 
-            <div><label>M/C No</label><input name="mcNo"></div>
+            <div><label>M/C No</label><input id="wsr_mcNo" name="mcNo"></div>
 
             <div style="position:relative;">
               <label>Serial No</label>
@@ -614,20 +611,20 @@
               <div id="wsrSerialSuggest" class="suggestBox" style="top:calc(100% + 6px); width:100%;"></div>
             </div>
 
-            <div><label>Ink Type</label><input name="inkType"></div>
+            <div><label>Ink Type</label><input id="wsr_inkType" name="inkType"></div>
 
             <div><label>Turn on Time</label><input name="turnOnTime"></div>
             <div><label>Print on Time</label><input name="printOnTime"></div>
 
             <div><label>Visit Date</label><input type="date" name="visitDate" required></div>
 
-            <div><label>Travel Start (HH:MM)</label><input type="time" name="travelStart"></div>
-            <div><label>Travel End (HH:MM)</label><input type="time" name="travelEnd"></div>
-            <div><label>TRAVEL TIME</label><input name="travelTime"></div>
+            <div><label>Travel Start (HH:MM)</label><input type="time" id="travelStart" name="travelStart"></div>
+            <div><label>Travel End (HH:MM)</label><input type="time" id="travelEnd" name="travelEnd"></div>
+            <div><label>TRAVEL TIME</label><input id="travelTime" name="travelTime" readonly></div>
 
-            <div><label>Work Start (HH:MM)</label><input type="time" name="workStart"></div>
-            <div><label>Work End (HH:MM)</label><input type="time" name="workEnd"></div>
-            <div><label>WORK TIME</label><input name="workTime"></div>
+            <div><label>Work Start (HH:MM)</label><input type="time" id="workStart" name="workStart"></div>
+            <div><label>Work End (HH:MM)</label><input type="time" id="workEnd" name="workEnd"></div>
+            <div><label>WORK TIME</label><input id="workTime" name="workTime" readonly></div>
 
             <div><label>Action Taken (in brief)</label><textarea name="actionTaken"></textarea></div>
             <div><label>Customer Feedback</label><textarea name="customerFeedback"></textarea></div>
@@ -644,7 +641,8 @@
             <div><label>Solvent</label><input name="solvent"></div>
             <div><label>CNC</label><input name="cnc"></div>
 
-            <div><label>Filter Kit Due Date/Hrs</label><input name="filterKitDue"></div>
+            <div><label>Filter Kit Due Date/Hrs</label><input id="wsr_filterKitDue" name="filterKitDue"></div>
+
             <div><label>Re-visit Required</label>
               <select name="revisitRequired">
                 <option value="">--Select--</option>
@@ -797,6 +795,8 @@ function hideLoading(){
   }
 }
 
+
+
 /* ===========================
    UTILITIES
 =========================== */
@@ -885,13 +885,21 @@ function applyRoleAccess(role){
     }
   });
 }
+
+/* ✅ UPDATED: showSection (logic same + autosuggest ensure) */
 function showSection(id, btn){
   document.querySelectorAll(".section").forEach(s=>s.classList.remove("active"));
   const sec = document.getElementById(id);
   if (sec) sec.classList.add("active");
   document.querySelectorAll(".nav button").forEach(b=>b.classList.remove("active"));
   if(btn) btn.classList.add("active");
+
+  // ✅ autosuggest attach when switching sections
+  ensureSuggestReady();
+  setupAutoTimeCalc();
+
 }
+
 function logout(){ window.location.href = "/logout"; }
 function refillReadonly(){
   const e1 = document.getElementById("wsr_engineer");
@@ -1145,10 +1153,6 @@ async function loadWeeklyDonut(){
     hideLoading();
   }
 }
-
-/* ===========================
-   WSR DONUT (CURRENT MONTH)
-=========================== */
 function applyWsrVisitTypeFilter(visitType){
   const MAP = {
     "Cluster": "CLUSTER",
@@ -1162,22 +1166,28 @@ function applyWsrVisitTypeFilter(visitType){
   const pad = n => String(n).padStart(2,'0');
   const now = new Date();
 
-  // current month range
   const fromD = new Date(now.getFullYear(), now.getMonth(), 1);
-  const toD   = new Date(now.getFullYear(), now.getMonth()+1, 0);
+  const toD   = new Date(now.getFullYear(), now.getMonth() + 1, 0);
 
   const from = `${fromD.getFullYear()}-${pad(fromD.getMonth()+1)}-${pad(fromD.getDate())}`;
   const to   = `${toD.getFullYear()}-${pad(toD.getMonth()+1)}-${pad(toD.getDate())}`;
 
-  // ✅ Flask route open
-  const url =
-    `${window.location.origin}/wsr-report` +
-    `?visitType=${encodeURIComponent(code)}` +
-    `&from=${encodeURIComponent(from)}` +
-    `&to=${encodeURIComponent(to)}`;
+  const btn = document.getElementById("btnReport");
+  showSection("reportSection", btn);
 
-  window.open(url, "_blank", "noopener,noreferrer");
+  // ✅ DEFINE THESE
+  const s = document.getElementById("reportSearch");
+  const f = document.getElementById("fromDate");
+  const t = document.getElementById("toDate");
+
+  if (s) s.value = code;
+  if (f) f.value = from;
+  if (t) t.value = to;
+
+  loadReport();
 }
+
+
 
 async function loadWsrDonutMonth(){
   showLoading("Loading WSR this month...");
@@ -1208,8 +1218,6 @@ async function loadWsrDonutMonth(){
 
 /* ===========================
    REPORT VIEW + WEEKLY REPORT
-   (Your original API calls)
-   NOTE: KEEP SAME AS YOUR BACKEND EXPECTS
 =========================== */
 
 function renderTable(columns, rows) {
@@ -1251,6 +1259,10 @@ async function openMaster(){
     if(hint) hint.textContent = `Rows: ${(data.rows||[]).length}`;
     if(holder) holder.innerHTML = renderTable(data.columns || [], data.rows || []);
     loadKpis();
+
+    // ✅ update cache for autosuggest (no logic change)
+    INSTALLBASE_CACHE = { columns: data.columns || [], rows: data.rows || [] };
+
   } catch (e) {
     if(hint) hint.textContent = "Network error";
     if(errBox) errBox.textContent = String(e);
@@ -1276,7 +1288,9 @@ function wpReportClear(){
   if(f) f.value = "";
   if(t) t.value = "";
   loadWeeklyPlanReport();
+
 }
+
 async function loadWeeklyPlanReport(){
   const errBox = document.getElementById("wpReportErr");
   if(errBox) errBox.textContent = "";
@@ -1337,9 +1351,25 @@ async function loadWeeklyPlanReport(){
     hideLoading();
   }
 }
+function reportDoSearch(){
+  loadReport();
+}
+function reportClear(){
+  const s = document.getElementById("reportSearch");
+  const f = document.getElementById("fromDate");
+  const t = document.getElementById("toDate");
+
+  if(s) s.value = "";
+  if(f) f.value = "";
+  if(t) t.value = "";
+
+  loadReport();
+}
+
 
 /* REPORT VIEW */
 async function loadReport(){
+
   const errBox = document.getElementById("reportErr");
   if(errBox) errBox.textContent = "";
 
@@ -1369,7 +1399,6 @@ async function loadReport(){
     thead.innerHTML = "";
     tbody.innerHTML = "";
 
-    // ✅ normalize helper (super important for matching)
     function norm(s){
       return String(s || "").toLowerCase().replace(/[^a-z0-9]+/g,"");
     }
@@ -1377,70 +1406,27 @@ async function loadReport(){
     const apiCols = Array.isArray(data.columns) ? data.columns : [];
     const rows    = Array.isArray(data.rows) ? data.rows : [];
 
-    // ✅ YOUR REQUIRED SERIAL ORDER (exact list)
     const desired = [
-      "ID",
-      "ZONE",
-      "Engineer Name",
-      "MMM-YY",
-      "Service report Number",
-      "Customer name",
-      "Location",
-      "Contact Person Name",
-      "Designation",
-      "Contact Number",
-      "E-mail id",
-      "Call Logged Date",
-      "Problem reported",
-      "Machine Status",
-      "Visit Code 1",
-      "Visit Code 2",
-      "Printer Model",
-      "M/C No",
-      "Serial No",
-      "Ink Type",
-      "Turn on Time",
-      "Print on time",
-      "Visit Date",
-      "Travel Start (HH:MM)",
-      "Travel End (HH:MM)",
-      "TRAVE TIME",
-      "Work Start (HH:MM)",
-      "Work End (HH:MM)",
-      "WORK TIME",
-      "Action Taken (in brief)",
-      "INK",
-      "Solvent",
-      "CNC",
-      "Filter Kit Due Date/Hrs",
-      "Customer Feedback",
-      "Call Status",
-      "Re-visit Required",
-      "Service Engineer Remarks",
-      "Service Manager Remarks"
+      "ID","ZONE","Engineer Name","MMM-YY","Service report Number","Customer name",
+      "Location","Contact Person Name","Designation","Contact Number","E-mail id",
+      "Call Logged Date","Problem reported","Machine Status","Visit Code 1","Visit Code 2",
+      "Printer Model","M/C No","Serial No","Ink Type","Turn on Time","Print on time",
+      "Visit Date","Travel Start (HH:MM)","Travel End (HH:MM)","TRAVE TIME",
+      "Work Start (HH:MM)","Work End (HH:MM)","WORK TIME","Action Taken (in brief)",
+      "INK","Solvent","CNC","Filter Kit Due Date/Hrs","Customer Feedback","Call Status",
+      "Re-visit Required","Service Engineer Remarks","Service Manager Remarks"
     ];
 
-    // ✅ map api column names by normalized key
     const apiColsNorm = new Map(apiCols.map(c => [norm(c), c]));
-
-    // ✅ desired order but only those present in API
-    const desiredActual = desired
-      .map(d => apiColsNorm.get(norm(d)))
-      .filter(Boolean);
-
-    // ✅ remaining columns (if any) at end
+    const desiredActual = desired.map(d => apiColsNorm.get(norm(d))).filter(Boolean);
     const remaining = apiCols.filter(c => !desiredActual.includes(c));
-
-    // ✅ final columns order
     const cols = [...desiredActual, ...remaining];
 
-    // ✅ if API sent nothing
     if(!cols.length){
       if(errBox) errBox.textContent = "No columns from API";
       return;
     }
 
-    // header render
     const trh = document.createElement("tr");
     cols.forEach(h=>{
       const th = document.createElement("th");
@@ -1449,11 +1435,9 @@ async function loadReport(){
     });
     thead.appendChild(trh);
 
-    // row count
     const rc = document.getElementById("reportRowCount");
     if(rc) rc.textContent = String(rows.length || 0);
 
-    // body render
     rows.forEach(r=>{
       const tr = document.createElement("tr");
       cols.forEach(c=>{
@@ -1471,8 +1455,7 @@ async function loadReport(){
   }
 }
 
-
-/* EXPORTS (same as your logic) */
+/* EXPORTS */
 async function exportMaster(){
   const q = (document.getElementById("masterSearch")?.value || "").trim();
 
@@ -1498,11 +1481,9 @@ async function exportMaster(){
   }
 }
 
-
 function downloadCSV(filename, columns, rows){
   const esc = (v)=>{
     const s = String(v ?? "");
-    // CSV escape: wrap in quotes if contains comma/quote/newline
     if (/[",\n\r]/.test(s)) return `"${s.replaceAll('"','""')}"`;
     return s;
   };
@@ -1513,7 +1494,6 @@ function downloadCSV(filename, columns, rows){
     lines.push(columns.map(c => esc(r[c])).join(","));
   });
 
-  // UTF-8 BOM so Excel opens properly
   const csv = "\ufeff" + lines.join("\r\n");
   const blob = new Blob([csv], {type:"text/csv;charset=utf-8"});
   const url = URL.createObjectURL(blob);
@@ -1544,7 +1524,6 @@ async function exportReport(){
     const data = await res.json();
     if(!res.ok || data.error) throw new Error(data.error || "Export failed");
 
-    // ✅ normalize helper (same like loadReport)
     function norm(s){
       return String(s || "").toLowerCase().replace(/[^a-z0-9]+/g,"");
     }
@@ -1552,7 +1531,6 @@ async function exportReport(){
     const apiCols = Array.isArray(data.columns) ? data.columns : [];
     const rows    = Array.isArray(data.rows) ? data.rows : [];
 
-    // ✅ same required order (IMPORTANT: TRAVEL TIME spelling)
     const desired = [
       "ID","ZONE","Engineer Name","MMM-YY","Service report Number","Customer name",
       "Location","Contact Person Name","Designation","Contact Number","E-mail id",
@@ -1566,8 +1544,6 @@ async function exportReport(){
 
     const apiColsNorm = new Map(apiCols.map(c => [norm(c), c]));
     const desiredActual = desired.map(d => apiColsNorm.get(norm(d))).filter(Boolean);
-
-    // ✅ STRICT export (only desired columns)
     const cols = desiredActual;
 
     const fname = `WSR_Report_${from || "ALL"}_to_${to || "ALL"}.csv`;
@@ -1597,14 +1573,11 @@ async function exportWeeklyPlanReport(){
     const data = await res.json();
     if(!res.ok || data.error) throw new Error(data.error || "Export failed");
 
-    // ✅ OPTIONAL: order fix (same as report)
     function norm(s){ return String(s||"").toLowerCase().replace(/[^a-z0-9]+/g,""); }
 
     const apiCols = Array.isArray(data.columns) ? data.columns : [];
     const rows    = Array.isArray(data.rows) ? data.rows : [];
 
-    // ✅ Put your preferred WeeklyPlan column order here
-    // (If you don't care order, just use apiCols)
     const desired = [
       "zone","engineerName","clusterCode","visit_date","customerName","location",
       "contactPerson","phoneNumber","email","localOutstation","distance_km",
@@ -1617,8 +1590,6 @@ async function exportWeeklyPlanReport(){
 
     const map = new Map(apiCols.map(c => [norm(c), c]));
     const desiredActual = desired.map(d => map.get(norm(d))).filter(Boolean);
-
-    // strict order if matches found else fallback
     const cols = desiredActual.length ? desiredActual : apiCols;
 
     const fname = `WeeklyPlan_${from || "ALL"}_to_${to || "ALL"}.csv`;
@@ -1630,6 +1601,687 @@ async function exportWeeklyPlanReport(){
     hideLoading();
   }
 }
+
+/* =========================================================
+   ✅✅✅ AUTOSUGGEST (FULL WORKING) - WSR + WEEKLY + MASTER
+   NOTE: BAKI LOGIC CHANGE NAHI
+========================================================= */
+let INSTALLBASE_CACHE = { columns: [], rows: [] };
+
+function getCustomerFromRow(r){
+  return getField(r,
+    ["Customer name","Customer Name","customerName","customer_name"],
+    ["customer"]
+  );
+}
+
+async function warmInstallbaseCache(){
+  try{
+    const res = await fetch("/api/master/installbase?limit=2000");
+    const data = await res.json();
+    if(res.ok && !data.error){
+      INSTALLBASE_CACHE = { columns: data.columns || [], rows: data.rows || [] };
+    }
+  }catch(e){}
+}
+function attachSuggest({ inputId, boxId, sourceFn, onSelect, minChars = 2, showAllOnFocus = false }){
+  const inp = document.getElementById(inputId);
+  const box = document.getElementById(boxId);
+  if(!inp || !box) return;
+
+  if (inp.dataset.suggestAttached === "1") return;
+  inp.dataset.suggestAttached = "1";
+
+  let t = null;
+
+  function close(){
+    box.style.display = "none";
+    box.innerHTML = "";
+  }
+  function open(items){
+    if(!items || !items.length){ close(); return; }
+    box.innerHTML = items.map(v => `
+      <div class="suggestItem" data-v="${escapeHtml(v)}">${escapeHtml(v)}</div>
+    `).join("");
+    box.style.display = "block";
+  }
+  function pick(v){
+    inp.value = v;
+    close();
+    if(onSelect) onSelect(v);
+  }
+
+  box.addEventListener("mousedown", (e)=> e.preventDefault());
+
+  box.addEventListener("click", (e)=>{
+    const it = e.target.closest(".suggestItem");
+    if(!it) return;
+    const v = it.getAttribute("data-v") || it.textContent || "";
+    pick(v);
+  });
+
+  inp.addEventListener("input", ()=>{
+    clearTimeout(t);
+    const q = inp.value.trim().toLowerCase();
+
+    // ✅ if minChars=0 allow empty list
+    if(minChars > 0 && q.length < minChars){ close(); return; }
+
+    t = setTimeout(()=>{
+      const items = sourceFn(q).slice(0, 25);
+      open(items);
+    }, 120);
+  });
+
+  inp.addEventListener("blur", ()=> setTimeout(close, 150));
+
+  inp.addEventListener("focus", ()=>{
+    const q = inp.value.trim().toLowerCase();
+
+    // ✅ NEW: focus pe list open, even if empty
+    if(showAllOnFocus){
+      const items = sourceFn(q).slice(0, 25);
+      open(items);
+      return;
+    }
+
+    if(q.length >= minChars){
+      const items = sourceFn(q).slice(0, 25);
+      open(items);
+    }
+  });
+}
+
+function suggestFromRows(q, getter){
+  const rows = INSTALLBASE_CACHE.rows || [];
+  const out = [];
+  const seen = new Set();
+
+  for(const r of rows){
+    const v = String(getter(r) || "").trim();
+    if(!v) continue;
+    const nv = v.toLowerCase();
+    if(!nv.includes(q)) continue;
+    if(seen.has(nv)) continue;
+    seen.add(nv);
+    out.push(v);
+    if(out.length >= 60) break;
+  }
+  return out;
+}
+
+function setupAutoSuggest(){
+  // MASTER Search
+  attachSuggest({
+    inputId: "masterSearch",
+    boxId: "masterSuggest",
+    sourceFn: (q)=>{
+      const rows = INSTALLBASE_CACHE.rows || [];
+      const out = [];
+      const seen = new Set();
+      for(const r of rows){
+        const c = String(getCustomerFromRow(r) || "").trim();
+        const s = String(getSerialFromRow(r) || "").trim();
+        const m = String(getModelFromRow(r) || "").trim();
+        const l = String(getLocationFromRow(r) || "").trim();
+        const pack = [c,s,m,l].filter(Boolean);
+        for(const v of pack){
+          const nv = v.toLowerCase();
+          if(!nv.includes(q)) continue;
+          if(seen.has(nv)) continue;
+          seen.add(nv);
+          out.push(v);
+          if(out.length >= 30) return out;
+        }
+      }
+      return out;
+    }
+  });
+
+  // WSR
+  attachSuggest({
+    inputId: "wsrCustomer",
+    boxId: "customerSuggest",
+    sourceFn: (q)=> suggestFromRows(q, getCustomerFromRow),
+    onSelect: ()=> document.getElementById("wsrCustomer").dispatchEvent(new Event("change"))
+  });
+
+
+  // WEEKLY PLAN
+  attachSuggest({
+    inputId: "wpCustomer",
+    boxId: "wpCustomerSuggest",
+    sourceFn: (q)=> suggestFromRows(q, getCustomerFromRow),
+    onSelect: ()=> document.getElementById("wpCustomer").dispatchEvent(new Event("change"))
+  });
+}
+
+async function ensureSuggestReady(){
+  if(!INSTALLBASE_CACHE?.rows?.length){
+    await warmInstallbaseCache();
+  }
+  setupAutoSuggest();
+
+  // ✅ IMPORTANT: rebuild index + attach cascade
+  IB_INDEX = null;
+  buildInstallbaseIndex();
+  setupCascades();
+}
+
+/* =========================================================
+   ✅ CASCADING: Customer -> Location -> Model -> Serial -> Details
+   Works with INSTALLBASE_CACHE.rows (from /api/master/installbase)
+========================================================= */
+
+// ---------- helpers ----------
+function nstr(v){ return String(v ?? "").trim(); }
+function nlow(v){ return nstr(v).toLowerCase(); }
+
+function getContactPersonFromRow(r){
+  return getField(r,
+    ["Contact Person Name","ContactPerson","contactPerson","contact_person"],
+    ["contactperson","contact"]
+  );
+}
+function getContactNumberFromRow(r){
+  return getField(
+    r,
+    [
+      "Contact No.","Contact No",          // ✅ MASTER column
+      "Contact No. (2)","Contact No (2)",  // optional
+      "Contact Number","ContactNumber","contactNumber",
+      "Phone Number","phoneNumber",
+      "phone","mobile"
+    ],
+    ["contactno","contactnumber","phonenumber","mobile"]
+  );
+}
+
+function getEmailFromRow(r){
+  return getField(r,
+    ["E-mail id","Email","email","emailId"],
+    ["email"]
+  );
+}
+function getMcNoFromRow(r){
+  return getField(r, ["M/C No","MC No","mcNo","mc_no"], ["mcno"]);
+}
+function getMachineStatusFromRow(r){
+  return getField(
+    r,
+    ["Mc Status","MC Status","McStatus","mcStatus"],
+    ["mcstatus"]
+  );
+}
+function getPrinterStatusFromRow(r){
+  return getField(
+    r,
+    ["Printer Status","printerStatus","PRINTER STATUS"],
+    ["printerstatus"]  // ✅ "status" hata diya (too generic)
+  );
+}
+
+function getInkTypeFromRow(r){
+  return getField(r, ["Ink Type","inkType"], ["inktype"]);
+
+}
+
+function getFilterKitDueFromRow(r){
+  return getField(r,
+    ["Filter Kit Due Date/Hrs","Filter Kit Due","filterKitDue","filter_kit_due","FilterDue","filterDue"],
+    ["filterkitdue","filterdue","filterkit","kitdue"]
+  );
+}
+function getAmcDueDateFromRow(r){
+  return getField(r,
+    ["AMC Due Date","amcDueDate","AMC_DUE_DATE","AMC Due"],
+    ["amcdue"]
+  );
+}
+
+function getFilterDueFromRow(r){
+  return getField(r,
+    ["Filter Due Date / Hrs","filterDue","FILTER DUE","Filter Due"],
+    ["filterdue"]
+  );
+}
+
+
+
+// ---------- indices ----------
+let IB_INDEX = null;
+
+function buildInstallbaseIndex(){
+  const rows = INSTALLBASE_CACHE.rows || [];
+  const idx = {
+    customers: new Map(),    // cust -> Set(loc)
+    custLocModels: new Map(),// "cust||loc" -> Set(model)
+    clmSerials: new Map(),   // "cust||loc||model" -> Set(serial)
+    serialRows: new Map(),   // serial -> [rows]
+    custRows: new Map(),     // cust -> [rows]
+  };
+
+  for(const r of rows){
+    const cust = nstr(getCustomerFromRow(r));
+    const loc  = nstr(getLocationFromRow(r));
+    const model= nstr(getModelFromRow(r));
+    const serial=nstr(getSerialFromRow(r));
+    if(!cust) continue;
+
+    const kc = nlow(cust);
+    if(!idx.custRows.has(kc)) idx.custRows.set(kc, []);
+    idx.custRows.get(kc).push(r);
+
+    if(loc){
+      if(!idx.customers.has(kc)) idx.customers.set(kc, new Set());
+      idx.customers.get(kc).add(loc);
+
+      const keyCL = `${kc}||${nlow(loc)}`;
+      if(!idx.custLocModels.has(keyCL)) idx.custLocModels.set(keyCL, new Set());
+      if(model) idx.custLocModels.get(keyCL).add(model);
+
+      const keyCLM = `${kc}||${nlow(loc)}||${nlow(model)}`;
+      if(!idx.clmSerials.has(keyCLM)) idx.clmSerials.set(keyCLM, new Set());
+      if(serial) idx.clmSerials.get(keyCLM).add(serial);
+    }
+
+    if(serial){
+      const ks = nlow(serial);
+      if(!idx.serialRows.has(ks)) idx.serialRows.set(ks, []);
+      idx.serialRows.get(ks).push(r);
+    }
+  }
+
+  IB_INDEX = idx;
+}
+
+function ensureIndex(){
+  if(!IB_INDEX) buildInstallbaseIndex();
+}
+
+// pick best row for (cust, loc, model, serial) preference
+function pickRow({cust, loc, model, serial}){
+  ensureIndex();
+  const kc = nlow(cust);
+  const kl = nlow(loc);
+  const km = nlow(model);
+  const ks = nlow(serial);
+
+  // 1) serial exact
+  if(serial && IB_INDEX.serialRows.has(ks)){
+    const list = IB_INDEX.serialRows.get(ks);
+    // prefer matching cust/loc/model if provided
+    let best = list.find(r =>
+      (!cust || nlow(getCustomerFromRow(r)) === kc) &&
+      (!loc  || nlow(getLocationFromRow(r)) === kl) &&
+      (!model|| nlow(getModelFromRow(r)) === km)
+    );
+    return best || list[0];
+  }
+
+  // 2) cust rows fallback
+  const cr = IB_INDEX.custRows.get(kc) || [];
+  let best = cr.find(r =>
+    (!loc  || nlow(getLocationFromRow(r)) === kl) &&
+    (!model|| nlow(getModelFromRow(r)) === km)
+  );
+  return best || cr[0] || null;
+}
+
+// ---------- DOM setters ----------
+function setVal(id, v){
+  const el = document.getElementById(id);
+  if(el) el.value = nstr(v);
+}
+function clearVal(id){
+  const el = document.getElementById(id);
+  if(el) el.value = "";
+}
+
+// ---------- cascading for a form (WSR / Weekly) ----------
+function setupCascadeForForm(cfg){
+  // cfg: { customerId, locationId, modelId, serialId, contactPersonId, contactNumberId, emailId, machineStatusId, mcNoId, printerStatusId, inkTypeId }
+
+  const custEl = document.getElementById(cfg.customerId);
+  const locEl  = document.getElementById(cfg.locationId);
+  const modEl  = document.getElementById(cfg.modelId);
+  const serEl  = document.getElementById(cfg.serialId);
+  if(!custEl || !locEl || !modEl || !serEl) return;
+
+  // prevent double setup
+  if(custEl.dataset.cascadeAttached === "1") return;
+  custEl.dataset.cascadeAttached = "1";
+
+  // Make these inputs empty when upstream changes
+  function resetAfterCustomer(){
+    clearVal(cfg.locationId);
+    clearVal(cfg.modelId);
+    clearVal(cfg.serialId);
+    
+    // also clear machine details
+    if(cfg.machineStatusId) clearVal(cfg.machineStatusId);
+    if(cfg.printerStatusId) clearVal(cfg.printerStatusId);
+    if(cfg.mcNoId) clearVal(cfg.mcNoId);
+    if(cfg.inkTypeId) clearVal(cfg.inkTypeId);
+    if(cfg.filterKitDueId) clearVal(cfg.filterKitDueId);
+    if(cfg.amcDueDateId) clearVal(cfg.amcDueDateId);
+    if(cfg.filterDueId)  clearVal(cfg.filterDueId);
+
+
+
+  }
+  function resetAfterLocation(){
+    clearVal(cfg.modelId);
+    clearVal(cfg.serialId);
+    if(cfg.amcDueDateId) clearVal(cfg.amcDueDateId);
+    if(cfg.filterDueId)  clearVal(cfg.filterDueId);
+
+
+    if(cfg.machineStatusId) clearVal(cfg.machineStatusId);
+    if(cfg.printerStatusId) clearVal(cfg.printerStatusId);
+    if(cfg.mcNoId) clearVal(cfg.mcNoId);
+    if(cfg.inkTypeId) clearVal(cfg.inkTypeId);
+    if(cfg.filterKitDueId) clearVal(cfg.filterKitDueId);
+  }
+
+  function resetAfterModel(){
+    clearVal(cfg.serialId);
+    if(cfg.machineStatusId) clearVal(cfg.machineStatusId);
+    if(cfg.printerStatusId) clearVal(cfg.printerStatusId);
+    if(cfg.mcNoId) clearVal(cfg.mcNoId);
+    if(cfg.inkTypeId) clearVal(cfg.inkTypeId);
+    if(cfg.filterKitDueId) clearVal(cfg.filterKitDueId);   // ✅ add
+    if(cfg.amcDueDateId) clearVal(cfg.amcDueDateId);
+    if(cfg.filterDueId)  clearVal(cfg.filterDueId);
+
+  }
+ 
+
+  // ---- CUSTOMER SELECT hook ----
+  custEl.addEventListener("change", ()=>{
+    const cust = nstr(custEl.value);
+    if(!cust) return;
+    ensureIndex();
+    resetAfterCustomer();
+
+    // fill contact from best row for customer (if exists)
+    const row = pickRow({cust});
+    if(row){
+      if(cfg.contactPersonId) setVal(cfg.contactPersonId, getContactPersonFromRow(row));
+      if(cfg.contactNumberId) setVal(cfg.contactNumberId, getContactNumberFromRow(row));
+      if(cfg.emailId) setVal(cfg.emailId, getEmailFromRow(row));
+      if(cfg.filterKitDueId) setVal(cfg.filterKitDueId, getFilterKitDueFromRow(row));
+
+    }
+
+    // if only 1 location, auto set it
+    const locSet = IB_INDEX.customers.get(nlow(cust));
+    const locs = locSet ? Array.from(locSet) : [];
+    if(locs.length === 1){
+      locEl.value = locs[0];
+      locEl.dispatchEvent(new Event("change"));
+    }
+  });
+
+  // ---- LOCATION SELECT hook ----
+  locEl.addEventListener("change", ()=>{
+    const cust = nstr(custEl.value);
+    const loc  = nstr(locEl.value);
+    if(!cust || !loc) return;
+    ensureIndex();
+    resetAfterLocation();
+
+    // refine contact based on cust+loc
+    const row = pickRow({cust, loc});
+    if(row){
+      if(cfg.contactPersonId) setVal(cfg.contactPersonId, getContactPersonFromRow(row));
+      if(cfg.contactNumberId) setVal(cfg.contactNumberId, getContactNumberFromRow(row));
+      if(cfg.emailId) setVal(cfg.emailId, getEmailFromRow(row));
+    }
+
+    // if only 1 model, auto set it
+    const keyCL = `${nlow(cust)}||${nlow(loc)}`;
+    const mset = IB_INDEX.custLocModels.get(keyCL);
+    const models = mset ? Array.from(mset) : [];
+    if(models.length === 1){
+      modEl.value = models[0];
+      modEl.dispatchEvent(new Event("change"));
+    }
+  });
+
+  // ---- MODEL SELECT hook ----
+  modEl.addEventListener("change", ()=>{
+    const cust = nstr(custEl.value);
+    const loc  = nstr(locEl.value);
+    const model= nstr(modEl.value);
+    if(!cust || !loc || !model) return;
+    ensureIndex();
+    resetAfterModel();
+
+    // if only 1 serial, auto set it
+    const keyCLM = `${nlow(cust)}||${nlow(loc)}||${nlow(model)}`;
+    const sset = IB_INDEX.clmSerials.get(keyCLM);
+    const serials = sset ? Array.from(sset) : [];
+    if(serials.length === 1){
+      serEl.value = serials[0];
+      serEl.dispatchEvent(new Event("change"));
+    }
+  });
+
+  // ---- SERIAL SELECT hook ----
+  serEl.addEventListener("change", ()=>{
+    const cust = nstr(custEl.value);
+    const loc  = nstr(locEl.value);
+    const model= nstr(modEl.value);
+    const serial= nstr(serEl.value);
+    
+
+    if(!serial) return;
+
+    const row = pickRow({cust, loc, model, serial});
+    if(!row) return;
+
+    // fill machine details
+    if(cfg.machineStatusId) setVal(cfg.machineStatusId, getMachineStatusFromRow(row));
+    if(cfg.printerStatusId){const ps = getPrinterStatusFromRow(row) || getMachineStatusFromRow(row);setVal(cfg.printerStatusId, ps);
+      
+    }
+
+    if(cfg.mcNoId) setVal(cfg.mcNoId, getMcNoFromRow(row));
+    if(cfg.inkTypeId) setVal(cfg.inkTypeId, getInkTypeFromRow(row));
+    if(cfg.filterKitDueId) setVal(cfg.filterKitDueId, getFilterKitDueFromRow(row));
+    if(cfg.amcDueDateId) setVal(cfg.amcDueDateId, getAmcDueDateFromRow(row));
+    if(cfg.filterDueId)  setVal(cfg.filterDueId,  getFilterDueFromRow(row));
+
+    // also refresh contact if available
+    if(cfg.contactPersonId) setVal(cfg.contactPersonId, getContactPersonFromRow(row));
+    if(cfg.contactNumberId) setVal(cfg.contactNumberId, getContactNumberFromRow(row));
+    if(cfg.emailId) setVal(cfg.emailId, getEmailFromRow(row));
+
+        // ===== FETCH LAST WSR DATA =====
+    (async function(){
+      try{
+        const res = await fetch(`/api/wsr/latest-by-serial?serial=${encodeURIComponent(serial)}`);
+        const data = await res.json();
+        if(!res.ok || !data) return;
+
+        const form = document.getElementById("weeklyPlanForm");
+        if(!form) return;
+
+        form.elements["lastVisitDate"].value =
+          data.visit_date ? String(data.visit_date).split("T")[0] : "";
+          setVal("wp_tot", data.last_tot);
+          setVal("wp_pot", data.last_pot);
+          setVal("wp_ink", data.ink);
+          setVal("wp_solvent", data.solvent);
+          setVal("wp_cnc", data.cnc);
+
+
+      }catch(e){
+        console.error("WSR auto-fill error:", e);
+      }
+    })();
+
+
+
+  });
+  
+
+  // ---------- connect dropdown suggestions with the cascade sources ----------
+  // Customer already has suggest; now source for location/model/serial depends on previous selections.
+
+  // LOCATION suggest
+  attachSuggest({
+    inputId: cfg.locationId,
+    boxId: cfg.locationSuggestId,
+    sourceFn: (q)=>{
+      ensureIndex();
+      const cust = nstr(custEl.value);
+      if(!cust) return [];
+      const locSet = IB_INDEX.customers.get(nlow(cust));
+      const locs = locSet ? Array.from(locSet) : [];
+      return locs.filter(x => nlow(x).includes(q));
+    },
+    onSelect: ()=> locEl.dispatchEvent(new Event("change")),
+    minChars: 0,
+    showAllOnFocus: true
+  });
+  // MODEL suggest
+  attachSuggest({
+    inputId: cfg.modelId,
+    boxId: cfg.modelSuggestId,
+    sourceFn: (q)=>{
+      ensureIndex();
+      const cust = nstr(custEl.value);
+      const loc  = nstr(locEl.value);
+      if(!cust || !loc) return [];
+      const keyCL = `${nlow(cust)}||${nlow(loc)}`;
+      const mset = IB_INDEX.custLocModels.get(keyCL);
+      const models = mset ? Array.from(mset) : [];
+      return models.filter(x => nlow(x).includes(q));
+    },
+    onSelect: ()=> modEl.dispatchEvent(new Event("change")),
+    minChars: 0,
+    showAllOnFocus: true
+  });
+  // SERIAL suggest
+  attachSuggest({
+    inputId: cfg.serialId,
+    boxId: cfg.serialSuggestId,
+    sourceFn: (q)=>{
+      ensureIndex();
+      const cust = nstr(custEl.value);
+      const loc  = nstr(locEl.value);
+      const model= nstr(modEl.value);
+      if(!cust || !loc || !model) return [];
+      const keyCLM = `${nlow(cust)}||${nlow(loc)}||${nlow(model)}`;
+      const sset = IB_INDEX.clmSerials.get(keyCLM);
+      const serials = sset ? Array.from(sset) : [];
+      return serials.filter(x => nlow(x).includes(q));
+    },
+    onSelect: ()=> serEl.dispatchEvent(new Event("change")),
+    minChars: 0,
+    showAllOnFocus: true
+  });
+}
+/* Call this after cache ready */
+function setupCascades(){
+
+  // WEEKLY PLAN mapping
+  setupCascadeForForm({
+    customerId: "wpCustomer",
+    locationId: "wp_location",
+    modelId: "wp_printerModel",
+    serialId: "wp_serialNo",
+
+    locationSuggestId: "wpLocationSuggest",
+    modelSuggestId: "wpModelSuggest",
+    serialSuggestId: "wpSerialSuggest",
+
+    contactPersonId: "wp_contactPerson",
+    contactNumberId: "wp_phoneNumber",
+    emailId: "wp_email",
+
+    printerStatusId: "wp_printerStatus",
+    machineStatusId: "wp_printerStatus",
+    amcDueDateId: "wp_amcDueDate",
+    filterDueId: "wp_filterDue"
+
+  });
+
+  // WSR mapping
+  setupCascadeForForm({
+    customerId: "wsrCustomer",
+    locationId: "wsr_location",
+    modelId: "wsr_printerModel",
+    serialId: "wsr_serialNo",
+
+    locationSuggestId: "wsrLocationSuggest",
+    modelSuggestId: "wsrModelSuggest",
+    serialSuggestId: "wsrSerialSuggest",
+
+    contactPersonId: "wsr_contactPerson",
+    contactNumberId: "wsr_contactNumber",
+    emailId: "wsr_email",
+    machineStatusId: "wsr_amcStatus",
+
+    mcNoId: "wsr_mcNo",
+    inkTypeId: "wsr_inkType",
+    filterKitDueId: "wsr_filterKitDue"
+  });
+}
+
+
+function timeToMinutes(t){
+  if(!t) return null;
+  const [hh, mm] = String(t).split(":").map(Number);
+  if(Number.isNaN(hh) || Number.isNaN(mm)) return null;
+  return hh * 60 + mm;
+}
+function minutesToHHMM(mins){
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  return `${String(h).padStart(2,"0")}:${String(m).padStart(2,"0")}`;
+}
+function diffTime(start, end){
+  const s = timeToMinutes(start);
+  const e = timeToMinutes(end);
+  if(s === null || e === null) return "";
+  let d = e - s;
+  if(d < 0) d += 24 * 60; // ✅ next day handle
+  return minutesToHHMM(d);
+}
+
+function setupAutoTimeCalc(){
+  const tS = document.getElementById("travelStart");
+  const tE = document.getElementById("travelEnd");
+  const tO = document.getElementById("travelTime");
+
+  const wS = document.getElementById("workStart");
+  const wE = document.getElementById("workEnd");
+  const wO = document.getElementById("workTime");
+
+  function updateTravel(){ if(tO) tO.value = diffTime(tS?.value, tE?.value); }
+  function updateWork(){ if(wO) wO.value = diffTime(wS?.value, wE?.value); }
+
+  [tS,tE].forEach(el=>{
+    if(!el) return;
+    el.addEventListener("input", updateTravel);
+    el.addEventListener("change", updateTravel);
+  });
+  [wS,wE].forEach(el=>{
+    if(!el) return;
+    el.addEventListener("input", updateWork);
+    el.addEventListener("change", updateWork);
+  });
+  
+
+
+  updateTravel();
+  updateWork();
+}
+
+
 
 /* ===========================
    INIT
@@ -1652,13 +2304,96 @@ window.onload = function(){
   applyRoleAccess(SERVER_ROLENAME);
   fillVisitCode2();
   loadWsrDonutMonth();
+
+  // ✅ autosuggest start
+  ensureSuggestReady();
+  setupAutoTimeCalc();
 };
 
 function openUserCreate(btn){
   showSection('usercreateSection', btn);
   loadUsers();
 }
-</script>
+/* ===========================
+   WSR FORM SUBMIT
+=========================== */
+document.addEventListener("DOMContentLoaded", function(){
 
+  const wsrForm = document.getElementById("wsrForm");
+  if(!wsrForm) return;
+
+  wsrForm.addEventListener("submit", async function(e){
+    e.preventDefault();
+
+    showLoading("Submitting WSR...");
+    try{
+      const formData = new FormData(this);
+
+      const res = await fetch("/api/wsr", {
+        method: "POST",
+        body: formData
+      });
+
+      const out = await res.json();
+      alert(out.message || "WSR Submitted Successfully");
+
+      if(res.ok){
+        this.reset();
+        refillReadonly();
+        loadWsrDonutMonth();
+        loadReport();
+      }
+
+    }catch(err){
+      alert("WSR Submit Error");
+    }finally{
+      hideLoading();
+    }
+  });
+
+});
+
+
+/* ===========================
+   WEEKLY PLAN FORM SUBMIT
+=========================== */
+document.addEventListener("DOMContentLoaded", function(){
+
+  const wpForm = document.getElementById("weeklyPlanForm");
+  if(!wpForm) return;
+
+  wpForm.addEventListener("submit", async function(e){
+    e.preventDefault();
+
+    showLoading("Saving Weekly Plan...");
+    try{
+      const formData = new FormData(this);
+
+      const res = await fetch("/api/weeklyplan", {
+        method: "POST",
+        body: formData
+      });
+
+      const out = await res.json();
+      alert(out.message || "Weekly Plan Saved Successfully");
+
+      if(res.ok){
+        this.reset();
+        refillReadonly();
+        loadWeeklyDonut();
+        loadWeeklyPlanReport();
+      }
+
+    }catch(err){
+      alert("Weekly Plan Save Error");
+    }finally{
+      hideLoading();
+    }
+  });
+
+});
+
+
+</script>
 </body>
 </html>

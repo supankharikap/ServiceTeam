@@ -100,7 +100,8 @@
       <input id="from" type="date">
       <span class="muted">To</span>
       <input id="to" type="date">
-      <button class="btn primary" onclick="load()">Search</button>
+      <button type="button" class="btn primary" onclick="load()">Search</button>
+
     </div>
 
     <div class="muted" style="margin-top:10px;">
@@ -156,7 +157,8 @@ async function load(){
   showLoading(true);
 
   try{
-    const res = await fetch("/api/weeklyplan/report?" + params.toString());
+    const res = await fetch("/api/wsr-report?" + params.toString());
+
     const data = await res.json();
 
     if(!res.ok || data.error){

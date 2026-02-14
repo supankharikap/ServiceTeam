@@ -1107,9 +1107,106 @@ def api_installbase_delete():
     except Exception as e:
         return jsonify({"ok": False, "message": f"Delete error: {e}"}), 500
 
-# ===================== WEEKLY PLAN (dbo.Planning) =====================
 
-# ===================== WEEKLY PLAN REPORT (dbo.Planning) =====================
+
+
+WEEKLY_TABLE = "dbo.Planning"
+
+
+def _weekly_cols():
+    cols = _table_columns(WEEKLY_TABLE)
+    if not cols:
+        return []
+    return cols
+
+
+def _weekly_scope_where(cols):
+    """
+    Same scope rule:
+    - Admin => all
+    - Manager/Team Leader => zone only
+    - User => zone + engineer
+    """
+    role = (session.get("role") or "").strip().lower()
+    zone = (session.get("zone") or "").strip()
+    eng  = (session.get("engineer") or "").strip()
+
+    if role == "admin":
+        return "", []
+
+    zone_col = _find_col(cols, aliases=["zone", "Zone", "ZONE"], must_contain=["zone"])
+    eng_col  = _find_col(cols, aliases=["engineer_name", "EngineerName", "Engineer Name", "ENGINEER_NAME"], must_contain=["engineer", "name"])
+
+    where = []
+    params = []
+
+    if zone and zone_col:
+        where.append(f"{_cmp_ci_trim(zone_col)} = UPPER(?)")
+        params.append(zone)
+
+    if (not _is_manager_like(role)) and eng and eng_col:
+        where.append(f"{_cmp_ci_trim(eng_col)} = UPPER(?)")
+        params.append(eng)
+
+    return (" WHERE " + " AND ".join(where)) if where else "", params
+
+
+def _weekly_date_col(cols):
+    """
+    Find Planning/Visit date column from dbo.Planning
+    Your table shows: visit_date
+    """
+    return _find_col(
+        cols,
+        aliases=["visit_date", "VisitDate", "Visit Date", "Planning Date", "PlanningDate", "PLAN_DATE", "Plan Date"],
+        must_contain=["visit", "date"]
+    )
+
+
+def _weekly_visit_type_col(cols):
+    """
+    Find Visit Type column from dbo.Planning
+    Your table shows: visit_type
+    """
+    return _find_col(
+    cols,
+    aliases=["visit_type","visittype","Visit_Type","VISIT_TYPE","VisitType","Visit Type"],
+    must_contain=["visit", "type"]
+)
+
+
+def _weekly_payload_to_db(cols, payload: dict):
+    """
+    payload keys come from form/json
+    We map by normalized matching to dbo.Planning column names.
+    """
+    col_types = _table_column_types(WEEKLY_TABLE)
+    idx = _col_index(cols)
+
+    out = {}
+    for k, raw_val in (payload or {}).items():
+        nk = _norm(k)
+        if nk not in idx:
+            continue
+
+        dbcol = idx[nk]
+        val = _clean_val(raw_val)
+        dtype = (col_types.get(dbcol) or "").lower()
+
+        if dtype in ("date", "datetime", "datetime2", "smalldatetime"):
+            val = _parse_iso_date(val)
+        elif dtype in ("time",):
+            val = _parse_time_any(val)
+        elif dtype in ("int", "bigint", "smallint", "tinyint"):
+            val = _to_int(val)
+        elif dtype in ("decimal", "numeric", "float", "real", "money", "smallmoney"):
+            val = _to_decimal(val)
+
+        out[dbcol] = val
+
+    return out
+
+
 
 @app.get("/api/weeklyplan/report")
 @app.get("/api/weeklyplan/report/")
@@ -1284,101 +1381,6 @@ def api_weeklyplan_summary_14():
 
 # NOTE: Your Azure screenshot shows weekly plan table name = dbo.Planning
 
-WEEKLY_TABLE = "dbo.Planning"
-
-
-def _weekly_cols():
-    cols = _table_columns(WEEKLY_TABLE)
-    if not cols:
-        return []
-    return cols
-
-
-def _weekly_scope_where(cols):
-    """
-    Same scope rule:
-    - Admin => all
-    - Manager/Team Leader => zone only
-    - User => zone + engineer
-    """
-    role = (session.get("role") or "").strip().lower()
-    zone = (session.get("zone") or "").strip()
-    eng  = (session.get("engineer") or "").strip()
-
-    if role == "admin":
-        return "", []
-
-    zone_col = _find_col(cols, aliases=["zone", "Zone", "ZONE"], must_contain=["zone"])
-    eng_col  = _find_col(cols, aliases=["engineer_name", "EngineerName", "Engineer Name", "ENGINEER_NAME"], must_contain=["engineer", "name"])
-
-    where = []
-    params = []
-
-    if zone and zone_col:
-        where.append(f"{_cmp_ci_trim(zone_col)} = UPPER(?)")
-        params.append(zone)
-
-    if (not _is_manager_like(role)) and eng and eng_col:
-        where.append(f"{_cmp_ci_trim(eng_col)} = UPPER(?)")
-        params.append(eng)
-
-    return (" WHERE " + " AND ".join(where)) if where else "", params
-
-
-def _weekly_date_col(cols):
-    """
-    Find Planning/Visit date column from dbo.Planning
-    Your table shows: visit_date
-    """
-    return _find_col(
-        cols,
-        aliases=["visit_date", "VisitDate", "Visit Date", "Planning Date", "PlanningDate", "PLAN_DATE", "Plan Date"],
-        must_contain=["visit", "date"]
-    )
-
-
-def _weekly_visit_type_col(cols):
-    """
-    Find Visit Type column from dbo.Planning
-    Your table shows: visit_type
-    """
-    return _find_col(
-        cols,
-        aliases=["visit_type", "visitType", "VisitType", "Visit Type", "VISIT TYPE"],
-        must_contain=["visit", "type"]
-    )
-
-
-def _weekly_payload_to_db(cols, payload: dict):
-    """
-    payload keys come from form/json
-    We map by normalized matching to dbo.Planning column names.
-    """
-    col_types = _table_column_types(WEEKLY_TABLE)
-    idx = _col_index(cols)
-
-    out = {}
-    for k, raw_val in (payload or {}).items():
-        nk = _norm(k)
-        if nk not in idx:
-            continue
-
-        dbcol = idx[nk]
-        val = _clean_val(raw_val)
-        dtype = (col_types.get(dbcol) or "").lower()
-
-        if dtype in ("date", "datetime", "datetime2", "smalldatetime"):
-            val = _parse_iso_date(val)
-        elif dtype in ("time",):
-            val = _parse_time_any(val)
-        elif dtype in ("int", "bigint", "smallint", "tinyint"):
-            val = _to_int(val)
-        elif dtype in ("decimal", "numeric", "float", "real", "money", "smallmoney"):
-            val = _to_decimal(val)
-
-        out[dbcol] = val
-
-    return out
 
 
 @app.post("/api/weeklyplan")
@@ -1387,7 +1389,12 @@ def api_weeklyplan_save():
     if "user" not in session:
         return jsonify({"ok": False, "error": "unauthorized"}), 401
 
-    payload = request.get_json(force=True) or {}
+    if request.is_json:
+        payload = request.get_json() or {}
+    else:
+        payload = request.form.to_dict() or {}
+        print("WEEKLY PAYLOAD:", payload)
+
 
     cols = _weekly_cols()
     if not cols:
@@ -1450,6 +1457,9 @@ def api_weeklyplan_save():
     except Exception as e:
         return jsonify({"ok": False, "error": f"Weekly Plan save error: {e}"}), 500
     
+    
+
+# ===================== WEEKLY PLAN: LAST WSR AUTO FILL =====================
 
 
 
@@ -1463,19 +1473,63 @@ def _wsr_cols():
     cols = _table_columns(WSR_TABLE)
     return cols or []
 
-
 def _wsr_payload_to_db(cols, payload: dict):
+
     col_types = _table_column_types(WSR_TABLE)
-    idx = _col_index(cols)
+
+    FIELD_MAP = {
+        "zone": "ZONE",
+        "engineer_name": "Engineer Name",
+        "monthYear": "MMM-YY",
+        "serviceReportNo": "Service report Number",
+        "customerName": "Customer name",
+        "location": "Location",
+        "contactPerson": "Contact Person Name",
+        "designation": "Designation",
+        "contactNumber": "Contact Number",
+        "email": "E-mail id",
+        "callLoggedDate": "Call Logged Date",
+        "problemReported": "Problem reported",
+        "machineStatus": "Machine Status",
+        "visitCode1": "Visit Code 1",
+        "visitCode2": "Visit Code 2",
+        "printerModel": "Printer Model",
+        "mcNo": "M/C No",
+        "serialNo": "Serial No",
+        "inkType": "Ink Type",
+        "turnOnTime": "Turn on Time",
+        "printOnTime": "Print on time",
+        "visitDate": "Visit Date",
+        "travelStart": "Travel Start (HH:MM)",
+        "travelEnd": "Travel End (HH:MM)",
+        "travelTime": "TRAVE TIME",
+        "workStart": "Work Start (HH:MM)",
+        "workEnd": "Work End (HH:MM)",
+        "workTime": "WORK TIME",
+        "actionTaken": "Action Taken (in brief)",
+
+        # 🔥 CRITICAL FIX
+        "ink": "INK",
+        "solvent": "Solvent",
+        "cnc": "CNC",
+        "filterKitDue": "Filter Kit Due Date/Hrs",
+        "customerFeedback": "Customer Feedback",
+        "callStatus": "Call Status",
+        "revisitRequired": "Re-visit Required",
+        "serviceEngineerRemarks": "Service Engineer Remarks",
+        "serviceManagerRemarks": "Service Manager Remarks",
+    }
 
     out = {}
-    for k, raw_val in (payload or {}).items():
-        nk = _norm(k)
-        if nk not in idx:
+
+    for form_key, raw_val in payload.items():
+
+        if form_key not in FIELD_MAP:
             continue
 
-        dbcol = idx[nk]
+        dbcol = FIELD_MAP[form_key]
         val = _clean_val(raw_val)
+
         dtype = (col_types.get(dbcol) or "").lower()
 
         if dtype in ("date", "datetime", "datetime2", "smalldatetime"):
@@ -1492,68 +1546,8 @@ def _wsr_payload_to_db(cols, payload: dict):
     return out
 
 
-@app.post("/api/wsr")
-@app.post("/api/wsr/")
-@app.post("/api/wsr/save")
-@app.post("/api/wsr/save/")
-def api_wsr_save():
-    if "user" not in session:
-        return jsonify({"ok": False, "error": "unauthorized"}), 401
-
-    payload = request.get_json(force=True) or {}
-
-    cols = _wsr_cols()
-    if not cols:
-        return jsonify({"ok": False, "error": f"{WSR_TABLE} not found"}), 400
-
-    # ✅ ensure zone/engineer from session (same as your scope rules)
-    payload["zone"] = (session.get("zone") or "").strip()
-    payload["engineername"] = (session.get("engineer") or "").strip()
-    payload["engineer_name"] = (session.get("engineer") or "").strip()
-
-    db_vals = _wsr_payload_to_db(cols, payload)
-
-    try:
-        with get_conn() as conn:
-            cur = conn.cursor()
-
-            insert_cols = []
-            insert_vals = []
-            params = []
-
-            for c in cols:
-                # if identity id exists, skip insert
-                if _norm(c) == "id":
-                    continue
-
-                if c in db_vals:
-                    v = db_vals.get(c)
-                    if v is None:
-                        continue
-                    if isinstance(v, str) and v.strip() == "":
-                        continue
-                    insert_cols.append(_qcol(c))
-                    insert_vals.append("?")
-                    params.append(v)
-
-            if not insert_cols:
-                return jsonify({"ok": False, "error": "No data to insert"}), 400
-
-            sql = f"INSERT INTO {WSR_TABLE} ({', '.join(insert_cols)}) VALUES ({', '.join(insert_vals)})"
-            cur.execute(sql, params)
-            conn.commit()
-
-        return jsonify({"ok": True, "message": "WSR saved!"})
-
-    except Exception as e:
-        return jsonify({"ok": False, "error": f"WSR save error: {e}"}), 500
-
-
-
-# ===================== WSR REPORT VIEW =====================
 
 def _wsr_date_col(cols):
-    # WSR table me visit date ka column
     return _find_col(
         cols,
         aliases=["VisitDate", "Visit Date", "visitDate", "visit_date"],
@@ -1566,6 +1560,80 @@ def _wsr_visit_code1_col(cols):
         aliases=["VisitCode1", "Visit Code 1", "visitCode1", "visit_code1"],
         must_contain=["visit", "code", "1"]
     )
+
+
+
+
+# ===================== WEEKLY PLAN: LAST WSR AUTO FILL =====================
+@app.get("/api/wsr/latest-by-serial")
+@app.get("/api/wsr/latest-by-serial/")
+def api_wsr_latest_by_serial():
+    need = _require_login_json()
+    if need:
+        return need
+
+    serial = (request.args.get("serial") or "").strip()
+    if not serial:
+        return jsonify({"ok": True, "row": {}})
+
+    cols = _table_columns("dbo.WSR")
+    if not cols:
+        return jsonify({"ok": False, "message": "dbo.WSR not found"}), 400
+
+    # find important columns
+    serial_col = _find_col(cols, aliases=["Serial No", "Serial_No", "SERIAL NO"], must_contain=["serial"])
+    visit_date_col = _find_col(cols, aliases=["Visit Date", "VisitDate"], must_contain=["visit", "date"])
+    tot_col = _find_col(cols, aliases=["Turn on Time"], must_contain=["turn"])
+    pot_col = _find_col(cols, aliases=["Print on time"], must_contain=["print"])
+    ink_col = _find_col(cols, aliases=["INK"], must_contain=["ink"])
+    solvent_col = _find_col(cols, aliases=["Solvent"], must_contain=["solvent"])
+    cnc_col = _find_col(cols, aliases=["CNC"], must_contain=["cnc"])
+
+    if not serial_col or not visit_date_col:
+        return jsonify({"ok": False, "message": "Required columns not found in WSR"}), 400
+
+    # ✅ NO ENGINEER / ZONE RESTRICTION
+    where_sql = f" WHERE {_cmp_ci_trim(serial_col)} = UPPER(?)"
+    params = [serial]
+
+    sql = f"""
+        SELECT TOP 1
+            {_qcol(visit_date_col)} AS visit_date,
+            {_qcol(tot_col)} AS last_tot,
+            {_qcol(pot_col)} AS last_pot,
+            {_qcol(ink_col)} AS ink,
+            {_qcol(solvent_col)} AS solvent,
+            {_qcol(cnc_col)} AS cnc
+        FROM dbo.WSR
+        {where_sql}
+        ORDER BY {_qcol(visit_date_col)} DESC
+    """
+
+    try:
+        with get_conn() as conn:
+            cur = conn.cursor()
+            cur.execute(sql, params)
+            r = cur.fetchone()
+
+        if not r:
+            return jsonify({})
+
+        data = {
+            "visit_date": _json_safe(r[0]),
+            "last_tot": _json_safe(r[1]),
+            "last_pot": _json_safe(r[2]),
+            "ink": _json_safe(r[3]),
+            "solvent": _json_safe(r[4]),
+            "cnc": _json_safe(r[5]),
+        }
+
+        return jsonify(data)
+
+    except Exception as e:
+        return jsonify({"ok": False, "message": str(e)}), 500
+
+
+
 
 @app.get("/api/wsr-report")
 @app.get("/api/wsr-report/")
@@ -1736,6 +1804,74 @@ def api_wsr_summary_month():
     except Exception as e:
         return jsonify({"ok": False, "error": f"WSR summary error: {e}"}), 500
 
+# ===================== WSR SAVE =====================
+
+@app.post("/api/wsr")
+@app.post("/api/wsr/")
+def api_wsr_save():
+
+    if "user" not in session:
+        return jsonify({"ok": False, "error": "unauthorized"}), 401
+
+    # ✅ accept both JSON & FormData
+    if request.is_json:
+        payload = request.get_json() or {}
+    else:
+        payload = request.form.to_dict() or {}
+
+    print("WSR PAYLOAD:", payload)
+
+    cols = _wsr_cols()
+    if not cols:
+        return jsonify({"ok": False, "error": "WSR table not found"}), 400
+
+    # ✅ force engineer & zone from session
+    payload["engineer_name"] = (session.get("engineer") or "").strip()
+    payload["zone"] = (session.get("zone") or "").strip()
+
+    db_vals = _wsr_payload_to_db(cols, payload)
+
+    try:
+        with get_conn() as conn:
+            cur = conn.cursor()
+
+            insert_cols = []
+            insert_vals = []
+            params = []
+
+            for c in cols:
+                if _norm(c) == "id":
+                    continue
+
+                if c in db_vals:
+                    v = db_vals.get(c)
+
+                    if v is None:
+                        continue
+                    if isinstance(v, str) and v.strip() == "":
+                        continue
+
+                    insert_cols.append(_qcol(c))
+                    insert_vals.append("?")
+                    params.append(v)
+
+            if not insert_cols:
+                return jsonify({"ok": False, "error": "No data to insert"}), 400
+
+            sql = f"""
+                INSERT INTO {WSR_TABLE}
+                ({', '.join(insert_cols)})
+                VALUES ({', '.join(insert_vals)})
+            """
+
+            cur.execute(sql, params)
+            conn.commit()
+
+        return jsonify({"ok": True, "message": "WSR Saved Successfully"})
+
+    except Exception as e:
+        print("WSR SAVE ERROR:", str(e))
+        return jsonify({"ok": False, "error": str(e)}), 500
 
 
 @app.get("/wsr-report")
