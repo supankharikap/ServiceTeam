@@ -1411,7 +1411,7 @@ async function loadReport(){
       "Location","Contact Person Name","Designation","Contact Number","E-mail id",
       "Call Logged Date","Problem reported","Machine Status","Visit Code 1","Visit Code 2",
       "Printer Model","M/C No","Serial No","Ink Type","Turn on Time","Print on time",
-      "Visit Date","Travel Start (HH:MM)","Travel End (HH:MM)","TRAVE TIME",
+      "Visit Date","Travel Start (HH:MM)","Travel End (HH:MM)","TRAVEL TIME",
       "Work Start (HH:MM)","Work End (HH:MM)","WORK TIME","Action Taken (in brief)",
       "INK","Solvent","CNC","Filter Kit Due Date/Hrs","Customer Feedback","Call Status",
       "Re-visit Required","Service Engineer Remarks","Service Manager Remarks"
@@ -1845,7 +1845,20 @@ function getFilterDueFromRow(r){
     ["filterdue"]
   );
 }
-
+function getClusterCodeFromRow(r){
+  return getField(
+    r,
+    [
+      "Cluster No",      
+      "ClusterNo",
+      "Cluster No.",
+      "Cluster Code",
+      "Cluster",
+      "cluster_no"
+    ],
+    ["cluster"]
+  );
+}
 
 
 // ---------- indices ----------
@@ -2092,6 +2105,8 @@ function setupCascadeForForm(cfg){
     if(cfg.filterKitDueId) setVal(cfg.filterKitDueId, getFilterKitDueFromRow(row));
     if(cfg.amcDueDateId) setVal(cfg.amcDueDateId, getAmcDueDateFromRow(row));
     if(cfg.filterDueId)  setVal(cfg.filterDueId,  getFilterDueFromRow(row));
+    if(cfg.clusterCodeId) setVal(cfg.clusterCodeId, getClusterCodeFromRow(row));
+
 
     // also refresh contact if available
     if(cfg.contactPersonId) setVal(cfg.contactPersonId, getContactPersonFromRow(row));
@@ -2205,7 +2220,9 @@ function setupCascades(){
     printerStatusId: "wp_printerStatus",
     machineStatusId: "wp_printerStatus",
     amcDueDateId: "wp_amcDueDate",
-    filterDueId: "wp_filterDue"
+    filterDueId: "wp_filterDue",
+    clusterCodeId: "wp_clusterCode",
+
 
   });
 
