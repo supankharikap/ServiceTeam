@@ -137,11 +137,13 @@ def main():
 
         # Read DB column names + types
         cur.execute("""
-            SELECT c.name, t.name AS type_name
-            FROM sys.columns c
-            JOIN sys.types t ON c.user_type_id = t.user_type_id
-            WHERE c.object_id = OBJECT_ID('dbo.InstallBase')
+           SELECT c.name, t.name AS type_name
+           FROM sys.columns c
+           JOIN sys.types t ON c.user_type_id = t.user_type_id
+           WHERE c.object_id = OBJECT_ID('dbo.InstallBase')
+           AND c.is_computed = 0
         """)
+
         db_info = cur.fetchall()
         db_cols = {r[0] for r in db_info}
         db_types = {r[0]: str(r[1]).lower() for r in db_info}
@@ -153,6 +155,10 @@ def main():
         for h in df.columns:
             if normalize(h) == "ID":
                 continue
+                # ✅ Skip Filter Days (SQL will calculate / default)
+            if normalize(h) in {"FILTER_DAYS"}:
+              continue
+
             nh = normalize(h)
             chosen = None
             if h in db_cols:
@@ -199,6 +205,13 @@ def main():
             return clean(v)
         
         # 🗑️ FULL REFRESH: delete all old rows
+        #-------------------------------------
+
+        cur.execute("DELETE FROM dbo.InstallBase;")
+        conn.commit()
+        print("🗑️ Deleted old rows from dbo.InstallBase")
+        cur.execute("SELECT COUNT(*) FROM dbo.InstallBase;")
+        print("✅ DB count after delete:", cur.fetchone()[0])
        
 
 
