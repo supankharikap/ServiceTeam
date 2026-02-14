@@ -32,11 +32,7 @@
 
     .donutGrid{margin-top:14px;display:grid;grid-template-columns: 1fr 1fr; gap:12px;}
     .donutCard{background: var(--card);border: 1px solid var(--border);border-radius: var(--radius); box-shadow: var(--shadow); padding:16px;}
-
-    @media (max-width:1100px){
-      .donutGrid{ grid-template-columns: 1fr;}
-    }
-
+    @media (max-width:1100px){ .donutGrid{ grid-template-columns: 1fr;} }
 
     .main{padding:18px 18px 28px;}
     .topbar{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);padding:14px 16px;display:flex;gap:14px;justify-content:space-between;align-items:center;}
@@ -47,7 +43,13 @@
     .pill{padding:8px 10px;border-radius:999px;background:#f1f5ff;border:1px solid #dbe6ff;font-size:13px;}
     .logout{background:#fff;border:1px solid var(--border);padding:8px 12px;border-radius:10px;cursor:pointer;}
 
-    .cards{background-color:#f9f9fa;margin-top:14px;display:grid;grid-template-columns:repeat(4,1fr);gap:12px;}
+    .cards{
+      background-color:transparent;
+      margin-top:14px;
+      display:grid;
+      grid-template-columns:repeat(4,1fr);
+      gap:12px;
+    }
     .card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);padding:14px;}
     .card .kpi{font-size:22px;font-weight:800}
     .card .label{color:var(--muted);font-size:13px;}
@@ -91,7 +93,6 @@
      -webkit-overflow-scrolling:touch;
      margin-bottom:10px;
     }
-
     .searchRow input{
       height:38px;
       padding:0 14px;
@@ -104,20 +105,6 @@
       min-width:0;
       flex:0 0 auto;
     }
-    .searchRow .tb-btn{
-      height:38px;
-      padding:0 12px;
-      border:1px solid var(--border);
-      border-radius:12px;
-      background:#fff;
-      cursor:pointer;
-      font-weight:700;
-      flex:0 0 auto;
-    }
-    .searchRow .tb-export{
-      background:#eaf2ff;
-      border-color:#cfe0ff;
-    }
 
     .suggestBox{
       position:absolute; display:none; background:#fff; border:1px solid #e5e7eb; border-radius:12px;
@@ -128,25 +115,32 @@
     .suggestItem:hover{background:#f8fafc;}
     .suggestItem.loading{cursor:default;color:var(--muted);font-weight:700;}
 
-    .report-toolbar{ display:flex;align-items:center; gap:20px; flex-wrap:nowrap;overflow-x:auto;white-space:nowrap;
+    .report-toolbar{
+      display:flex;align-items:center; gap:20px; flex-wrap:nowrap;overflow-x:auto;white-space:nowrap;
       -webkit-overflow-scrolling:touch;
     }
     .tb-search{height: 38px;padding: 0 14px;border: 1px solid var(--border);border-radius: 999px;font-size: 14px;outline: none;background: #fff;width:10cm; min-width: 0;}
-    .tb-datewrap{display:inline-flex;align-items:center;gap:10px;flex:0 0 auto;}
-    .tb-lbl{font-size:13px;color:var(--muted);font-weight:600;}
-    .tb-export{background:#eaf2ff;border-color:#cfe0ff;}
     .tb-date{height:38px;padding:0 12px;border:1px solid var(--border);border-radius:12px;font-size:14px;outline:none;background:#fff;width:150px;min-width:150px;}
+    .tb-btn{
+      height:38px;
+      padding:0 12px;
+      border:1px solid var(--border);
+      border-radius:12px;
+      background:#fff;
+      cursor:pointer;
+      font-weight:700;
+      flex:0 0 auto;
+    }
+    .tb-export{background:#eaf2ff;border-color:#cfe0ff;}
 
-    /* Users table: Team column chota */
+    /* Users table: Team column small */
     #usercreateSection table th:nth-child(6),
     #usercreateSection table td:nth-child(6){
-    width: 90px;
-    max-width: 90px;
-    text-align: center;
-    white-space: nowrap;
+      width: 90px;
+      max-width: 90px;
+      text-align: center;
+      white-space: nowrap;
     }
-
-
 
     #globalLoadingOverlay{
       position:fixed;
@@ -193,205 +187,30 @@
       table{min-width:1200px}
       .sidebarFooter{position:relative;left:0;right:0;bottom:0;margin-top:12px;}
     }
-    /* ===== Dashboard cards spacing fix ===== */
-    .cards{
-      background-color:transparent;      /* remove grey patch */
-      margin-top:14px;
-      display:grid;
-      grid-template-columns:repeat(4,1fr);
-      gap:12px;
-    }
-    /* ===== Weekly donut card ===== */
-    .weeklyCard{
-      margin-top:14px;
-      padding:16px;
-    }
-    .weeklyTitle{
-      font-size:13px;
-      color:var(--muted);
-      font-weight:700;
-      margin-bottom:10px;
-    }
-    .donutWrap{
-      display:flex;
-      align-items:center;
-      gap:18px;
-      justify-content:flex-start;
-    }
 
-    .donut{
-      width:140px;
-      height:140px;
-      position:relative;
-      flex:0 0 auto;
-    }
-    .donut svg{
-      width:140px;
-      height:140px;
-      display:block;
-    }
-    .donut .centerText{
-      position:absolute;
-      inset:0;
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      flex-direction:column;
-      text-align:center;
-      font-weight:900;
-    }
-    .donut .centerText .pct{
-      font-size:22px;
-      line-height:1.1;
-      color:var(--text);
-    }
-    .donut .centerText .sub{
-      font-size:12px;
-      color:var(--muted);
-      font-weight:700;
-      margin-top:4px;
-    }
-    .donutMeta{
-      display:flex;
-      flex-direction:column;
-      gap:6px;
-      min-width:220px;
-    }
-    .donutMeta .kpi{
-      font-size:28px;
-      font-weight:900;
-      margin:0;
-    }
-    .donutMeta .label{
-      font-size:13px;
-      color:var(--muted);
-      font-weight:700;
-    }
-    /* responsive */
-    @media (max-width:1100px){
-      .donutWrap{flex-direction:column; align-items:flex-start;}
-      .donutMeta{min-width:auto;}
-    }
-
-    /* ===== Weekly donut mini charts (only inside #weeklyDonut) ===== */
-    #weeklyDonut{
-      width:100%;
-      min-height:140px;
-      display:flex;
-      flex-direction:column;
-      gap:10px;
-      align-items:center;
-      justify-content:center;
-    }
-    #weeklyDonut .donutRow{
-      display:flex;
-      gap:18px;
-      align-items:center;
-      justify-content:center;
-      flex-wrap:wrap;
-    }
-    #weeklyDonut .mDonut{
-      width:72px;
-      height:72px;
-      position:relative;
-      flex:0 0 auto;
-    }
-    #weeklyDonut .mDonut .ring{
-      width:72px;
-      height:72px;
-      border-radius:50%;
-      background: conic-gradient(#e5e7eb 0deg 360deg);
-      position:relative;
-    }
-    #weeklyDonut .mDonut .ring::after{
-      content:"";
-      position:absolute;
-      inset:12px;
-      background: var(--card);
-      border-radius:50%;
-      box-shadow: inset 0 0 0 1px var(--border);
-    }
-    #weeklyDonut .mDonut .center{
-      position:absolute;
-      inset:0;
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      font-weight:900;
-      font-size:13px;
-      color: var(--text);
-      z-index:2;
-    }
-    #weeklyDonut .legendRow{
-      display:flex;
-      gap:14px;
-      align-items:center;
-      justify-content:center;
-      flex-wrap:wrap;
-    }
-    #weeklyDonut .legendItem{
-      display:flex;
-      align-items:center;
-      gap:8px;
-      font-size:12px;
-      color: var(--muted);
-      font-weight:700;
-    }
-    #weeklyDonut .legendDot{
-      width:10px;height:10px;border-radius:999px;
-    }
-
-    .donutCanvasBox{
-      position:relative;
-      width:160px;
-      height:160px;
-    }
-    #weeklyDonutChart{
-      width:160px !important;
-      height:160px !important;
-      display:block;
-    }
-    .donutCenter{
-      position:absolute;
-      inset:0;
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      flex-direction:column;
-      pointer-events:none;
-    }
-    .donutCenterBig{
-      font-size:28px;
-      font-weight:900;
-      color:var(--text);
-      line-height:1;
-    }
-    .donutCenterSmall{
-      font-size:12px;
-      font-weight:700;
-      color:var(--muted);
-      margin-top:4px;
-    }
-    /* legend */
-    .legendItem2{display:flex;align-items:center;gap:10px;margin:6px 0;}
-    .legendDot2{width:10px;height:10px;border-radius:999px;display:inline-block;}
-    .legendCount2{margin-left:auto;font-weight:900;color:var(--text);}
-
+    .donutWrap{display:flex;align-items:center;gap:18px;justify-content:flex-start;}
+    .donutMeta{display:flex;flex-direction:column;gap:6px;min-width:220px;}
+    .donutCanvasBox{position:relative;width:160px;height:160px;}
     .cssDonut{
-      width:160px;
-      height:160px;
-      border-radius:50%;
+      width:160px;height:160px;border-radius:50%;
       background: conic-gradient(#e5e7eb 0deg 360deg);
       position:relative;
     }
     .cssDonut::after{
       content:"";
       position:absolute;
-      inset:26px;           /* donut thickness control */
+      inset:26px;
       background: var(--card);
       border-radius:50%;
       box-shadow: inset 0 0 0 1px var(--border);
     }
+    .donutCenter{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;pointer-events:none;}
+    .donutCenterBig{font-size:28px;font-weight:900;color:var(--text);line-height:1;}
+    .donutCenterSmall{font-size:12px;font-weight:700;color:var(--muted);margin-top:4px;}
+
+    .legendItem2{display:flex;align-items:center;gap:10px;margin:6px 0;}
+    .legendDot2{width:10px;height:10px;border-radius:999px;display:inline-block;}
+    .legendCount2{margin-left:auto;font-weight:900;color:var(--text);}
   </style>
 </head>
 
@@ -417,7 +236,7 @@
         <button id="btnDashboard" class="active" data-roles="Admin,Manager,Team Leader,User"
                 onclick="showSection('dashboardSection', this)">🏠 Dashboard</button>
 
-        <button id="btnWsr" data-roles="Manager,Team Leader,User"
+        <button id="btnWsr" data-roles="Admin,Manager,Team Leader,User"
                 onclick="showSection('wsrSection', this)">📚 WSR Report</button>
 
         <button id="btnReport" data-roles="Admin,Manager,Team Leader,User"
@@ -427,10 +246,9 @@
                 onclick="showSection('weeklyPlanSection', this);">📅 Weekly Plan</button>
 
         <button id="btnWeeklyPlanView" data-roles="Admin,Manager,Team Leader,User"
-                onclick="showSection('weeklyWiewPlanSection', this); loadWeeklyPlanReport();">📊 Weekly Plan Report</button>
+                onclick="showSection('weeklyViewPlanSection', this); loadWeeklyPlanReport();">📊 Weekly Plan Report</button>
 
-        <button id="btnMasterView" data-roles="Admin,Manager,Team Leader,User"
-                onclick="showSection('masterSection', this); openMaster();">📂 Master Installbase View</button>
+       
 
         <button id="btnMasterUpdate" data-roles="Admin,Manager,Team Leader" type="button"
                 onclick="window.open('/installbase/update','_blank','noopener');">📝 Master Installbase Update</button>
@@ -439,8 +257,7 @@
                 onclick="showSection('breakdownSection', this);">🛠 Breakdown Login</button>
 
         <button id="btnusercreate" data-roles="Admin"
-        onclick="openUserCreate(this)">👤 User Create</button>
-   
+                onclick="openUserCreate(this)">👤 User Create</button>
       </div>
 
       <div class="sidebarFooter">
@@ -463,15 +280,17 @@
         </div>
       </div>
 
+      <!-- DASHBOARD -->
       <section id="dashboardSection" class="section active">
         <div class="sectionHeader">
           <h2>Overview</h2>
-          <small>Welcome to KGK Service Team </small>
+          <small>Welcome to KGK Service Team</small>
         </div>
 
         <div style="color:var(--muted); line-height:1.6">
           <div class="cards">
-            <div class="card">
+            <div class="card" style="cursor:pointer;"
+              onclick="showSection('masterSection', document.getElementById('btnMasterView')); openMaster();">
               <div class="kpi" id="kpiTotal">—</div>
               <div class="label">Total InstallBase</div>
             </div>
@@ -492,7 +311,9 @@
           ✅ View pending tasks.<br>
           ✅ Use left menu to open WSR Form, Report View, Weekly Plan, Master InstallBase.<br>
           ✅ Updating is in progress.
+
           <div class="donutGrid">
+            <!-- Weekly Plan Donut -->
             <div class="donutWrap donutCard">
               <div class="donutCanvasBox">
                 <div id="weeklyDonutChart" class="cssDonut"></div>
@@ -507,8 +328,9 @@
                 <div id="donutLegend" style="margin-top:10px;"></div>
               </div>
             </div>
-            <!-- WSR DONUT -->
-             <div class="donutWrap donutCard">
+
+            <!-- WSR Donut -->
+            <div class="donutWrap donutCard">
               <div class="donutCanvasBox">
                 <div id="wsrDonutChart" class="cssDonut"></div>
                 <div class="donutCenter">
@@ -526,6 +348,7 @@
         </div>
       </section>
 
+      <!-- MASTER -->
       <section id="masterSection" class="section">
         <div class="sectionHeader">
           <h2>Master InstallBase</h2>
@@ -547,6 +370,7 @@
         <div id="masterTable"></div>
       </section>
 
+      <!-- WEEKLY PLAN FORM -->
       <section id="weeklyPlanSection" class="section">
         <div class="sectionHeader">
           <h2>Weekly Plan</h2>
@@ -557,10 +381,8 @@
           <div class="grid">
             <div><label>Zone</label><input id="wp_zone" name="zone" readonly></div>
             <div><label>Engineer Name</label><input id="wp_engineer" name="engineerName" readonly></div>
-
             <div><label>Cluster Code</label><input id="wp_clusterCode" name="clusterCode"></div>
-
-            <div><label>Planning Date</label><input type="date" name="visit_date" Required></div>
+            <div><label>Planning Date</label><input type="date" name="visit_date" required></div>
 
             <div style="position:relative;">
               <label>Customer Name</label>
@@ -615,7 +437,7 @@
 
             <div>
               <label>Visit Type</label>
-              <select name="visitType"required>
+              <select name="visitType" required>
                 <option value="">--Select--</option>
                 <option>Cluster</option><option>Breakdown</option><option>Sales Support</option><option>Other</option>
               </select>
@@ -650,10 +472,10 @@
               <select name="inkexpiryfollowup"><option value="">--Select--</option><option>YES</option><option>NO</option></select>
             </div>
             <div><label>AMC Follow-up</label>
-              <select name="amcFollowup"><option value="">--Select--</option><option >YES</option><option>NO</option></select>
+              <select name="amcFollowup"><option value="">--Select--</option><option>YES</option><option>NO</option></select>
             </div>
             <div><label>Filter Kit Follow-up</label>
-              <select name="filterKitFollowup"><option value="">--Select--</option><option >YES</option><option>NO</option></select>
+              <select name="filterKitFollowup"><option value="">--Select--</option><option>YES</option><option>NO</option></select>
             </div>
 
             <div><label>Stock Check</label>
@@ -676,11 +498,13 @@
         </form>
       </section>
 
+      <!-- WSR -->
       <section id="wsrSection" class="section">
         <div class="sectionHeader">
           <h2>WSR Report Form</h2>
           <small>Submit service activity</small>
         </div>
+
         <form id="wsrForm">
           <div class="grid">
             <div><label>Zone</label><input id="wsr_zone" name="zone" readonly></div>
@@ -731,7 +555,7 @@
             <div>
               <label>Visit Code 2</label>
               <select id="visitCode2" name="visitCode2" required>
-              <option value="">--Select--</option>
+                <option value="">--Select--</option>
               </select>
             </div>
 
@@ -754,7 +578,7 @@
             <div><label>Turn on Time</label><input name="turnOnTime"></div>
             <div><label>Print on Time</label><input name="printOnTime"></div>
 
-            <div><label>Visit Date</label><input type="date" name="visitDate"required></div>
+            <div><label>Visit Date</label><input type="date" name="visitDate" required></div>
 
             <div><label>Travel Start (HH:MM)</label><input type="time" name="travelStart"></div>
             <div><label>Travel End (HH:MM)</label><input type="time" name="travelEnd"></div>
@@ -798,18 +622,16 @@
         </form>
       </section>
 
+      <!-- REPORT VIEW -->
       <section id="reportSection" class="section">
         <div class="sectionHeader">
           <h2>Report View</h2>
-          <small> WSR Total  • Rows: <b id="reportRowCount">0</b></small>
+          <small> WSR Total • Rows: <b id="reportRowCount">0</b></small>
         </div>
         <div class="report-toolbar">
-          <input id="reportSearch" class="tb-search"
-          placeholder="Search report (customer / MMM-YY / engineer / zone...)"
-          autocomplete="off">
+          <input id="reportSearch" class="tb-search" placeholder="Search report (customer / MMM-YY / engineer / zone...)" autocomplete="off">
           <label>From</label><input type="date" class="tb-date" id="fromDate">
           <label>To</label><input type="date" class="tb-date" id="toDate">
-
           <button class="tb-btn" onclick="reportDoSearch()">🔎 Search</button>
           <button class="tb-btn" onclick="reportClear()">✖ Clear</button>
           <button class="tb-btn" onclick="loadReport()">🔄 Refresh</button>
@@ -825,6 +647,7 @@
         </div>
       </section>
 
+      <!-- BREAKDOWN -->
       <section id="breakdownSection" class="section">
         <div class="sectionHeader">
           <h2>Breakdown Login</h2>
@@ -835,15 +658,14 @@
         </div>
       </section>
 
-      <section id="weeklyWiewPlanSection" class="section">
+      <!-- WEEKLY PLAN REPORT -->
+      <section id="weeklyViewPlanSection" class="section">
         <div class="sectionHeader">
           <h2>Weekly Plan Report</h2>
           <small>Weekly Plan • Rows: <b id="wpRowCount">0</b></small>
         </div>
         <div class="report-toolbar">
-          <input id="wpReportSearch" class="tb-search"
-          placeholder="Search weekly plan (customer / engineer / zone / serial / location...)"
-          autocomplete="off">
+          <input id="wpReportSearch" class="tb-search" placeholder="Search weekly plan (customer / engineer / zone / serial / location...)" autocomplete="off">
           <label>From</label><input type="date" class="tb-date" id="wpFromDate">
           <label>To</label><input type="date" class="tb-date" id="wpToDate">
           <button class="tb-btn" onclick="wpReportDoSearch()">🔎 Search</button>
@@ -860,35 +682,42 @@
         </div>
       </section>
 
-
+      <!-- USER CREATE -->
       <section id="usercreateSection" class="section">
-
         <h2>User Create</h2>
-        <form onsubmit="createUser(event)" class="card">
+
+        <form onsubmit="createUser(event)" class="card" style="display:grid;gap:10px;grid-template-columns:repeat(2,1fr);">
           <input id="cuUsername" placeholder="Username" required>
           <input id="cuFullName" placeholder="Full Name" required>
+
           <select id="cuZone" required>
             <option value="EAST">EAST</option>
             <option value="WEST">WEST</option>
             <option value="NORTH">NORTH</option>
             <option value="SOUTH">SOUTH</option>
           </select>
+
           <select id="cuRole" required>
             <option value="User">User</option>
             <option value="Team Leader">Team Leader</option>
             <option value="Manager">Manager</option>
             <option value="Admin">Admin</option>
           </select>
+
           <input id="cuTeam" placeholder="Team (E3/All/B1 etc)" required>
           <input id="cuPassword" placeholder="Password" type="password" required>
-          <button type="submit">Create User</button>
+
+          <button type="submit" style="grid-column:1/-1;padding:10px;border-radius:12px;border:1px solid var(--border);font-weight:800;cursor:pointer;">
+            Create User
+          </button>
         </form>
+
         <h3 style="margin-top:18px;">Users List</h3>
         <table border="1" width="100%">
           <thead>
             <tr>
               <th>UserId</th><th>Username</th><th>FullName</th><th>Zone</th>
-              <th>Role</th><th>Team</th><th>Password</th><th>Active</th><th>CreatedAt</th><th>Action</th>
+              <th>Role</th><th>Team</th><th>Active</th><th>CreatedAt</th><th>Action</th>
             </tr>
           </thead>
           <tbody id="usersTableBody"></tbody>
@@ -896,94 +725,8 @@
       </section>
     </main>
   </div>
-  <script>
-  
-  // ----- LOAD USERS TABLE -----
-  async function loadUsers(){
-    const tbody = document.querySelector("#usersTableBody");
-    tbody.innerHTML = `<tr><td colspan="10">Loading...</td></tr>`;
-    const res = await fetch("/api/users");
-    const data = await res.json();
-    tbody.innerHTML = "";
-    data.forEach(u => {
-      const tr = document.createElement("tr");
-      tr.innerHTML = `
-      <td>${u.UserId}</td>
-      <td>${u.Username}</td>
-      <td>${u.FullName}</td>
-      <td>${u.Zone}</td>
-      <td>${u.RoleName}</td>
-      <td>${u.Team}</td>
-      <td>${u.Password || ""}</td>
-      <td>${u.IsActive ? "True" : "False"}</td>
-      <td>${u.CreatedAt || ""}</td>
-      <td>
-        <button onclick="toggleActive(${u.UserId}, ${u.IsActive ? "false" : "true"})">
-          ${u.IsActive ? "Deactivate" : "Activate"}
-        </button>
-      </td>
-      `;
-      tbody.appendChild(tr);
-    });
-  }
 
-  // ----- CREATE USER -----
-  async function createUser(e){
-    e.preventDefault();
-
-    const payload = {
-      Username: document.getElementById("cuUsername").value.trim(),
-      FullName: document.getElementById("cuFullName").value.trim(),
-      Zone: document.getElementById("cuZone").value,
-      RoleName: document.getElementById("cuRole").value,
-      Team: document.getElementById("cuTeam").value,
-      Password: document.getElementById("cuPassword").value
-    };
-
-    const res = await fetch("/api/users", {
-      method: "POST",
-      headers: {"Content-Type":"application/json"},
-      body: JSON.stringify(payload)
-    });
-
-    const out = await res.json();
-    alert(out.message || "Done");
-
-    if(res.ok){
-      e.target.reset();
-      loadUsers();
-    }
-  }
-
-  // ----- ACTIVE TOGGLE -----
-  async function toggleActive(userId, newState){
-    const res = await fetch(`/api/users/${userId}/active`, {
-      method: "PATCH",
-      headers: {"Content-Type":"application/json"},
-      body: JSON.stringify({IsActive: newState})
-    });
-    const out = await res.json();
-    alert(out.message || "Updated");
-    if(res.ok) loadUsers();
-  }
-
-  const _abortMap = new Map();
-function abortPrev(key){
-  const c = _abortMap.get(key);
-  if(c) c.abort();
-  const nc = new AbortController();
-  _abortMap.set(key, nc);
-  return nc;
-}
-function debounce(fn, ms=200){
-  let t=null;
-
-  return (...args)=>{
-    clearTimeout(t);
-    t=setTimeout(()=>fn(...args), ms);
-  };
-}
-
+<script>
 /* ===========================
    SERVER VARIABLES
 =========================== */
@@ -991,26 +734,19 @@ const SERVER_ENGINEER = "{{ engineer|e }}";
 const SERVER_ZONE = "{{ zone|e }}";
 const SERVER_ROLENAME = "{{ role|e }}";
 const SERVER_TEAM = "{{ team|e }}";
-function isUserRole(){
-  return (SERVER_ROLENAME || "").trim().toLowerCase() === "user";
-}
-
 
 /* ===========================
-   LOADING OVERLAY (CENTER)
+   LOADING OVERLAY
 =========================== */
 const _gOverlay = document.getElementById("globalLoadingOverlay");
 const _gText = document.getElementById("globalLoadingText");
 let _loadingCount = 0;
-
 function showLoading(msg="Loading..."){
-  if(!_gOverlay || !_gText) return;
   _loadingCount++;
   _gText.textContent = msg || "Loading...";
   _gOverlay.style.display = "flex";
 }
 function hideLoading(){
-  if(!_gOverlay || !_gText) return;
   _loadingCount = Math.max(0, _loadingCount - 1);
   if(_loadingCount === 0){
     _gOverlay.style.display = "none";
@@ -1019,7 +755,7 @@ function hideLoading(){
 }
 
 /* ===========================
-   UTILITIES (SAFE)
+   UTILITIES
 =========================== */
 function escapeHtml(v){
   if (v === null || v === undefined) return "";
@@ -1036,8 +772,6 @@ function uniq(arr){
 function normVal(v){
   return String(v ?? "").trim().toLowerCase().replace(/\s+/g, " ");
 }
-
-/* ========= SUPER ROBUST FIELD MAPPING ========= */
 function normKey(k){
   return String(k||"")
     .toLowerCase()
@@ -1077,32 +811,15 @@ function getFieldContains(row, patterns){
   return "";
 }
 function getField(row, keys, containsPatterns){
-  return (
-    getFieldExactOrNorm(row, keys || []) ||
-    getFieldContains(row, containsPatterns || []) ||
-    ""
-  );
+  return getFieldExactOrNorm(row, keys || []) || getFieldContains(row, containsPatterns || []) || "";
 }
-
-/* ✅ IMPORTANT: LOCATION ONLY */
-function getLocationFromRow(r){
-  return getField(r, ["LOCATION","Location","location"], ["location"]);
-}
-function getModelFromRow(r){
-  return getField(r, ["Model","MODEL","model"], ["model"]);
-}
+function getLocationFromRow(r){ return getField(r, ["LOCATION","Location","location"], ["location"]); }
+function getModelFromRow(r){ return getField(r, ["Model","MODEL","model"], ["model"]); }
 function getSerialFromRow(r){
   return getField(r,
     ["Serial No.","Serial No","SERIAL NO.","Serial","serialNo","serial_no","srNo","sr_no"],
     ["serial","srno","serialno"]
   );
-}
-
-function setWsrValByName(name, val){
-  const form = document.getElementById("wsrForm");
-  if(!form) return;
-  const el = form.querySelector(`[name="${name}"]`);
-  if(el) el.value = (val ?? "");
 }
 
 /* ===========================
@@ -1147,6 +864,14 @@ function refillReadonly(){
 /* ===========================
    MONTH YEAR (WSR)
 =========================== */
+function formatMMMYY(yyyy_mm){
+  if (!yyyy_mm) return "";
+  const [y,m] = yyyy_mm.split("-");
+  const months = ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"];
+  const mon = months[(parseInt(m,10)||1)-1] || "JAN";
+  const yy = String(y).slice(-2);
+  return `${mon}-${yy}`;
+}
 function setupMonthYear(){
   const pick = document.getElementById("monthYearPick");
   const out  = document.getElementById("monthYearText");
@@ -1158,17 +883,7 @@ function setupMonthYear(){
   pick.value = `${yy}-${mm}`;
   out.value = formatMMMYY(pick.value);
 
-  pick.addEventListener("change", ()=>{
-    out.value = formatMMMYY(pick.value);
-  });
-}
-function formatMMMYY(yyyy_mm){
-  if (!yyyy_mm) return "";
-  const [y,m] = yyyy_mm.split("-");
-  const months = ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"];
-  const mon = months[(parseInt(m,10)||1)-1] || "JAN";
-  const yy = String(y).slice(-2);
-  return `${mon}-${yy}`;
+  pick.addEventListener("change", ()=> out.value = formatMMMYY(pick.value));
 }
 
 /* ===========================
@@ -1187,6 +902,68 @@ function loadKpis(){
     })
     .catch(()=>{})
     .finally(()=> hideLoading());
+}
+
+/* ===========================
+   USERS (SECURE: NO PASSWORD COLUMN)
+=========================== */
+async function loadUsers(){
+  const tbody = document.querySelector("#usersTableBody");
+  tbody.innerHTML = `<tr><td colspan="9">Loading...</td></tr>`;
+  const res = await fetch("/api/users");
+  const data = await res.json();
+  tbody.innerHTML = "";
+  data.forEach(u => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${u.UserId}</td>
+      <td>${escapeHtml(u.Username)}</td>
+      <td>${escapeHtml(u.FullName)}</td>
+      <td>${escapeHtml(u.Zone)}</td>
+      <td>${escapeHtml(u.RoleName)}</td>
+      <td>${escapeHtml(u.Team)}</td>
+      <td>${u.IsActive ? "True" : "False"}</td>
+      <td>${escapeHtml(u.CreatedAt || "")}</td>
+      <td>
+        <button onclick="toggleActive(${u.UserId}, ${u.IsActive ? "false" : "true"})">
+          ${u.IsActive ? "Deactivate" : "Activate"}
+        </button>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+async function createUser(e){
+  e.preventDefault();
+  const payload = {
+    Username: document.getElementById("cuUsername").value.trim(),
+    FullName: document.getElementById("cuFullName").value.trim(),
+    Zone: document.getElementById("cuZone").value,
+    RoleName: document.getElementById("cuRole").value,
+    Team: document.getElementById("cuTeam").value,
+    Password: document.getElementById("cuPassword").value
+  };
+  const res = await fetch("/api/users", {
+    method: "POST",
+    headers: {"Content-Type":"application/json"},
+    body: JSON.stringify(payload)
+  });
+  const out = await res.json();
+  alert(out.message || "Done");
+  if(res.ok){
+    e.target.reset();
+    loadUsers();
+  }
+}
+async function toggleActive(userId, newState){
+  const res = await fetch(`/api/users/${userId}/active`, {
+    method: "PATCH",
+    headers: {"Content-Type":"application/json"},
+    body: JSON.stringify({IsActive: newState})
+  });
+  const out = await res.json();
+  alert(out.message || "Updated");
+  if(res.ok) loadUsers();
 }
 
 /* ===========================
@@ -1215,520 +992,183 @@ document.addEventListener("change", (e)=>{
 });
 
 /* ===========================
-   SUGGEST COMMON HELPERS
+   DONUT HELPERS (ONE CLEAN VERSION)
 =========================== */
-function hideSuggest(id){
-  const box = document.getElementById(id);
-  if (!box) return;
-  box.style.display = "none";
-  box.innerHTML = "";
-}
-document.addEventListener("click", (e)=>{
-  if (!e.target.closest("#masterSearch") && !e.target.closest("#masterSuggest")) hideSuggest("masterSuggest");
-  if (!e.target.closest("#reportSearch") && !e.target.closest("#reportSuggest")) hideSuggest("reportSuggest");
-
-  if (!e.target.closest("#wsrCustomer") && !e.target.closest("#customerSuggest")) hideSuggest("customerSuggest");
-  if (!e.target.closest("#wpCustomer") && !e.target.closest("#wpCustomerSuggest")) hideSuggest("wpCustomerSuggest");
-
-  if (!e.target.closest("#wsr_location") && !e.target.closest("#wsrLocationSuggest")) hideSuggest("wsrLocationSuggest");
-  if (!e.target.closest("#wsr_printerModel") && !e.target.closest("#wsrModelSuggest")) hideSuggest("wsrModelSuggest");
-  if (!e.target.closest("#wsr_serialNo") && !e.target.closest("#wsrSerialSuggest")) hideSuggest("wsrSerialSuggest");
-
-  if (!e.target.closest("#wp_location") && !e.target.closest("#wpLocationSuggest")) hideSuggest("wpLocationSuggest");
-  if (!e.target.closest("#wp_printerModel") && !e.target.closest("#wpModelSuggest")) hideSuggest("wpModelSuggest");
-  if (!e.target.closest("#wp_serialNo") && !e.target.closest("#wpSerialSuggest")) hideSuggest("wpSerialSuggest");
-});
-
-async function fetchCustomerSuggest(q){
-  const res = await fetch("/api/installbase/customer_suggest?q=" + encodeURIComponent(q || ""));
-  const data = await res.json();
-  return (data.items || []).slice(0, 12);
-}
-
-/* ===========================
-   ✅ ONE SINGLE setupListSuggest
-=========================== */
-function setupListSuggest({ inputId, boxId, getList, onPick }){
-  const inp = document.getElementById(inputId);
-  const box = document.getElementById(boxId);
-  if(!inp || !box) return;
-
-  let t = null;
-
-  function render(items){
-    const clean = (items || []).map(x => String(x||"").trim()).filter(Boolean);
-    if(!clean.length){ hideSuggest(boxId); return; }
-    box.innerHTML = clean
-      .slice(0, 30)
-      .map(v => `<div class="suggestItem" data-v="${escapeHtml(v)}">${escapeHtml(v)}</div>`)
-      .join("");
-    box.style.display = "block";
+const VISIT_TYPE_COLOR = {
+  "Cluster": "#1a73e8",
+  "Breakdown": "#e53935",
+  "Sales Support": "#2e7d32",
+  "Other": "#8e24aa"
+};
+function renderCssDonutTo(elId, labels, values){
+  const total = values.reduce((a,b)=>a+b,0);
+  const ring = document.getElementById(elId);
+  if(!ring) return;
+  if(total <= 0){
+    ring.style.background = "conic-gradient(#e5e7eb 0deg 360deg)";
+    return;
   }
-
-  function openAll(){ render(getList()); }
-
-  function filterNow(){
-    const q = (inp.value || "").trim().toLowerCase();
-    const all = (getList() || []).map(x => String(x||"").trim()).filter(Boolean);
-    if(q.length === 0){ render(all); return; }
-    render(all.filter(v => v.toLowerCase().includes(q)));
-  }
-
-  function scheduleFilter(){
-    clearTimeout(t);
-    t = setTimeout(filterNow, 80);
-  }
-
-  inp.addEventListener("focus", openAll);
-  inp.addEventListener("click", openAll);
-  inp.addEventListener("input", scheduleFilter);
-
-  inp.addEventListener("keydown", (e)=>{
-    if(e.key === "Enter"){
-      const first = box.querySelector(".suggestItem");
-      if(first){
-        e.preventDefault();
-        const v = first.getAttribute("data-v") || "";
-        inp.value = v;
-        hideSuggest(boxId);
-        if(onPick) onPick(v);
-      }
-    }
-    if(e.key === "ArrowDown"){ openAll(); }
+  let acc = 0;
+  const parts = labels.map((l,i)=>{
+    const v = Number(values[i]||0);
+    const start = (acc/total)*360;
+    acc += v;
+    const end = (acc/total)*360;
+    const color = VISIT_TYPE_COLOR[l] || "#64748b";
+    return `${color} ${start}deg ${end}deg`;
   });
+  ring.style.background = `conic-gradient(${parts.join(",")})`;
+}
+function renderLegendTo(hostId, labels, colors, values, onClick){
+  const host = document.getElementById(hostId);
+  if(!host) return;
+  host.innerHTML = "";
+  labels.forEach((name, i)=>{
+    const row = document.createElement("div");
+    row.className = "legendItem2";
+    row.style.cursor = "pointer";
 
-  box.addEventListener("click", (e)=>{
-    const it = e.target.closest(".suggestItem");
-    if(!it) return;
-    const v = it.getAttribute("data-v") || "";
-    inp.value = v;
-    hideSuggest(boxId);
-    if(onPick) onPick(v);
-  });
-
-  // ✅ generic blur: only hide its own box
-  inp.addEventListener("blur", ()=>{
-    setTimeout(()=> hideSuggest(boxId), 200);
+    row.innerHTML = `
+      <span class="legendDot2" style="background:${colors[i]}"></span>
+      <span>${name}</span>
+      <span class="legendCount2">${values[i]}</span>
+    `;
+    if(onClick) row.addEventListener("click", ()=> onClick(name));
+    host.appendChild(row);
   });
 }
 
 /* ===========================
-   WSR: CASCADE
+   WEEKLY DONUT (±7 days) -> OPEN REPORT IN SAME PAGE
 =========================== */
-let _wsrRowsCache = [];
+function openWeekly14Days(type){
+  const pad = n => String(n).padStart(2,'0');
+  const today = new Date();
+  const fromD = new Date(today); fromD.setDate(fromD.getDate() - 7);
+  const toD   = new Date(today); toD.setDate(toD.getDate() + 7);
 
-function resetWsrCascades(){
-  _wsrRowsCache = [];
-  const loc = document.getElementById("wsr_location");
-  const mod = document.getElementById("wsr_printerModel");
-  const ser = document.getElementById("wsr_serialNo");
-  if(loc) loc.value = "";
-  if(mod) mod.value = "";
-  if(ser) ser.value = "";
-  hideSuggest("wsrLocationSuggest");
-  hideSuggest("wsrModelSuggest");
-  hideSuggest("wsrSerialSuggest");
+  const from = `${fromD.getFullYear()}-${pad(fromD.getMonth()+1)}-${pad(fromD.getDate())}`;
+  const to   = `${toD.getFullYear()}-${pad(toD.getMonth()+1)}-${pad(toD.getDate())}`;
+
+  const btn = document.getElementById("btnWeeklyPlanView");
+  showSection("weeklyViewPlanSection", btn);
+
+  const s = document.getElementById("wpReportSearch");
+  const f = document.getElementById("wpFromDate");
+  const t = document.getElementById("wpToDate");
+
+  if(s) s.value = type;
+  if(f) f.value = from;
+  if(t) t.value = to;
+
+  loadWeeklyPlanReport();
 }
 
-function fillWsrBaseFieldsFromRow(row){
-  setWsrValByName("contactPerson", getField(row,
-    ["Contact Person1","Contact Person 1","contactPerson1","contact_person1","contactPerson","contact_person","Contact Person Name","Contact Person"],
-    ["contactperson1","contactperson","contact person"]
-  ));
-  setWsrValByName("designation", getField(row, ["Designation","designation","Designation (1)"], ["designation"]));
-  setWsrValByName("contactNumber", getField(row,
-    ["Contact No.","Contact No","Contact No. (1)","Contact Number","contactNumber","contact_no","Phone","phone","mobile"],
-    ["contactno","contact number","phone","mobile"]
-  ));
-  setWsrValByName("email", getField(row,
-    ["Email Id","Email Id (1)","E-mail id","email","Email","emailId","email_id"],
-    ["email","e-mail","emailid","mailid"]
-  ));
-}
-
-function fillWsrAfterSerial(row){
-  setWsrValByName("machineStatus", getField(row,
-    ["Mc Status","Machine Status","machineStatus","mc_status","Active Status"],
-    ["mcstatus","machinestatus","status","active"]
-  ));
-  setWsrValByName("inkType", getField(row,
-    ["Ink type","Ink Type","inkType","ink_type"],
-    ["inktype","ink type","ink"]
-  ));
-  setWsrValByName("mcNo", getField(row,
-    ["M/C No","MC No","mcNo","mc_no","Machine No","Machine Number"],
-    ["mcno","m/cno","machine"]
-  ));
-}
-
-function wsrFilteredByLocation(){
-  const locVal = normVal(document.getElementById("wsr_location")?.value);
-  return (_wsrRowsCache || []).filter(r => normVal(getLocationFromRow(r)) === locVal);
-}
-function wsrFilteredByLocModel(){
-  const locVal = normVal(document.getElementById("wsr_location")?.value);
-  const modelVal = normVal(document.getElementById("wsr_printerModel")?.value);
-  return (_wsrRowsCache || []).filter(r =>
-    normVal(getLocationFromRow(r)) === locVal &&
-    normVal(getModelFromRow(r)) === modelVal
-  );
-}
-
-function onWsrLocationPicked(){
-  const mod = document.getElementById("wsr_printerModel");
-  const ser = document.getElementById("wsr_serialNo");
-  if(mod) mod.value = "";
-  if(ser) ser.value = "";
-  hideSuggest("wsrModelSuggest");
-  hideSuggest("wsrSerialSuggest");
-}
-function onWsrModelPicked(){
-  const ser = document.getElementById("wsr_serialNo");
-  if(ser) ser.value = "";
-  hideSuggest("wsrSerialSuggest");
-}
-function onWsrSerialPicked(){
-  const loc = normVal(document.getElementById("wsr_location")?.value);
-  const model = normVal(document.getElementById("wsr_printerModel")?.value);
-  const serial = normVal(document.getElementById("wsr_serialNo")?.value);
-
-  const row = (_wsrRowsCache || []).find(r =>
-    normVal(getLocationFromRow(r)) === loc &&
-    normVal(getModelFromRow(r)) === model &&
-    normVal(getSerialFromRow(r)) === serial
-  );
-
-  if(row){
-    fillWsrBaseFieldsFromRow(row);
-    fillWsrAfterSerial(row);
-  }
-}
-
-async function loadWsrCustomer(customer){
-  if (!customer) return;
-  showLoading("Loading customer data...");
+async function loadWeeklyDonut(){
+  showLoading("Loading 14 days plan...");
   try{
-    const res = await fetch("/api/installbase/rows?customer=" + encodeURIComponent(customer));
+    const res = await fetch("/api/weeklyplan/summary");
     const data = await res.json();
-    if (!res.ok || !data.ok) return;
 
-    const rows = data.rows || [];
-    _wsrRowsCache = rows;
+    const by = data.by_type || {};
+    const labels = ["Cluster","Breakdown","Sales Support","Other"];
+    const values = [
+      Number(by.cluster || 0),
+      Number(by.breakdown || 0),
+      Number(by.sales_support || 0),
+      Number(by.other || 0),
+    ];
+    const total = Number(data.total14 ?? values.reduce((a,b)=>a+b,0));
 
-    if(rows.length){
-      fillWsrBaseFieldsFromRow(rows[0]);
-    }
+    document.getElementById("donutTotal").textContent = total;
 
-    const locEl = document.getElementById("wsr_location");
-    const modEl = document.getElementById("wsr_printerModel");
-    const serEl = document.getElementById("wsr_serialNo");
-
-    if(locEl) locEl.value = "";
-    if(modEl) modEl.value = "";
-    if(serEl) serEl.value = "";
-
-    if(rows.length && locEl){
-      const allLocs = uniq(rows.map(getLocationFromRow));
-      if(allLocs.length === 1){
-        locEl.value = allLocs[0];
-        onWsrLocationPicked();
-      }
-    }
-
-    if(rows.length && modEl){
-      const modelsForLoc = uniq(wsrFilteredByLocation().map(getModelFromRow));
-      if(modelsForLoc.length === 1){
-        modEl.value = modelsForLoc[0];
-        onWsrModelPicked();
-      }
-    }
-
+    renderCssDonutTo("weeklyDonutChart", labels, values);
+    renderLegendTo("donutLegend",
+      labels,
+      labels.map(l => VISIT_TYPE_COLOR[l] || "#64748b"),
+      values,
+      (vtype)=> openWeekly14Days(vtype)
+    );
   }catch(e){
-    console.log("WSR load customer error:", e);
+    document.getElementById("donutTotal").textContent = "0";
+    renderCssDonutTo("weeklyDonutChart", ["Cluster","Breakdown","Sales Support","Other"], [0,0,0,0]);
+    renderLegendTo("donutLegend",
+      ["Cluster","Breakdown","Sales Support","Other"],
+      ["#1a73e8","#e53935","#2e7d32","#8e24aa"],
+      [0,0,0,0],
+      (vtype)=> openWeekly14Days(vtype)
+    );
   }finally{
     hideLoading();
   }
 }
 
-/* WSR customer suggest */
-function setupCustomerSuggest(){
-  const inp = document.getElementById("wsrCustomer");
-  const box = document.getElementById("customerSuggest");
-  if (!inp || !box) return;
-
-  let t = null;
-
-  async function updateSuggest(){
-    const q = (inp.value || "").trim();
-    if (q.length < 1){ hideSuggest("customerSuggest"); return; }
-    box.innerHTML = `<div class="suggestItem loading">Loading...</div>`;
-    box.style.display = "block";
-    try{
-      const items = await fetchCustomerSuggest(q);
-      if (!items.length){ hideSuggest("customerSuggest"); return; }
-      box.innerHTML = items
-        .map(v => `<div class="suggestItem" data-v="${escapeHtml(v)}">${escapeHtml(v)}</div>`)
-        .join("");
-      box.style.display = "block";
-    }catch{
-      hideSuggest("customerSuggest");
-    }
-  }
-
-  function schedule(){
-    clearTimeout(t);
-    t = setTimeout(updateSuggest, 150);
-  }
-
-  inp.addEventListener("focus", schedule);
-  inp.addEventListener("input", schedule);
-
-  inp.addEventListener("keydown", (e)=>{
-    if (e.key === "Enter"){
-      const first = box.querySelector(".suggestItem:not(.loading)");
-      if (first){
-        e.preventDefault();
-        const v = first.getAttribute("data-v") || "";
-        inp.value = v;
-        hideSuggest("customerSuggest");
-        resetWsrCascades();
-        loadWsrCustomer(v);
-      }
-    }
-  });
-
-  box.addEventListener("click", (e)=>{
-    const it = e.target.closest(".suggestItem");
-    if (!it || it.classList.contains("loading")) return;
-    const v = it.getAttribute("data-v") || "";
-    inp.value = v;
-    hideSuggest("customerSuggest");
-    resetWsrCascades();
-    loadWsrCustomer(v);
-  });
-
-  // ✅ blur: if user typed and left field, still load customer
-  inp.addEventListener("blur", ()=>{
-    setTimeout(()=>{
-      hideSuggest("customerSuggest");
-      const v = (inp.value || "").trim();
-      if(v){
-        resetWsrCascades();
-        loadWsrCustomer(v);
-      }
-    }, 200);
-  });
-}
-
 /* ===========================
-   WEEKLY PLAN: CASCADE
+   WSR DONUT (CURRENT MONTH)
 =========================== */
-let _wpRowsCache = [];
+function applyWsrVisitTypeFilter(visitType){
+  const MAP = {
+    "Cluster": "CLUSTER",
+    "Breakdown": "BREAKDOWN",
+    "Sales Support": "SALES SUPPORTS",
+    "Other": "OTHERS TEC"
+  };
 
-function resetWpCascades(){
-  _wpRowsCache = [];
-  const loc = document.getElementById("wp_location");
-  const mod = document.getElementById("wp_printerModel");
-  const ser = document.getElementById("wp_serialNo");
-  const ps  = document.getElementById("wp_printerStatus");
-  if(loc) loc.value = "";
-  if(mod) mod.value = "";
-  if(ser) ser.value = "";
-  if(ps)  ps.value = "";
-  hideSuggest("wpLocationSuggest");
-  hideSuggest("wpModelSuggest");
-  hideSuggest("wpSerialSuggest");
+  const code = MAP[visitType] || visitType;
+
+  const pad = n => String(n).padStart(2,'0');
+  const now = new Date();
+
+  // current month range
+  const fromD = new Date(now.getFullYear(), now.getMonth(), 1);
+  const toD   = new Date(now.getFullYear(), now.getMonth()+1, 0);
+
+  const from = `${fromD.getFullYear()}-${pad(fromD.getMonth()+1)}-${pad(fromD.getDate())}`;
+  const to   = `${toD.getFullYear()}-${pad(toD.getMonth()+1)}-${pad(toD.getDate())}`;
+
+  // ✅ Flask route open
+  const url =
+    `${window.location.origin}/wsr-report` +
+    `?visitType=${encodeURIComponent(code)}` +
+    `&from=${encodeURIComponent(from)}` +
+    `&to=${encodeURIComponent(to)}`;
+
+  window.open(url, "_blank", "noopener,noreferrer");
 }
 
-function fillWeeklyBaseFieldsFromRow(row){
-  const cp = document.getElementById("wp_contactPerson");
-  const ph = document.getElementById("wp_phoneNumber");
-  const em = document.getElementById("wp_email");
-  if(cp) cp.value = getField(row,
-    ["Contact Person1","Contact Person 1","contactPerson1","contact_person1","contactPerson","contact_person","Contact Person Name","Contact Person"],
-    ["contactperson1","contactperson","contact person"]
-  );
-  if(ph) ph.value = getField(row,
-    ["Contact No.","Contact No","Contact Number","contactNumber","contact_no","Phone","phone","mobile"],
-    ["contactno","contact number","phone","mobile"]
-  );
-  if(em) em.value = getField(row,
-    ["Email Id","E-mail id","email","Email","emailId","email_id"],
-    ["email","e-mail","emailid","mailid"]
-  );
-}
-
-function fillWeeklyAfterSerial(row){
-  const ps = document.getElementById("wp_printerStatus");
-  if(ps){
-    ps.value = getField(row, ["Mc Status","Machine Status","printerStatus","status","mc_status"], ["status","mcstatus"]);
-  }
-  const cc = document.getElementById("wp_clusterCode");
-  if(cc && !cc.value){
-    cc.value = getField(row, ["Cluster No","Cluster No.","Cluster Code","clusterCode","cluster_code"], ["cluster"]);
-  }
-}
-
-function wpFilteredByLocation(){
-  const locVal = normVal(document.getElementById("wp_location")?.value);
-  return (_wpRowsCache || []).filter(r => normVal(getLocationFromRow(r)) === locVal);
-}
-function wpFilteredByLocModel(){
-  const locVal = normVal(document.getElementById("wp_location")?.value);
-  const modelVal = normVal(document.getElementById("wp_printerModel")?.value);
-  return (_wpRowsCache || []).filter(r =>
-    normVal(getLocationFromRow(r)) === locVal &&
-    normVal(getModelFromRow(r)) === modelVal
-  );
-}
-
-function onWpLocationPicked(){
-  const mod = document.getElementById("wp_printerModel");
-  const ser = document.getElementById("wp_serialNo");
-  if(mod) mod.value = "";
-  if(ser) ser.value = "";
-  hideSuggest("wpModelSuggest");
-  hideSuggest("wpSerialSuggest");
-}
-function onWpModelPicked(){
-  const ser = document.getElementById("wp_serialNo");
-  if(ser) ser.value = "";
-  hideSuggest("wpSerialSuggest");
-}
-function onWpSerialPicked(){
-  const loc = normVal(document.getElementById("wp_location")?.value);
-  const model = normVal(document.getElementById("wp_printerModel")?.value);
-  const serial = normVal(document.getElementById("wp_serialNo")?.value);
-
-  const row = (_wpRowsCache || []).find(r =>
-    normVal(getLocationFromRow(r)) === loc &&
-    normVal(getModelFromRow(r)) === model &&
-    normVal(getSerialFromRow(r)) === serial
-  );
-
-  if(row){
-    fillWeeklyBaseFieldsFromRow(row);
-    fillWeeklyAfterSerial(row);
-  }
-}
-
-async function loadWpCustomer(customer){
-  if (!customer) return;
-  showLoading("Loading customer data...");
+async function loadWsrDonutMonth(){
+  showLoading("Loading WSR this month...");
   try{
-    const res = await fetch("/api/installbase/rows?customer=" + encodeURIComponent(customer));
+    const res = await fetch("/api/wsr/summary_month");
     const data = await res.json();
-    if (!res.ok || !data.ok) return;
 
-    const rows = data.rows || [];
-    _wpRowsCache = rows;
+    const counts = data.counts || {};
+    const labels = ["Cluster","Breakdown","Sales Support","Other"];
+    const values = labels.map(l => Number(counts[l] || 0));
+    const total = Number(data.total || values.reduce((a,b)=>a+b,0));
 
-    if(rows.length){
-      fillWeeklyBaseFieldsFromRow(rows[0]);
-    }
+    document.getElementById("wsrDonutTotal").textContent = total;
 
-    const locEl = document.getElementById("wp_location");
-    const modEl = document.getElementById("wp_printerModel");
-    const serEl = document.getElementById("wp_serialNo");
-
-    if(locEl) locEl.value = "";
-    if(modEl) modEl.value = "";
-    if(serEl) serEl.value = "";
-
-    if(rows.length && locEl){
-      const allLocs = uniq(rows.map(getLocationFromRow));
-      if(allLocs.length === 1){
-        locEl.value = allLocs[0];
-        onWpLocationPicked();
-      }
-    }
-
-    if(rows.length && modEl){
-      const modelsForLoc = uniq(wpFilteredByLocation().map(getModelFromRow));
-      if(modelsForLoc.length === 1){
-        modEl.value = modelsForLoc[0];
-        onWpModelPicked();
-      }
-    }
+    renderCssDonutTo("wsrDonutChart", labels, values);
+    renderLegendTo("wsrDonutLegend",
+      labels,
+      labels.map(l => VISIT_TYPE_COLOR[l] || "#64748b"),
+      values,
+      (vtype)=> applyWsrVisitTypeFilter(vtype)
+    );
   }catch(e){
-    console.log("WP load customer error:", e);
+    document.getElementById("wsrDonutTotal").textContent = "0";
   }finally{
     hideLoading();
   }
 }
 
-/* Weekly customer suggest */
-function setupWeeklyCustomerSuggest(){
-  const inp = document.getElementById("wpCustomer");
-  const box = document.getElementById("wpCustomerSuggest");
-  if (!inp || !box) return;
-
-  let t = null;
-
-  async function updateSuggest(){
-    const q = (inp.value || "").trim();
-    if (q.length < 1){ hideSuggest("wpCustomerSuggest"); return; }
-    box.innerHTML = `<div class="suggestItem loading">Loading...</div>`;
-    box.style.display = "block";
-    try{
-      const items = await fetchCustomerSuggest(q);
-      if (!items.length){ hideSuggest("wpCustomerSuggest"); return; }
-      box.innerHTML = items
-        .map(v => `<div class="suggestItem" data-v="${escapeHtml(v)}">${escapeHtml(v)}</div>`)
-        .join("");
-      box.style.display = "block";
-    }catch{
-      hideSuggest("wpCustomerSuggest");
-    }
-  }
-
-  function schedule(){
-    clearTimeout(t);
-    t = setTimeout(updateSuggest, 150);
-  }
-
-  inp.addEventListener("focus", schedule);
-  inp.addEventListener("input", schedule);
-
-  inp.addEventListener("keydown", (e)=>{
-    if (e.key === "Enter"){
-      const first = box.querySelector(".suggestItem:not(.loading)");
-      if (first){
-        e.preventDefault();
-        const v = first.getAttribute("data-v") || "";
-        inp.value = v;
-        hideSuggest("wpCustomerSuggest");
-        resetWpCascades();
-        loadWpCustomer(v);
-      }
-    }
-  });
-
-  box.addEventListener("click", (e)=>{
-    const it = e.target.closest(".suggestItem");
-    if (!it || it.classList.contains("loading")) return;
-    const v = it.getAttribute("data-v") || "";
-    inp.value = v;
-    hideSuggest("wpCustomerSuggest");
-    resetWpCascades();
-    loadWpCustomer(v);
-  });
-
-  inp.addEventListener("blur", ()=>{
-    setTimeout(()=>{
-      hideSuggest("wpCustomerSuggest");
-      const v = (inp.value || "").trim();
-      if(v){
-        resetWpCascades();
-        loadWpCustomer(v);
-      }
-    }, 200);
-  });
-}
-
 /* ===========================
-   MASTER VIEW (unchanged)
+   REPORT VIEW + WEEKLY REPORT
+   (Your original API calls)
+   NOTE: KEEP SAME AS YOUR BACKEND EXPECTS
 =========================== */
+
 function renderTable(columns, rows) {
   if (!rows || rows.length === 0) return "<div>No data found</div>";
   const th = columns.map(c => `<th>${escapeHtml(c)}</th>`).join("");
@@ -1745,6 +1185,7 @@ function renderTable(columns, rows) {
     </div>
   `;
 }
+
 async function openMaster(){
   const hint = document.getElementById("masterHint");
   const holder = document.getElementById("masterTable");
@@ -1776,20 +1217,14 @@ async function openMaster(){
   }
 }
 function masterDoSearch(){ openMaster(); }
-
-function reportClear(){
-  const s = document.getElementById("reportSearch");
-  const f = document.getElementById("fromDate");
-  const t = document.getElementById("toDate");
-  if(s) s.value = "";
-  if(f) f.value = "";
-  if(t) t.value = "";
-  hideSuggest("reportSuggest");
-  loadReport();
+function masterClear(){
+  const ms = document.getElementById("masterSearch");
+  if(ms) ms.value = "";
+  openMaster();
 }
 
+/* WEEKLY PLAN REPORT */
 function wpReportDoSearch(){ loadWeeklyPlanReport(); }
-
 function wpReportClear(){
   const s = document.getElementById("wpReportSearch");
   const f = document.getElementById("wpFromDate");
@@ -1799,7 +1234,6 @@ function wpReportClear(){
   if(t) t.value = "";
   loadWeeklyPlanReport();
 }
-
 async function loadWeeklyPlanReport(){
   const errBox = document.getElementById("wpReportErr");
   if(errBox) errBox.textContent = "";
@@ -1825,10 +1259,8 @@ async function loadWeeklyPlanReport(){
     }
 
     const table = document.getElementById("wpReportTable");
-    if(!table) return;
     const thead = table.querySelector("thead");
     const tbody = table.querySelector("tbody");
-    if(!thead || !tbody) return;
     thead.innerHTML = "";
     tbody.innerHTML = "";
 
@@ -1844,10 +1276,8 @@ async function loadWeeklyPlanReport(){
     });
     thead.appendChild(trh);
 
-      
     const rc = document.getElementById("wpRowCount");
     if(rc) rc.textContent = String(rows.length || 0);
-
 
     rows.forEach(r=>{
       const tr = document.createElement("tr");
@@ -1865,70 +1295,15 @@ async function loadWeeklyPlanReport(){
   }
 }
 
-function masterClear(){
-  const ms = document.getElementById("masterSearch");
-  if(ms) ms.value = "";
-  hideSuggest("masterSuggest");
-  openMaster();
-}
-
-/* master search listeners (null safe) */
-
-const _ms = document.getElementById("masterSearch");
-if(_ms){
-  _ms.addEventListener("input", debounce(async (e)=>{
-    const q = (e.target.value || "").trim();
-    const box = document.getElementById("masterSuggest");
-    if(!box) return;
-
-    if (q.length < 2){ hideSuggest("masterSuggest"); return; }
-
-    box.innerHTML = `<div class="suggestItem loading">Loading...</div>`;
-    box.style.display = "block";
-
-    try{
-      const ac = abortPrev("masterSuggest");
-      const res = await fetch("/api/master/installbase/suggest?q=" + encodeURIComponent(q), { signal: ac.signal });
-      const data = await res.json();
-      const items = data.items || [];
-      if (!items.length){ hideSuggest("masterSuggest"); return; }
-
-      box.innerHTML = items
-        .map(v => `<div class="suggestItem" data-v="${escapeHtml(v)}">${escapeHtml(v)}</div>`)
-        .join("");
-      box.style.display = "block";
-    }catch{
-      hideSuggest("masterSuggest");
-    }
-  }, 250));
-}
-
-const _msBox = document.getElementById("masterSuggest");
-if(_msBox){
-  _msBox.addEventListener("click", (e)=>{
-    const it = e.target.closest(".suggestItem");
-    if (!it || it.classList.contains("loading")) return;
-    const ms = document.getElementById("masterSearch");
-    if(ms) ms.value = it.getAttribute("data-v") || "";
-    hideSuggest("masterSuggest");
-    openMaster();
-  });
-}
-
-/* ===========================
-   REPORT (unchanged)
-=========================== */
-function reportDoSearch(){ loadReport(); }
-
+/* REPORT VIEW */
 async function loadReport(){
   const errBox = document.getElementById("reportErr");
   if(errBox) errBox.textContent = "";
-  
 
   const q = (document.getElementById("reportSearch")?.value || "").trim();
   const from = document.getElementById("fromDate")?.value || "";
   const to   = document.getElementById("toDate")?.value || "";
-  
+
   const params = new URLSearchParams();
   params.set("limit","2000");
   if(q) params.set("q", q);
@@ -1938,7 +1313,6 @@ async function loadReport(){
   showLoading("Loading report...");
   try{
     const res = await fetch("/api/wsr-report?" + params.toString());
-
     const data = await res.json();
 
     if (!res.ok || data.error){
@@ -1946,19 +1320,84 @@ async function loadReport(){
       return;
     }
 
-    
-
-
     const thead = document.querySelector("#dataTable thead");
     const tbody = document.querySelector("#dataTable tbody");
     if(!thead || !tbody) return;
     thead.innerHTML = "";
     tbody.innerHTML = "";
 
-    const cols = data.columns || [];
-    const rows = data.rows || [];
-    if (!cols.length) return;
+    // ✅ normalize helper (super important for matching)
+    function norm(s){
+      return String(s || "").toLowerCase().replace(/[^a-z0-9]+/g,"");
+    }
 
+    const apiCols = Array.isArray(data.columns) ? data.columns : [];
+    const rows    = Array.isArray(data.rows) ? data.rows : [];
+
+    // ✅ YOUR REQUIRED SERIAL ORDER (exact list)
+    const desired = [
+      "ID",
+      "ZONE",
+      "Engineer Name",
+      "MMM-YY",
+      "Service report Number",
+      "Customer name",
+      "Location",
+      "Contact Person Name",
+      "Designation",
+      "Contact Number",
+      "E-mail id",
+      "Call Logged Date",
+      "Problem reported",
+      "Machine Status",
+      "Visit Code 1",
+      "Visit Code 2",
+      "Printer Model",
+      "M/C No",
+      "Serial No",
+      "Ink Type",
+      "Turn on Time",
+      "Print on time",
+      "Visit Date",
+      "Travel Start (HH:MM)",
+      "Travel End (HH:MM)",
+      "TRAVE TIME",
+      "Work Start (HH:MM)",
+      "Work End (HH:MM)",
+      "WORK TIME",
+      "Action Taken (in brief)",
+      "INK",
+      "Solvent",
+      "CNC",
+      "Filter Kit Due Date/Hrs",
+      "Customer Feedback",
+      "Call Status",
+      "Re-visit Required",
+      "Service Engineer Remarks",
+      "Service Manager Remarks"
+    ];
+
+    // ✅ map api column names by normalized key
+    const apiColsNorm = new Map(apiCols.map(c => [norm(c), c]));
+
+    // ✅ desired order but only those present in API
+    const desiredActual = desired
+      .map(d => apiColsNorm.get(norm(d)))
+      .filter(Boolean);
+
+    // ✅ remaining columns (if any) at end
+    const remaining = apiCols.filter(c => !desiredActual.includes(c));
+
+    // ✅ final columns order
+    const cols = [...desiredActual, ...remaining];
+
+    // ✅ if API sent nothing
+    if(!cols.length){
+      if(errBox) errBox.textContent = "No columns from API";
+      return;
+    }
+
+    // header render
     const trh = document.createElement("tr");
     cols.forEach(h=>{
       const th = document.createElement("th");
@@ -1966,10 +1405,12 @@ async function loadReport(){
       trh.appendChild(th);
     });
     thead.appendChild(trh);
+
+    // row count
     const rc = document.getElementById("reportRowCount");
     if(rc) rc.textContent = String(rows.length || 0);
 
-
+    // body render
     rows.forEach(r=>{
       const tr = document.createElement("tr");
       cols.forEach(c=>{
@@ -1979,6 +1420,7 @@ async function loadReport(){
       });
       tbody.appendChild(tr);
     });
+
   }catch(e){
     if(errBox) errBox.textContent = String(e);
   }finally{
@@ -1986,87 +1428,164 @@ async function loadReport(){
   }
 }
 
-/* ===========================
-   ✅✅ WSR SUBMIT
-=========================== */
-const _wsrForm = document.getElementById("wsrForm");
-if(_wsrForm){
-  _wsrForm.addEventListener("submit", function(e){
-    e.preventDefault();
-    const form = e.target;
-    const data = Object.fromEntries(new FormData(form).entries());
 
-    data.engineerName = SERVER_ENGINEER || "";
-    data.zone = SERVER_ZONE || "";
+/* EXPORTS (same as your logic) */
+async function exportMaster(){
+  const q = (document.getElementById("masterSearch")?.value || "").trim();
 
-    showLoading("Saving WSR...");
-    fetch("/api/wsr", {
-      method: "POST",
-      headers: {"Content-Type":"application/json"},
-      body: JSON.stringify(data)
-    })
-    .then(async (r) => {
-      let res = {};
-      try { res = await r.json(); } catch {}
-      if(!r.ok){
-        const msg = res.error || res.message || ("HTTP " + r.status);
-        throw new Error(msg);
-      }
-      return res;
-    })
-    .then(res => {
-      alert(res.message || "Saved");
-      if (res.ok){
-        form.reset();
-        refillReadonly();
-        resetWsrCascades();
-        loadReport();
-      }
-    })
-    .catch((err)=> alert("WSR Save Failed: " + (err?.message || err)))
-    .finally(()=> hideLoading());
-  });
+  const params = new URLSearchParams();
+  params.set("limit","5000");
+  if(q) params.set("q", q);
+
+  showLoading("Exporting master...");
+  try{
+    const res = await fetch("/api/master/installbase?" + params.toString());
+    const data = await res.json();
+    if(!res.ok || data.error) throw new Error(data.error || "Export failed");
+
+    const cols = data.columns || [];
+    const rows = data.rows || [];
+
+    const fname = `InstallBase_${q ? "search" : "all"}.csv`;
+    downloadCSV(fname, cols, rows);
+  }catch(e){
+    alert(String(e));
+  }finally{
+    hideLoading();
+  }
 }
 
-/* ===========================
-   ✅✅ WEEKLY PLAN SUBMIT
-=========================== */
-const _wpForm = document.getElementById("weeklyPlanForm");
-if(_wpForm){
-  _wpForm.addEventListener("submit", function(e){
-    e.preventDefault();
-    const form = e.target;
-    const data = Object.fromEntries(new FormData(form).entries());
 
-    data.engineerName = SERVER_ENGINEER || "";
-    data.zone = SERVER_ZONE || "";
+function downloadCSV(filename, columns, rows){
+  const esc = (v)=>{
+    const s = String(v ?? "");
+    // CSV escape: wrap in quotes if contains comma/quote/newline
+    if (/[",\n\r]/.test(s)) return `"${s.replaceAll('"','""')}"`;
+    return s;
+  };
 
-    showLoading("Saving Weekly Plan...");
-    fetch("/api/weeklyplan", {
-      method: "POST",
-      headers: {"Content-Type":"application/json"},
-      body: JSON.stringify(data)
-    })
-    .then(async (r) => {
-      let res = {};
-      try { res = await r.json(); } catch {}
-      if(!r.ok){
-        const msg = res.error || res.message || ("HTTP " + r.status);
-        throw new Error(msg);
-      }
-      return res;
-    })
-    .then(res => {
-      alert(res.message || "Saved");
-      if(res.ok){
-        form.reset();
-        refillReadonly();
-        resetWpCascades();
-      }
-    })
-    .catch((err)=> alert("Weekly Plan Save Failed: " + (err?.message || err)))
-    .finally(()=> hideLoading());
+  const lines = [];
+  lines.push(columns.map(esc).join(","));
+  rows.forEach(r=>{
+    lines.push(columns.map(c => esc(r[c])).join(","));
   });
+
+  // UTF-8 BOM so Excel opens properly
+  const csv = "\ufeff" + lines.join("\r\n");
+  const blob = new Blob([csv], {type:"text/csv;charset=utf-8"});
+  const url = URL.createObjectURL(blob);
+
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+async function exportReport(){
+  const q = (document.getElementById("reportSearch")?.value || "").trim();
+  const from = document.getElementById("fromDate")?.value || "";
+  const to   = document.getElementById("toDate")?.value || "";
+
+  const params = new URLSearchParams();
+  params.set("limit","5000");
+  if(q) params.set("q", q);
+  if(from) params.set("from", from);
+  if(to) params.set("to", to);
+
+  showLoading("Exporting report...");
+  try{
+    const res = await fetch("/api/wsr-report?" + params.toString());
+    const data = await res.json();
+    if(!res.ok || data.error) throw new Error(data.error || "Export failed");
+
+    // ✅ normalize helper (same like loadReport)
+    function norm(s){
+      return String(s || "").toLowerCase().replace(/[^a-z0-9]+/g,"");
+    }
+
+    const apiCols = Array.isArray(data.columns) ? data.columns : [];
+    const rows    = Array.isArray(data.rows) ? data.rows : [];
+
+    // ✅ same required order (IMPORTANT: TRAVEL TIME spelling)
+    const desired = [
+      "ID","ZONE","Engineer Name","MMM-YY","Service report Number","Customer name",
+      "Location","Contact Person Name","Designation","Contact Number","E-mail id",
+      "Call Logged Date","Problem reported","Machine Status","Visit Code 1","Visit Code 2",
+      "Printer Model","M/C No","Serial No","Ink Type","Turn on Time","Print on time",
+      "Visit Date","Travel Start (HH:MM)","Travel End (HH:MM)","TRAVEL TIME",
+      "Work Start (HH:MM)","Work End (HH:MM)","WORK TIME","Action Taken (in brief)",
+      "INK","Solvent","CNC","Filter Kit Due Date/Hrs","Customer Feedback","Call Status",
+      "Re-visit Required","Service Engineer Remarks","Service Manager Remarks"
+    ];
+
+    const apiColsNorm = new Map(apiCols.map(c => [norm(c), c]));
+    const desiredActual = desired.map(d => apiColsNorm.get(norm(d))).filter(Boolean);
+
+    // ✅ STRICT export (only desired columns)
+    const cols = desiredActual;
+
+    const fname = `WSR_Report_${from || "ALL"}_to_${to || "ALL"}.csv`;
+    downloadCSV(fname, cols, rows);
+
+  }catch(e){
+    alert(String(e));
+  }finally{
+    hideLoading();
+  }
+}
+
+async function exportWeeklyPlanReport(){
+  const q = (document.getElementById("wpReportSearch")?.value || "").trim();
+  const from = document.getElementById("wpFromDate")?.value || "";
+  const to   = document.getElementById("wpToDate")?.value || "";
+
+  const params = new URLSearchParams();
+  params.set("limit","5000");
+  if(q) params.set("q", q);
+  if(from) params.set("from", from);
+  if(to) params.set("to", to);
+
+  showLoading("Exporting weekly plan...");
+  try{
+    const res = await fetch("/api/weeklyplan/report?" + params.toString());
+    const data = await res.json();
+    if(!res.ok || data.error) throw new Error(data.error || "Export failed");
+
+    // ✅ OPTIONAL: order fix (same as report)
+    function norm(s){ return String(s||"").toLowerCase().replace(/[^a-z0-9]+/g,""); }
+
+    const apiCols = Array.isArray(data.columns) ? data.columns : [];
+    const rows    = Array.isArray(data.rows) ? data.rows : [];
+
+    // ✅ Put your preferred WeeklyPlan column order here
+    // (If you don't care order, just use apiCols)
+    const desired = [
+      "zone","engineerName","clusterCode","visit_date","customerName","location",
+      "contactPerson","phoneNumber","email","localOutstation","distance_km",
+      "mode_of_transport","expectedExpense","printerModel","printer_sr_no",
+      "printerStatus","visitType","lastVisitDate","tot","pot","ink","solvent","cnc",
+      "amcDueDate","filterDue","smsExpiry","outstandingAmount","filterChange",
+      "smsUpdate","paymentCollected","inkexpiryfollowup","amcFollowup",
+      "filterKitFollowup","stockCheck","other","visitCompleteDate","remarks"
+    ];
+
+    const map = new Map(apiCols.map(c => [norm(c), c]));
+    const desiredActual = desired.map(d => map.get(norm(d))).filter(Boolean);
+
+    // strict order if matches found else fallback
+    const cols = desiredActual.length ? desiredActual : apiCols;
+
+    const fname = `WeeklyPlan_${from || "ALL"}_to_${to || "ALL"}.csv`;
+    downloadCSV(fname, cols, rows);
+
+  }catch(e){
+    alert(String(e));
+  }finally{
+    hideLoading();
+  }
 }
 
 /* ===========================
@@ -2080,722 +1599,23 @@ window.onload = function(){
 
   if(engName) engName.textContent = SERVER_ENGINEER || "-";
   if(zoneName) zoneName.textContent = SERVER_ZONE || "-";
-
-  // ✅ only change here
   if(sbEngineer) sbEngineer.textContent = SERVER_ENGINEER || "-";
-
   if(sbZone) sbZone.textContent = SERVER_TEAM || "-";
+
   refillReadonly();
-  
-
   setupMonthYear();
-  loadWeeklyDonut();   // real API
-
+  loadWeeklyDonut();
   loadKpis();
   applyRoleAccess(SERVER_ROLENAME);
   fillVisitCode2();
-  loadWsrDonutMonth();   // ✅ WSR donut (This Month)
-
-
-
-  setupCustomerSuggest();
-  setupWeeklyCustomerSuggest();
-
-  setupListSuggest({
-    inputId:"wsr_location",
-    boxId:"wsrLocationSuggest",
-    getList: ()=> uniq((_wsrRowsCache||[]).map(getLocationFromRow)),
-    onPick: ()=> onWsrLocationPicked()
-  });
-  setupListSuggest({
-    inputId:"wsr_printerModel",
-    boxId:"wsrModelSuggest",
-    getList: ()=> uniq(wsrFilteredByLocation().map(getModelFromRow)),
-    onPick: ()=> onWsrModelPicked()
-  });
-  setupListSuggest({
-    inputId:"wsr_serialNo",
-    boxId:"wsrSerialSuggest",
-    getList: ()=> uniq(wsrFilteredByLocModel().map(getSerialFromRow)),
-    onPick: ()=> onWsrSerialPicked()
-  });
-
-  setupListSuggest({
-    inputId:"wp_location",
-    boxId:"wpLocationSuggest",
-    getList: ()=> uniq((_wpRowsCache||[]).map(getLocationFromRow)),
-    onPick: ()=> onWpLocationPicked()
-  });
-  setupListSuggest({
-    inputId:"wp_printerModel",
-    boxId:"wpModelSuggest",
-    getList: ()=> uniq(wpFilteredByLocation().map(getModelFromRow)),
-    onPick: ()=> onWpModelPicked()
-  });
-  setupListSuggest({
-    inputId:"wp_serialNo",
-    boxId:"wpSerialSuggest",
-    getList: ()=> uniq(wpFilteredByLocModel().map(getSerialFromRow)),
-    onPick: (v)=> {
-      onWpSerialPicked();
-      fillBySerial(v);
-    }
-  });
-
-
-  (function openReportIfQuery(){
-    const p = new URLSearchParams(location.search);
-    const open = p.get("open");
-    const visitType = p.get("visitType") || "";
-    const from = p.get("from") || "";
-    const to = p.get("to") || "";
-
-    if(open === "report"){
-      const btn = document.getElementById("btnReport");
-      showSection("reportSection", btn);
-
-      const s = document.getElementById("reportSearch");
-      const f = document.getElementById("fromDate");
-      const t = document.getElementById("toDate");
-
-      if(s) s.value = visitType;
-      if(f) f.value = from;
-      if(t) t.value = to;
-      loadReport();
-    }
-  })();
-
-
-  resetWsrCascades();
-  resetWpCascades();
+  loadWsrDonutMonth();
 };
-
-
-
-/* ===========================
-   AUTO TIME CALC (unchanged)
-=========================== */
-(function () {
-  function toMinutes(hhmm){
-    if(!hhmm) return null;
-    const p = hhmm.split(":");
-    if(p.length !== 2) return null;
-    const h = parseInt(p[0],10);
-    const m = parseInt(p[1],10);
-    if(isNaN(h) || isNaN(m)) return null;
-    return h * 60 + m;
-  }
-  function formatMinutes(mins){
-    const h = Math.floor(mins / 60);
-    const m = mins % 60;
-    return String(h).padStart(2,"0") + ":" + String(m).padStart(2,"0");
-  }
-  function diffTime(start, end){
-    const s = toMinutes(start);
-    const e = toMinutes(end);
-    if(s === null || e === null) return "";
-    let d = e - s;
-    if(d < 0) d += 1440;
-    return formatMinutes(d);
-  }
-  function bind(startName, endName, outName){
-    const s = document.querySelector(`[name="${startName}"]`);
-    const e = document.querySelector(`[name="${endName}"]`);
-    const o = document.querySelector(`[name="${outName}"]`);
-    if(!s || !e || !o) return;
-
-    o.readOnly = true;
-    const calc = () => { o.value = diffTime(s.value, e.value); };
-    s.addEventListener("input", calc);
-    e.addEventListener("input", calc);
-  }
-  document.addEventListener("DOMContentLoaded", function(){
-    bind("travelStart", "travelEnd", "travelTime");
-    bind("workStart", "workEnd", "workTime");
-  });
-})();
-
-/* ✅ Serial details auto fill (FAST) */
-
-const _serialCache = new Map();        // serial -> data
-let _serialAbortCtrl = null;           // abort previous fetch
-
-async function fillBySerial(serial) {
-  serial = (serial || "").trim();
-  if (!serial) return;
-
-  // ✅ cache hit (instant fill)
-  if (_serialCache.has(serial)) {
-    applySerialData(_serialCache.get(serial));
-    return;
-  }
-
-  // ✅ abort previous request if user changes quickly
-  if (_serialAbortCtrl) _serialAbortCtrl.abort();
-  _serialAbortCtrl = new AbortController();
-
-  try {
-    // optional: overlay mat dikhao, ya delayed dikhao
-    // showLoading("Loading serial details...");
-
-    const res = await fetch(
-      `/api/serial/details?serial=${encodeURIComponent(serial)}`,
-      { signal: _serialAbortCtrl.signal }
-    );
-
-    const data = await res.json();
-    if (!data || !data.ok) return;
-
-    _serialCache.set(serial, data);
-    applySerialData(data);
-
-  } catch (e) {
-    if (e?.name === "AbortError") return; // ignore abort
-    console.log("fillBySerial error:", e);
-  } finally {
-    // hideLoading();
-  }
-}
-
-function applySerialData(data){
-  const wsr = data.wsr || {};
-  const ib  = data.installbase || {};
-
-  const lastVisit = document.querySelector(`[name="lastVisitDate"]`);
-  if (lastVisit) lastVisit.value = wsr.last_visit_date || "";
-
-  const tot = document.querySelector(`[name="tot"]`);
-  if (tot) tot.value = wsr.tot || "";
-
-  const pot = document.querySelector(`[name="pot"]`);
-  if (pot) pot.value = wsr.pot || "";
-
-  const ink = document.querySelector(`[name="ink"]`);
-  if (ink) ink.value = wsr.ink || "";
-
-  const solvent = document.querySelector(`[name="solvent"]`);
-  if (solvent) solvent.value = wsr.solvent || "";
-
-  const cnc = document.querySelector(`[name="cnc"]`);
-  if (cnc) cnc.value = wsr.cnc || "";
-
-  const filterDue = document.querySelector(`[name="filterDue"]`);
-  if (filterDue) filterDue.value = ib.filter_due || "";
-
-  const amcDue = document.querySelector(`[name="amcDueDate"]`);
-  if (amcDue) amcDue.value = ib.amc_due || "";
-}
-
-function exportMaster(){
-  const wrap = document.getElementById("masterTable");
-  const table = wrap ? wrap.querySelector("table") : null;
-
-  if(!table){
-    alert("No data to export!");
-    return;
-  }
-
-  const csvEscape = (val) => {
-    const s = String(val ?? "");
-    if (/[",\n\r]/.test(s)) return `"${s.replace(/"/g,'""')}"`;
-    return s;
-  };
-
-  const out = [];
-  const theadRow = table.querySelector("thead tr");
-  if(!theadRow){
-    alert("No data to export!");
-    return;
-  }
-
-  const headers = Array.from(theadRow.querySelectorAll("th")).map(th => th.innerText.trim());
-  out.push(headers.map(csvEscape).join(","));
-
-  table.querySelectorAll("tbody tr").forEach(tr=>{
-    const cols = Array.from(tr.querySelectorAll("td")).map(td => td.innerText.trim());
-    out.push(cols.map(csvEscape).join(","));
-  });
-
-  if(out.length <= 1){
-    alert("No rows to export!");
-    return;
-  }
-
-  const csv = "\uFEFF" + out.join("\r\n");
-  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-  const url = URL.createObjectURL(blob);
-
-  const filename = "InstallBase_View.csv";
-
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  URL.revokeObjectURL(url);
-}
-
-function exportReport(){
-  const table = document.getElementById("dataTable");
-  if(!table){
-    alert("Table not found!");
-    return;
-  }
-
-  const q = (document.getElementById("reportSearch")?.value || "").trim();
-  const from = document.getElementById("fromDate")?.value || "";
-  const to   = document.getElementById("toDate")?.value || "";
-
-  const csvEscape = (val) => {
-    const s = String(val ?? "");
-    if (/[",\n\r]/.test(s)) return `"${s.replace(/"/g,'""')}"`;
-    return s;
-  };
-
-  const rows = [];
-  const theadRow = table.querySelector("thead tr");
-  if(!theadRow){
-    alert("No data to export!");
-    return;
-  }
-
-  const headers = Array.from(theadRow.querySelectorAll("th")).map(th => th.innerText.trim());
-  rows.push(headers.map(csvEscape).join(","));
-
-  const bodyRows = table.querySelectorAll("tbody tr");
-  bodyRows.forEach(tr=>{
-    const cols = Array.from(tr.querySelectorAll("td")).map(td => td.innerText.trim());
-    rows.push(cols.map(csvEscape).join(","));
-  });
-
-  if(rows.length <= 1){
-    alert("No rows to export!");
-    return;
-  }
-
-  const csv = "\uFEFF" + rows.join("\r\n");
-  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-  const url = URL.createObjectURL(blob);
-
-  const safe = (s) => String(s || "").replace(/[^\w\-]+/g, "_");
-  const nameParts = ["WSR_Report"];
-  if(from) nameParts.push("From_" + from);
-  if(to) nameParts.push("To_" + to);
-  if(q) nameParts.push("Q_" + safe(q).slice(0,30));
-  const filename = nameParts.join("_") + ".csv";
-
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  URL.revokeObjectURL(url);
-}
-
-function exportWeeklyPlanReport(){
-  const table = document.getElementById("wpReportTable");
-  if(!table){
-    alert("Weekly Plan table not found!");
-    return;
-  }
-
-  const theadRow = table.querySelector("thead tr");
-  if(!theadRow){
-    alert("No data to export!");
-    return;
-  }
-
-  const csvEscape = (val) => {
-    const s = String(val ?? "");
-    if (/[",\n\r]/.test(s)) return `"${s.replace(/"/g,'""')}"`;
-    return s;
-  };
-
-  const rows = [];
-  const headers = Array.from(theadRow.querySelectorAll("th")).map(th => th.innerText.trim());
-  rows.push(headers.map(csvEscape).join(","));
-
-  const bodyRows = table.querySelectorAll("tbody tr");
-  bodyRows.forEach(tr=>{
-    const cols = Array.from(tr.querySelectorAll("td")).map(td => td.innerText.trim());
-    rows.push(cols.map(csvEscape).join(","));
-  });
-
-  if(rows.length <= 1){
-    alert("No rows to export!");
-    return;
-  }
-
-  const q = (document.getElementById("wpReportSearch")?.value || "").trim();
-  const from = document.getElementById("wpFromDate")?.value || "";
-  const to   = document.getElementById("wpToDate")?.value || "";
-
-  const safe = (s) => String(s || "").replace(/[^\w\-]+/g, "_");
-
-  const nameParts = ["WeeklyPlan_Report"];
-  if(from) nameParts.push("From_" + from);
-  if(to)   nameParts.push("To_" + to);
-  if(q)    nameParts.push("Q_" + safe(q).slice(0,30));
-  const filename = nameParts.join("_") + ".csv";
-
-  const csv = "\uFEFF" + rows.join("\r\n");
-  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-  const url = URL.createObjectURL(blob);
-
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  URL.revokeObjectURL(url);
-}
-
-function renderMiniDonutsInWeeklyDonut(items){
-  const host = document.getElementById("weeklyDonut");
-  if(!host) return;
-  const clean = (items || []);
-  const total = clean.reduce((s,it)=> s + Number(it?.value||0), 0);
-  if(total === 0){
-    host.innerHTML = `
-      <div style="display:flex;align-items:center;justify-content:center;height:140px;color:var(--muted);font-weight:800;">
-        No plan ±7 Days
-      </div>`;
-      return;
-  }
-
-  host.innerHTML = `<div class="donutRow"></div><div class="legendRow"></div>`;
-  const row = host.querySelector(".donutRow");
-  const leg = host.querySelector(".legendRow");
-
-  clean.forEach(it=>{
-    const value = Number(it.value || 0);
-    const max   = Math.max(1, Number(it.max || 100));
-    const pct   = Math.max(0, Math.min(100, (value / max) * 100));
-    const deg   = pct * 3.6;
-
-    const d = document.createElement("div");
-    d.className = "mDonut";
-    d.innerHTML = `<div class="ring"></div><div class="center">${value}</div>`;
-    d.querySelector(".ring").style.background =
-      `conic-gradient(${it.color} 0deg ${deg}deg, #e5e7eb ${deg}deg 360deg)`;
-    row.appendChild(d);
-
-    const li = document.createElement("div");
-    li.className = "legendItem";
-    li.innerHTML = `<span class="legendDot" style="background:${it.color}"></span>${it.label}`;
-    leg.appendChild(li);
-  });
-}
-
-function renderCssDonut(labels, values){
-  const total = values.reduce((a,b)=>a+b,0);
-  const ring = document.getElementById("weeklyDonutChart");
-  if(!ring) return;
-
-  if(total <= 0){
-    ring.style.background = "conic-gradient(#e5e7eb 0deg 360deg)";
-    return;
-  }
-
-  let acc = 0;
-  const parts = labels.map((l,i)=>{
-    const v = Number(values[i]||0);
-    const start = (acc/total)*360;
-    acc += v;
-    const end = (acc/total)*360;
-    const color = VISIT_TYPE_COLOR[l] || "#64748b";
-    return `${color} ${start}deg ${end}deg`;
-  });
-
-  ring.style.background = `conic-gradient(${parts.join(",")})`;
-}
-
-// fixed colors per visit type
-const VISIT_TYPE_COLOR = {
-  "Cluster": "#1a73e8",
-  "Breakdown": "#e53935",
-  "Sales Support": "#2e7d32",
-  "Other": "#8e24aa"
-};
-
-function renderVisitTypeLegend(labels, colors, values){
-  const legendHost = document.getElementById("donutLegend");
-  if(!legendHost) return;
-
-  legendHost.innerHTML = "";
-  labels.forEach((name, i)=>{
-    const row = document.createElement("div");
-    row.className = "legendItem2";
-    row.style.cursor = "pointer";
-
-    const dot = document.createElement("span");
-    dot.className = "legendDot2";
-    dot.style.background = colors[i];
-
-    const title = document.createElement("span");
-    title.textContent = name;
-
-    const cnt = document.createElement("span");
-    cnt.className = "legendCount2";
-    cnt.textContent = values[i];
-
-    row.appendChild(dot);
-    row.appendChild(title);
-    row.appendChild(cnt);
-
-    // legend click => filter
-    row.addEventListener("click", ()=> openWeekly14Days(name));
-
-    legendHost.appendChild(row);
-  });
-}
-
-// when user clicks a visit type => open Weekly Plan Report and filter it
-function applyVisitTypeFilter(visitType){
-  const btn = document.getElementById("btnWeeklyPlanView");
-  showSection("weeklyWiewPlanSection", btn);
-
-  const s = document.getElementById("wpReportSearch");
-  if(s) s.value = visitType;
-
-  loadWeeklyPlanReport();
-}
-
-async function loadWeeklyDonut(){
-  showLoading("Loading 14 days plan...");
-
-  try{
-    const res = await fetch("/api/weeklyplan/summary");
-    const text = await res.text();
-
-    let data = {};
-    try { data = JSON.parse(text); }
-    catch { data = {}; }
-
-    // backend returns: { total14, by_type:{cluster,breakdown,sales_support,other} }
-    const by = data.by_type || {};
-    const labels = ["Cluster","Breakdown","Sales Support","Other"];
-    const values = [
-      Number(by.cluster || 0),
-      Number(by.breakdown || 0),
-      Number(by.sales_support || 0),
-      Number(by.other || 0),
-    ];
-
-    const total = Number(data.total14 ?? values.reduce((a,b)=>a+b,0));
-
-    const donutTotalEl = document.getElementById("donutTotal");
-    const kpiEl = document.getElementById("kpiWeekly14");
-    if(donutTotalEl) donutTotalEl.textContent = total;  // if(kpiEl) kpiEl.textContent = total;
-    renderCssDonut(labels, values);
-    renderVisitTypeLegend(
-      labels,
-      labels.map(l => VISIT_TYPE_COLOR[l] || "#64748b"),
-      values
-    );
-
-  }catch(e){
-    console.log("loadWeeklyDonut failed:", e);
-
-    const donutTotalEl = document.getElementById("donutTotal");
-    const kpiEl = document.getElementById("kpiWeekly14");
-    if(donutTotalEl) donutTotalEl.textContent = "0";
-    if(kpiEl) kpiEl.textContent = "0";
-
-    renderCssDonut(["Cluster","Breakdown","Sales Support","Other"], [0,0,0,0]);
-    renderVisitTypeLegend(
-      ["Cluster","Breakdown","Sales Support","Other"],
-      ["#1a73e8","#e53935","#2e7d32","#8e24aa"],
-      [0,0,0,0]
-    );
-  }finally{
-    hideLoading();
-  }
-}
-
-function renderCssDonutTo(elId, labels, values){
-  const total = values.reduce((a,b)=>a+b,0);
-  const ring = document.getElementById(elId);
-  if(!ring) return;
-
-  if(total <= 0){
-    ring.style.background = "conic-gradient(#e5e7eb 0deg 360deg)";
-    return;
-  }
-
-  let acc = 0;
-  const parts = labels.map((l,i)=>{
-    const v = Number(values[i]||0);
-    const start = (acc/total)*360;
-    acc += v;
-    const end = (acc/total)*360;
-    const color = VISIT_TYPE_COLOR[l] || "#64748b";
-    return `${color} ${start}deg ${end}deg`;
-  });
-
-  ring.style.background = `conic-gradient(${parts.join(",")})`;
-}
-
-function renderLegendTo(hostId, labels, colors, values, onClick){
-  const host = document.getElementById(hostId);
-  if(!host) return;
-  host.innerHTML = "";
-
-  labels.forEach((name, i)=>{
-    const row = document.createElement("div");
-    row.className = "legendItem2";
-    row.style.cursor = "pointer";
-
-    const dot = document.createElement("span");
-    dot.className = "legendDot2";
-    dot.style.background = colors[i];
-
-    const title = document.createElement("span");
-    title.textContent = name;
-
-    const cnt = document.createElement("span");
-    cnt.className = "legendCount2";
-    cnt.textContent = values[i];
-
-    row.appendChild(dot);
-    row.appendChild(title);
-    row.appendChild(cnt);
-
-    if(onClick){
-      row.addEventListener("click", ()=> onClick(name));
-    }
-    host.appendChild(row);
-  });
-}
-
-async function loadWsrDonutMonth(){
-  showLoading("Loading WSR this month...");
-
-  try{
-    const res = await fetch("/api/wsr/summary_month");
-    const text = await res.text();
-    let data = null;
-    try{ data = JSON.parse(text); }catch{ data = { ok:false }; }
-
-    if(!res.ok || data?.ok === false){
-      document.getElementById("wsrDonutTotal").textContent = "0";
-      document.getElementById("kpiWsrMonth").textContent = "0";
-      renderCssDonutTo("wsrDonutChart", ["Cluster","Breakdown","Sales Support","Other"], [0,0,0,0]);
-      renderLegendTo("wsrDonutLegend",
-        ["Cluster","Breakdown","Sales Support","Other"],
-        ["#1a73e8","#e53935","#2e7d32","#8e24aa"], [0,0,0,0],
-        (vtype)=> applyWsrVisitTypeFilter(vtype)
-      );
-      return;
-    }
-
-    const counts = data.counts || {};
-    const labels = ["Cluster","Breakdown","Sales Support","Other"];
-    const values = labels.map(l => Number(counts[l] || 0));
-    const total = Number(data.total || values.reduce((a,b)=>a+b,0));
-
-    document.getElementById("wsrDonutTotal").textContent = total;
-   // document.getElementById("kpiWsrMonth").textContent = total;
-
-    renderCssDonutTo("wsrDonutChart", labels, values);
-    renderLegendTo("wsrDonutLegend",
-      labels,
-      labels.map(l => VISIT_TYPE_COLOR[l] || "#64748b"),
-      values,
-      (vtype)=> applyWsrVisitTypeFilter(vtype)
-    );
-
-  }catch(e){
-    console.log("loadWsrDonutMonth failed:", e);
-  }finally{
-    hideLoading();
-  }
-}
-
-// ✅ legend click => open Report View and filter by VisitCode1
-// ✅ legend click => open Report View and filter by VisitCode1
-function applyWsrVisitTypeFilter(visitType){
-  const MAP = {
-    "Cluster": "CLUSTER",
-    "Breakdown": "BREAKDOWN",
-    "Sales Support": "SALES SUPPORTS",
-    "Other": "OTHERS TEC"
-  };
-  const code = MAP[visitType] || visitType;
-
-  const pad = n => String(n).padStart(2,'0');
-  const now = new Date();
-
-  const fromD = new Date(now.getFullYear(), now.getMonth(), 1);
-  const toD   = new Date(now.getFullYear(), now.getMonth()+1, 0);
-
-  const from = `${fromD.getFullYear()}-${pad(fromD.getMonth()+1)}-${pad(fromD.getDate())}`;
-  const to   = `${toD.getFullYear()}-${pad(toD.getMonth()+1)}-${pad(toD.getDate())}`;
-
-  const url = `/wsr-report?visitType=${encodeURIComponent(code)}&from=${from}&to=${to}`;
-
-  // ✅ DIRECT URL open
-  const win = window.open(url, "_blank", "noopener,noreferrer");
-  
-}
- 
-
-</script>
-<script>
-function openWeekly14Days(type){
-  const pad = n => String(n).padStart(2,'0');
-  const today = new Date();
-
-  const fromD = new Date(today); fromD.setDate(fromD.getDate() - 7);
-  const toD   = new Date(today); toD.setDate(toD.getDate() + 17);
-
-  const from = `${fromD.getFullYear()}-${pad(fromD.getMonth()+1)}-${pad(fromD.getDate())}`;
-  const to   = `${toD.getFullYear()}-${pad(toD.getMonth()+1)}-${pad(toD.getDate())}`;
-
-  
-  // ✅ NEW TAB (popup-safe)
-  const url = `${window.location.origin}/weekly-plan-report?visitType=${encodeURIComponent(type)}&from=${from}&to=${to}`;
-
-  window.open(url, "_blank", "noopener,noreferrer");
-}
-
-function openWSRReport(visitType){
-  const MAP = {
-    "Cluster": "CLUSTER",
-    "Breakdown": "BREAKDOWN",
-    "Sales Support": "SALES SUPPORTS",
-    "Other": "OTHERS TEC"
-  };
-  const code = MAP[visitType] || visitType;
-
-  const pad = n => String(n).padStart(2,'0');
-  const now = new Date();
-
-  // Current month
-  const fromD = new Date(now.getFullYear(), now.getMonth(), 1);
-  const toD   = new Date(now.getFullYear(), now.getMonth()+1, 0);
-
-  const from = `${fromD.getFullYear()}-${pad(fromD.getMonth()+1)}-${pad(fromD.getDate())}`;
-  const to   = `${toD.getFullYear()}-${pad(toD.getMonth()+1)}-${pad(toD.getDate())}`;
-
-  // ✅ Weekly jaisa URL
-  const url =`${window.location.origin}/wsr-report` + `?visitType=${encodeURIComponent(code)}` + `&from=${from}&to=${to}`;
-  // ✅ Weekly jaisa NEW TAB
-  const win = window.open(url, "_blank", "noopener,noreferrer");
-  
-}
-
 
 function openUserCreate(btn){
   showSection('usercreateSection', btn);
-  loadUsers();   // 👈 same page ke niche users list load karega
+  loadUsers();
 }
 </script>
-
-
 
 </body>
 </html>
