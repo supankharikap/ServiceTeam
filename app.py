@@ -16,9 +16,9 @@ app.secret_key = os.environ.get("FLASK_SECRET_KEY", "change-me")
 # ✅ Azure/Codespaces reverse-proxy => https detect + cookies work
 app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
 
-# ✅ Cookie settings (IMPORTANT)
+# ✅ Cookie settings
 app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
-app.config["SESSION_COOKIE_SECURE"] = (os.environ.get("COOKIE_SECURE", "1") == "1")
+app.config["SESSION_COOKIE_SECURE"] = (os.environ.get("COOKIE_SECURE", "0") == "1")
 
 
 # ===================== DB HELPERS =====================
@@ -1020,26 +1020,42 @@ def api_installbase_save():
                 return jsonify({"ok": True, "message": "InstallBase UPDATED successfully!"})
 
             else:
-                # INSERT: ID skip
+                # INSERT: skip identity + computed columns
+                SKIP_INSERT = set(_norm(x) for x in [
+                    "ID",
+                    "AMC Due Date",
+                    "AMC Days Remaining",
+                    "Next Filter Due Date",
+                    "Filter Days Remaining",
+                    "Cluster",
+                    ])
                 insert_cols = []
                 insert_vals = []
                 params = []
-
                 for dbcol, val in db_vals.items():
-                    if _norm(dbcol) == "id":
+                    ndb = _norm(dbcol)
+                    if ndb in SKIP_INSERT:
+                        continue
+                    if val is None:
+                        continue
+                    if isinstance(val, str) and val.strip() == "":
                         continue
                     insert_cols.append(_qcol(dbcol))
                     insert_vals.append("?")
                     params.append(val)
-
                 if created_col and created_col not in db_vals:
                     insert_cols.append(_qcol(created_col))
                     insert_vals.append("GETUTCDATE()")
-
-                sql = f"INSERT INTO dbo.InstallBase ({', '.join(insert_cols)}) VALUES ({', '.join(insert_vals)})"
+                if not insert_cols:
+                    return jsonify({"ok": False, "message": "No valid data to insert"}), 400
+                sql = f"""
+                INSERT INTO dbo.InstallBase
+                ({', '.join(insert_cols)})
+                VALUES
+                ({', '.join(insert_vals)})
+                """
                 cur.execute(sql, params)
                 conn.commit()
-
                 return jsonify({"ok": True, "message": "InstallBase INSERTED successfully!"})
 
     except Exception as e:
