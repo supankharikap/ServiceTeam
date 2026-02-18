@@ -343,11 +343,11 @@
           </div>
           <div class="f">
             <label for="amc_due_date">AMC Due Date</label>
-            <input id="amc_due_date" name="amc_due_date" type="text" placeholder="YYYY-MM-DD" />
+            <input id="amc_due_date" name="amc_due_date" type="text" placeholder="YYYY-MM-DD" readonly/>
           </div>
           <div class="f">
             <label for="amc_days_remaining">AMC Days Remaining</label>
-            <input id="amc_days_remaining" name="amc_days_remaining" type="text" />
+            <input id="amc_days_remaining" name="amc_days_remaining" type="text"readonly />
           </div>
         </div>
       </fieldset>
@@ -362,15 +362,15 @@
           </div>
           <div class="f">
             <label for="filter_days">Filter Days</label>
-            <input id="filter_days" name="filter_days" type="text" />
+            <input id="filter_days" name="filter_days" type="text" readonly/>
           </div>
           <div class="f">
             <label for="next_filter_due_date">Next Filter Due Date</label>
-            <input id="next_filter_due_date" name="next_filter_due_date" type="text" placeholder="YYYY-MM-DD" />
+            <input id="next_filter_due_date" name="next_filter_due_date" type="text" placeholder="YYYY-MM-DD" readonly/>
           </div>
           <div class="f">
-            <label for="filter_days_remaining">Filter Days Remaining</label>
-            <input id="filter_days_remaining" name="filter_days_remaining" type="text" />
+            <label for="filter_days_remaining">Filter Days Remaining </label>
+            <input id="filter_days_remaining" name="filter_days_remaining" type="text" readonly/>
           </div>
         </div>
       </fieldset>
@@ -764,6 +764,9 @@
 
       if(res && res.ok){
         showToast(res.message || "Saved");
+        FORM.reset();
+        clearDD(serialDD);
+        clearDD(custDD);
       }else{
         showToast((res && (res.message || res.error)) ? (res.message || res.error) : "Save failed");
       }
