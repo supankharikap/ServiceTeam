@@ -343,8 +343,7 @@
             </div>
           </div>
 
-          ✅ View pending tasks.<br>
-          ✅ Use left menu to open WSR Form, Report View, Weekly Plan, Master InstallBase.<br>
+              
           ✅ Updating is in progress.
 
           <div class="donutGrid">
@@ -528,7 +527,8 @@
           </div>
 
           <div class="actions">
-            <button type="reset" class="btn gray" onclick="resetWpCascades()">Clear</button>
+            <button type="button" class="btn gray" onclick="clearWeeklyPlanForm()">Clear</button>
+
             <button type="submit" class="btn primary">Save Weekly Plan</button>
           </div>
         </form>
@@ -655,7 +655,9 @@
           </div>
 
           <div class="actions">
-            <button type="button" class="btn gray" onclick="document.getElementById('wsrForm').reset(); refillReadonly(); resetWsrCascades();">Clear</button>
+            <button type="button" class="btn gray" onclick="clearWsrForm()"> Clear</button>
+
+
             <button type="submit" class="btn primary">Submit WSR</button>
           </div>
         </form>
@@ -948,7 +950,10 @@ function loadKpis(){
       if (k.error) return;
       document.getElementById("kpiTotal").textContent = k.installbase_total ?? 0;
       document.getElementById("kpiCustomers").textContent = k.customers ?? 0;
-      document.getElementById("kpiMonth").textContent = k.this_month_cluster_plan ?? 0;
+      const total = k.this_month_cluster_plan ?? 0;
+      const visited = k.this_month_cluster_visited ?? 0;
+      document.getElementById("kpiMonth").textContent = `${total} / ${visited}`;
+
       document.getElementById("kpiPending").textContent = k.pending ?? 0;
     })
     .catch(()=>{})
@@ -2355,8 +2360,7 @@ document.addEventListener("DOMContentLoaded", function(){
       alert(out.message || "WSR Submitted Successfully");
 
       if(res.ok){
-        this.reset();
-        refillReadonly();
+        clearWsrForm();
         loadWsrDonutMonth();
         loadReport();
       }
@@ -2397,10 +2401,8 @@ document.addEventListener("DOMContentLoaded", function(){
       if(res.ok){
         this.reset();
         refillReadonly();
-        setupMonthYear();
         loadWeeklyDonut();
         loadWeeklyPlanReport();
-
       }
 
     }catch(err){
@@ -2411,6 +2413,48 @@ document.addEventListener("DOMContentLoaded", function(){
   });
 
 });
+
+function clearWsrForm(){
+
+  const form = document.getElementById("wsrForm");
+
+  // Save values before reset
+  const zone = document.getElementById("wsr_zone").value;
+  const engineer = document.getElementById("wsr_engineer").value;
+  const monthPick = document.getElementById("monthYearPick").value;
+  const monthText = document.getElementById("monthYearText").value;
+
+  // Reset full form
+  form.reset();
+
+  // Restore protected fields
+  document.getElementById("wsr_zone").value = zone;
+  document.getElementById("wsr_engineer").value = engineer;
+  document.getElementById("monthYearPick").value = monthPick;
+  document.getElementById("monthYearText").value = monthText;
+
+}
+function clearWeeklyPlanForm(){
+
+  const form = document.getElementById("weeklyPlanForm");
+
+  // Save protected fields
+  const zone = document.getElementById("wp_zone").value;
+  const engineer = document.getElementById("wp_engineer").value;
+
+  // Reset whole form
+  form.reset();
+
+  // Restore protected fields
+  document.getElementById("wp_zone").value = zone;
+  document.getElementById("wp_engineer").value = engineer;
+
+  // Optional: clear cascades if needed
+  if (typeof resetWpCascades === "function") {
+      resetWpCascades();
+  }
+}
+
 
 
 </script>

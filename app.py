@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for, session, jsonify
+from flask import Flask, render_template, request, redirect, url_for, session, jsonify, send_from_directory
 import os
 import pyodbc
 from dotenv import load_dotenv
@@ -402,35 +402,48 @@ def api_kpi():
         with get_conn() as conn:
             cur = conn.cursor()
 
+            # =========================
+            # 1️⃣ InstallBase Total
+            # =========================
             cur.execute(f"SELECT COUNT(*) FROM dbo.InstallBase{where_sql}", params)
             installbase_total = int(cur.fetchone()[0] or 0)
 
+
+            # =========================
+            # # Customers (unique customer name)
+            # # =========================
             cust_col = _find_col(
                 install_cols,
                 aliases=["CUSTOMER_NAME", "CUSTOMER NAME", "CustomerName", "Customer Name"],
                 must_contain=["customer", "name"]
-            )
+                )
             customers = 0
             if cust_col:
                 cur.execute(
                     f"SELECT COUNT(DISTINCT {_qcol(cust_col)}) FROM dbo.InstallBase{where_sql}",
                     params
-                )
+                    )
                 customers = int(cur.fetchone()[0] or 0)
 
+
+            # =========================
+            # 2️⃣ This Month Cluster Plan (InstallBase)
+            # =========================
             cluster_no_col = _find_col(
                 install_cols,
-                aliases=["Cluster No", "Cluster_No", "CLUSTER NO", "Cluster No."],
+                aliases=["Cluster No", "Cluster_No", "CLUSTER NO"],
                 must_contain=["cluster"]
             )
             plan_col = _find_col(
                 install_cols,
-                aliases=["Cluster Visit Plan", "ClusterVisitPlan", "CLUSTER VISIT PLAN"],
+                aliases=["Cluster Visit Plan", "ClusterVisitPlan"],
                 must_contain=["cluster", "visit", "plan"]
             )
 
             this_month_cluster_plan = 0
+
             if cluster_no_col and plan_col:
+
                 plan_date_expr = (
                     f"COALESCE("
                     f"TRY_CONVERT(date, {_qcol(plan_col)}, 23),"
@@ -447,14 +460,10 @@ def api_kpi():
                     p += params
 
                 where_parts.append(
-                    f"NULLIF(LTRIM(RTRIM(CAST({_qcol(cluster_no_col)} AS NVARCHAR(200)))), '') IS NOT NULL"
-                )
-                where_parts.append(f"{plan_date_expr} IS NOT NULL")
-                where_parts.append(
                     f"{plan_date_expr} >= DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()), 1)"
                 )
                 where_parts.append(
-                    f"{plan_date_expr} <  DATEADD(month, 1, DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()), 1))"
+                    f"{plan_date_expr} < DATEADD(month, 1, DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()), 1))"
                 )
 
                 w = " WHERE " + " AND ".join(where_parts)
@@ -462,14 +471,71 @@ def api_kpi():
                 cur.execute(f"SELECT COUNT(*) FROM dbo.InstallBase{w}", p)
                 this_month_cluster_plan = int(cur.fetchone()[0] or 0)
 
+            # =========================
+            # 3️⃣ This Month Unique Cluster Visited (WSR)
+            # =========================
+            wsr_cols = _wsr_cols()
+            this_month_cluster_visited = 0
+
+            if wsr_cols:
+                dcol = _wsr_date_col(wsr_cols)
+                vcol = _wsr_visit_code1_col(wsr_cols)
+                serial_col = _find_col(
+                    wsr_cols,
+                    aliases=["Serial No", "Serial_No", "SERIAL NO"],
+                    must_contain=["serial"]
+                )
+
+                if dcol and vcol and serial_col:
+
+                    date_expr = (
+                        f"COALESCE("
+                        f"TRY_CONVERT(date, {_qcol(dcol)}, 23),"
+                        f"TRY_CONVERT(date, {_qcol(dcol)}, 105),"
+                        f"TRY_CONVERT(date, {_qcol(dcol)})"
+                        f")"
+                    )
+
+                    scope_where, scope_params = _wsr_scope_where(wsr_cols)
+
+                    where_parts = []
+                    p = []
+
+                    if scope_where:
+                        where_parts.append(scope_where.replace(" WHERE ", "", 1))
+                        p += scope_params
+
+                    where_parts.append(
+                        f"{date_expr} >= DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()), 1)"
+                    )
+                    where_parts.append(
+                        f"{date_expr} < DATEADD(month, 1, DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()), 1))"
+                    )
+
+                    where_parts.append(
+                        f"UPPER(LTRIM(RTRIM({_qcol(vcol)}))) = 'CLUSTER'"
+                    )
+
+                    w = " WHERE " + " AND ".join(where_parts)
+
+                    sql = f"""
+                        SELECT COUNT(DISTINCT {_qcol(serial_col)})
+                        FROM dbo.WSR
+                        {w}
+                    """
+
+                    cur.execute(sql, p)
+                    this_month_cluster_visited = int(cur.fetchone()[0] or 0)
+
     except Exception as e:
-        return _json_err(f"InstallBase KPI error: {e}", 500)
+        return _json_err(f"KPI error: {e}", 500)
 
     return jsonify({
-        "installbase_total": installbase_total,
         "customers": customers,
+        "installbase_total": installbase_total,
         "this_month_cluster_plan": this_month_cluster_plan,
-        "pending": 0
+        "this_month_cluster_visited": this_month_cluster_visited
+
     })
 
 
@@ -2023,6 +2089,9 @@ def api_users_toggle_active(user_id: int):
     except Exception as e:
         return jsonify({"message": f"Toggle active error: {e}"}), 500
 
+@app.route('/google0832a92ac05f82f8.html')
+def google_verification():
+    return send_from_directory('.', 'google0832a92ac05f82f8.html')
 
 
 # ===================== RUN =====================
