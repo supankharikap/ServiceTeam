@@ -2397,8 +2397,10 @@ document.addEventListener("DOMContentLoaded", function(){
       if(res.ok){
         this.reset();
         refillReadonly();
+        setupMonthYear();
         loadWeeklyDonut();
         loadWeeklyPlanReport();
+
       }
 
     }catch(err){
