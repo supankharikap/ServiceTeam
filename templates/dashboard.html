@@ -590,7 +590,7 @@
                 <option value="TRAINING">TRAINING </option>
                 <option value="SPECIAL_APPLICATION">SPECIAL_APPLICATION </option>
                 <option value="REFURBISHMENT">REFURBISHMENT </option>
-                <option value="OTHERS-VISIT">OTHERS </option>
+                <option value="OTHERS-VISIT">OTHERS-VISIT </option>
 
               </select>
             </div>
@@ -1033,12 +1033,13 @@ async function toggleActive(userId, newState){
 const visitCode2Map = {
   "NA": ["NA"],
   "CLUSTER": ["Gen PM", "Filter PM", "Courtesy"],
+  "INSTALLATION":["Fisrt","Carryover"],
   "BREAKDOWN": ["First Visit", "Carryover", "Repeat Visit"],
   "SALES SUPPORTS":["Demo Install","Demo Carryover","Site Survey","Sampling","Exhibition","Demo in Office"],
   "SPECIAL_APPLICATION":["Line Study","First Visit","Carryover Visit"],
   "TRAINING":["Onsite","Other Venue","KGK Office"],
   "REFURBISHMENT":["Onsite","KGK Workshop"],
-  "OTHERS ": ["GPM","FPM","S/W Upgrade", "Courtesy", "Sales Contract", "Order Followup", "Payment Followup"]
+  "OTHERS-VISIT": ["GPM","FPM","S/W Upgrade", "Courtesy", "Sales Contract", "Order Followup", "Payment Followup"]
 };
 function fillVisitCode2(){
   const v1 = document.getElementById("visitCode1");
