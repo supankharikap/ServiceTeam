@@ -408,6 +408,32 @@ def api_kpi():
             cur.execute(f"SELECT COUNT(*) FROM dbo.InstallBase{where_sql}", params)
             installbase_total = int(cur.fetchone()[0] or 0)
 
+            # =========================
+            # # Active / Inactive (Machine Status)
+            # # =========================
+            active_status_col = _find_col(
+                install_cols,
+                aliases=["Active Status", "ActiveStatus"],
+                must_contain=["active", "status"]
+                )
+            active_total = 0
+            inactive_total = 0
+            dead_total = 0
+            if active_status_col:
+                status_expr = _cmp_ci_trim(active_status_col)
+                cur.execute(f"""
+                            SELECT
+                            SUM(CASE WHEN {status_expr} = 'ACTIVE' THEN 1 ELSE 0 END),
+                            SUM(CASE WHEN {status_expr} = 'INACTIVE' THEN 1 ELSE 0 END),
+                            SUM(CASE WHEN {status_expr} = 'DEAD' THEN 1 ELSE 0 END)
+                            FROM dbo.InstallBase
+                            {where_sql}
+                """, params)
+                row = cur.fetchone()
+                if row:
+                    active_total = int(row[0] or 0)
+                    inactive_total = int(row[1] or 0)
+                    dead_total = int(row[2] or 0)
 
             # =========================
             # # Customers (unique customer name)
@@ -533,6 +559,9 @@ def api_kpi():
     return jsonify({
         "customers": customers,
         "installbase_total": installbase_total,
+        "active_total": active_total,
+        "inactive_total": inactive_total,
+        "dead_total": dead_total,
         "this_month_cluster_plan": this_month_cluster_plan,
         "this_month_cluster_visited": this_month_cluster_visited
 

@@ -6,6 +6,25 @@
   <title>KGK Jet India ERP</title>
 
   <style>
+    
+    .subInfo{margin-top:6px;font-size:12px;font-weight:600;}
+    .activeCount{ color:#2e7d32;   /* Green */font-weight:800;}
+    .inactiveCount{  color:#e53935;   /* Red */  font-weight:800;  margin-left:12px;}
+    .deadCount{  color:#b71c1c;   /* Dark Red */  font-weight:800;  margin-left:12px;}
+
+
+    .kpiPercent{font-weight: 900; color: #e81b28;   /* same primary color */}
+
+    #customerSummarySection table{width:100%;table-layout:fixed;}
+    #customerSummarySection th,
+    #customerSummarySection td{padding:10px;white-space:nowrap;}
+    #customerSummarySection th:nth-child(1),
+    #customerSummarySection td:nth-child(1){width:70%;overflow:hidden;
+      text-overflow:ellipsis;
+    }#customerSummarySection th:nth-child(2),
+    #customerSummarySection td:nth-child(2){width:30%;}
+
+
     :root{
       --bg:#eef4ff; --card:#ffffff; --primary:#1a73e8;
       --text:#0f172a; --muted:#64748b; --border:#e5e7eb;
@@ -119,6 +138,17 @@
       display:flex;align-items:center; gap:20px; flex-wrap:nowrap;overflow-x:auto;white-space:nowrap;
       -webkit-overflow-scrolling:touch;
     }
+    #customerSummarySection table th:nth-child(1),
+    #customerSummarySection table td:nth-child(1){
+      max-width: 350px;
+      width: 350px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+
+
     .tb-search{height: 38px;padding: 0 14px;border: 1px solid var(--border);border-radius: 999px;font-size: 14px;outline: none;background: #fff;width:10cm; min-width: 0;}
     .tb-date{height:38px;padding:0 12px;border:1px solid var(--border);border-radius:12px;font-size:14px;outline:none;background:#fff;width:150px;min-width:150px;}
     .tb-btn{
@@ -326,23 +356,28 @@
           <div class="cards">
              <div class="card" style="cursor:pointer;"
              onclick="showSection('masterSection', null); openMaster();">
-             <div class="kpi" id="kpiTotal">—</div>
-             <div class="label">Total InstallBase</div>
+             
+             
+             <div class="kpi" id="installBaseLabel">Total InstallBase- 0</div>
+             <div class="subInfo" id="kpiInstallSub"></div>
             </div>
             <div class="card">
               <div class="kpi" id="kpiMonth"></div>
-              <div class="label">This Month Cluster Plan</div>
+              <div class="label" id="kpiMonthLabel">
+                This Month Cluster Plan
+              </div>
             </div>
+              
             <div class="card">
               <div class="kpi" id="kpiPending">0</div>
               <div class="label">Breakdown Task Pending</div>
             </div>
-            <div class="card">
-              <div class="kpi" id="kpiCustomers">—</div>
-              <div class="label">Total Customers</div>
-            </div>
+            <div class="card" style="cursor:pointer;"
+            onclick="openCustomerReport()">
+            <div class="kpi" id="kpiCustomers">—</div>
+            <div class="label">Total Customers</div>
           </div>
-
+          </div>
               
           ✅ Updating is in progress.
 
@@ -402,6 +437,27 @@
         </div>
 
         <div id="masterTable"></div>
+      </section>
+      
+       <!-- Customer List -->
+      <section id="customerSummarySection" class="section">
+        <div class="sectionHeader">
+          <h2>Customer Summary</h2>
+          <small>Total Unique Customers: 
+            <b id="customerSummaryCount">0</b>
+          </small>
+        </div>
+        <div class="tableWrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Customer Name</th>
+                <th>Location</th>
+              </tr>
+            </thead>
+            <tbody id="customerSummaryBody"></tbody>
+          </table>
+        </div>
       </section>
 
       <!-- WEEKLY PLAN FORM -->
@@ -947,21 +1003,73 @@ function setupMonthYear(){
 /* ===========================
    KPI
 =========================== */
+
 function loadKpis(){
   showLoading("Loading KPI...");
+
   fetch("/api/kpi")
     .then(r => r.json())
     .then(k => {
+
       if (k.error) return;
-      document.getElementById("kpiTotal").textContent = k.installbase_total ?? 0;
+
+      const total   = Number(k.installbase_total ?? 0);
+      const active  = Number(k.active_total ?? 0);
+      const inactive= Number(k.inactive_total ?? 0);
+      const dead    = Number(k.dead_total ?? 0);
+
+      // ✅ INSTALLBASE TITLE FIX
+      const lbl = document.getElementById("installBaseLabel");
+      if(lbl){
+        lbl.textContent = `InstallBase - ${total}`;
+      }
+
+      // ✅ Clean layout
+      const sub = document.getElementById("kpiInstallSub");
+      if(sub){
+        sub.innerHTML = `
+          <div style="display:flex;justify-content:space-between;margin-top:4px;">
+            <span>Active</span>
+            <span class="activeCount">${active}</span>
+          </div>
+
+          <div style="display:flex;justify-content:space-between;margin-top:4px;">
+            <span>Inactive</span>
+            <span class="inactiveCount">${inactive}</span>
+          </div>
+
+          <div style="display:flex;justify-content:space-between;margin-top:4px;">
+            <span>Dead</span>
+            <span class="deadCount">${dead}</span>
+          </div>
+        `;
+      }
+
+      // Customers
       document.getElementById("kpiCustomers").textContent = k.customers ?? 0;
-      const total = k.this_month_cluster_plan ?? 0;
-      const visited = k.this_month_cluster_visited ?? 0;
-      document.getElementById("kpiMonth").textContent = `${total} / ${visited}`;
+
+      // Month cluster
+      const totalPlan = Number(k.this_month_cluster_plan ?? 0);
+      const visited   = Number(k.this_month_cluster_visited ?? 0);
+
+      document.getElementById("kpiMonth").textContent = `${visited} / ${totalPlan}`;
+
+      let percent = totalPlan > 0
+        ? Math.round((visited / totalPlan) * 100)
+        : 0;
+
+      const monthLbl = document.getElementById("kpiMonthLabel");
+      if(monthLbl){
+        monthLbl.innerHTML =
+          `This Month Cluster Plan - <span class="kpiPercent">${percent}%</span>`;
+      }
 
       document.getElementById("kpiPending").textContent = k.pending ?? 0;
+
     })
-    .catch(()=>{})
+    .catch(err => {
+      console.error("KPI error:", err);
+    })
     .finally(()=> hideLoading());
 }
 
@@ -2459,6 +2567,51 @@ function clearWeeklyPlanForm(){
   if (typeof resetWpCascades === "function") {
       resetWpCascades();
   }
+}
+
+function openCustomerReport(){
+
+  // ✅ Sirf Customer Summary Section open karega
+  showSection("customerSummarySection", null);
+
+  const rows = INSTALLBASE_CACHE?.rows || [];
+  const tbody = document.getElementById("customerSummaryBody");
+  const countEl = document.getElementById("customerSummaryCount");
+
+  if(!tbody) return;
+
+  tbody.innerHTML = "";
+
+  const map = new Map();
+
+  rows.forEach(r=>{
+    const customer = (getCustomerFromRow(r) || "").trim();
+    const location = (getLocationFromRow(r) || "").trim();
+
+    if(!customer) return;
+
+    const key = customer.toLowerCase();
+
+    if(!map.has(key)){
+      map.set(key, {
+        customer,
+        location
+      });
+    }
+  });
+
+  const list = Array.from(map.values());
+
+  if(countEl) countEl.textContent = list.length;
+
+  list.forEach(item=>{
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${escapeHtml(item.customer)}</td>
+      <td>${escapeHtml(item.location)}</td>
+    `;
+    tbody.appendChild(tr);
+  });
 }
 
 
