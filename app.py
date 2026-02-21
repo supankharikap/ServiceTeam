@@ -2233,6 +2233,257 @@ def api_installbase_mc_summary():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+
+
+
+@app.get("/api/installbase/month-cluster-summary")
+def month_cluster_summary():
+
+    need = _require_login_json()
+    if need:
+        return need
+
+    install_cols = _table_columns("dbo.InstallBase")
+    if not install_cols:
+        return _json_err("InstallBase not found", 400)
+
+    wsr_cols = _wsr_cols()
+    if not wsr_cols:
+        return _json_err("WSR not found", 400)
+
+    serial_ib = _find_col(install_cols, must_contain=["serial"])
+    plan_col = _find_col(install_cols, must_contain=["cluster", "visit", "plan"])
+    active_col = _find_col(install_cols, must_contain=["active", "status"])
+
+    serial_wsr = _find_col(wsr_cols, must_contain=["serial"])
+    visit_date_col = _wsr_date_col(wsr_cols)
+    visit_code_col = _wsr_visit_code1_col(wsr_cols)
+
+    if not all([serial_ib, plan_col, active_col, serial_wsr, visit_date_col, visit_code_col]):
+        return _json_err("Required columns missing", 400)
+
+    base_where, base_params = _installbase_scope_where(install_cols)
+
+    plan_date_expr = f"""
+        COALESCE(
+            TRY_CONVERT(date, {_qcol(plan_col)}, 23),
+            TRY_CONVERT(date, {_qcol(plan_col)}, 105),
+            TRY_CONVERT(date, {_qcol(plan_col)})
+        )
+    """
+
+    visit_date_expr = f"""
+        COALESCE(
+            TRY_CONVERT(date, {_qcol(visit_date_col)}, 23),
+            TRY_CONVERT(date, {_qcol(visit_date_col)}, 105),
+            TRY_CONVERT(date, {_qcol(visit_date_col)})
+        )
+    """
+
+    where_parts = []
+    params = []
+
+    if base_where:
+        where_parts.append(base_where.replace(" WHERE ", "", 1))
+        params += base_params
+
+    where_parts.append(f"{_cmp_ci_trim(active_col)} = 'ACTIVE'")
+    where_parts.append(f"{plan_date_expr} >= DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()), 1)")
+    where_parts.append(f"{plan_date_expr} < DATEADD(month,1,DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()),1))")
+
+    where_sql = " WHERE " + " AND ".join(where_parts)
+
+    sql = f"""
+    WITH CompletedSerials AS (
+        SELECT DISTINCT {_qcol(serial_wsr)} AS serial
+        FROM dbo.WSR
+        WHERE 
+            {_cmp_ci_trim(visit_code_col)} = 'CLUSTER'
+            AND {visit_date_expr} >= DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()), 1)
+            AND {visit_date_expr} < DATEADD(month,1,DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()),1))
+    )
+
+    SELECT 
+        COUNT(*) AS total_plan,
+        SUM(CASE WHEN cs.serial IS NOT NULL THEN 1 ELSE 0 END) AS completed,
+        SUM(CASE WHEN cs.serial IS NULL THEN 1 ELSE 0 END) AS pending
+    FROM dbo.InstallBase i
+    LEFT JOIN CompletedSerials cs
+        ON {_qcol(serial_ib)} = cs.serial
+    {where_sql}
+    """
+
+    try:
+        with get_conn() as conn:
+            cur = conn.cursor()
+            cur.execute(sql, params)
+            row = cur.fetchone()
+
+        total = int(row[0] or 0)
+        completed = int(row[1] or 0)
+        pending = int(row[2] or 0)
+        percentage = round((completed / total * 100), 0) if total else 0
+
+        return jsonify({
+            "total": total,
+            "completed": completed,
+            "pending": pending,
+            "percentage": percentage
+        })
+
+    except Exception as e:
+        return _json_err(f"Cluster summary error: {e}", 500)
+    
+@app.get("/api/installbase/month-cluster-details")
+def month_cluster_details():
+
+    need = _require_login_json()
+    if need:
+        return need
+
+    install_cols = _table_columns("dbo.InstallBase")
+    wsr_cols = _wsr_cols()
+
+    if not install_cols or not wsr_cols:
+        return jsonify({"error": "Tables not found"}), 400
+
+    serial_ib = _find_col(install_cols, must_contain=["serial"])
+    engineer_col = _find_col(install_cols, must_contain=["service", "engr"])
+    customer_col = _find_col(install_cols, must_contain=["customer"])
+    cluster_col = _find_col(install_cols, must_contain=["cluster"])
+    plan_col = _find_col(install_cols, must_contain=["cluster", "visit", "plan"])
+    active_col = _find_col(install_cols, must_contain=["active", "status"])
+
+    serial_wsr = _find_col(wsr_cols, must_contain=["serial"])
+    visit_date_col = _wsr_date_col(wsr_cols)
+    visit_code_col = _wsr_visit_code1_col(wsr_cols)
+
+    if not all([serial_ib, engineer_col, customer_col, plan_col,
+                serial_wsr, visit_date_col, visit_code_col]):
+        return jsonify({"error": "Required columns missing"}), 400
+
+    plan_date_expr = f"""
+        COALESCE(
+            TRY_CONVERT(date, {_qcol(plan_col)}, 23),
+            TRY_CONVERT(date, {_qcol(plan_col)}, 105),
+            TRY_CONVERT(date, {_qcol(plan_col)})
+        )
+    """
+
+    visit_date_expr = f"""
+        COALESCE(
+            TRY_CONVERT(date, {_qcol(visit_date_col)}, 23),
+            TRY_CONVERT(date, {_qcol(visit_date_col)}, 105),
+            TRY_CONVERT(date, {_qcol(visit_date_col)})
+        )
+    """
+
+    base_where, base_params = _installbase_scope_where(install_cols)
+
+    where_parts = []
+    params = []
+
+    if base_where:
+        where_parts.append(base_where.replace(" WHERE ", "", 1))
+        params += base_params
+
+    where_parts.append(f"{_cmp_ci_trim(active_col)} = 'ACTIVE'")
+    where_parts.append(f"{plan_date_expr} >= DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()), 1)")
+    where_parts.append(f"{plan_date_expr} < DATEADD(month,1,DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()),1))")
+
+    where_sql = " WHERE " + " AND ".join(where_parts)
+
+    sql = f"""
+    WITH CompletedSerials AS (
+        SELECT DISTINCT {_qcol(serial_wsr)} AS serial
+        FROM dbo.WSR
+        WHERE {_cmp_ci_trim(visit_code_col)} = 'CLUSTER'
+          AND {visit_date_expr} >= DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()), 1)
+          AND {visit_date_expr} < DATEADD(month,1,DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()),1))
+    )
+
+    SELECT 
+        {_qcol(engineer_col)} AS engineer,
+        {_qcol(customer_col)} AS customer,
+        {_qcol(serial_ib)} AS serial_no,
+        CONVERT(varchar(10), {plan_date_expr}, 23) AS cluster_visit_plan,
+
+        CASE 
+            WHEN cs.serial IS NOT NULL THEN 'COMPLETED'
+            ELSE 'PENDING'
+        END AS status
+
+    FROM dbo.InstallBase ib
+    LEFT JOIN CompletedSerials cs
+        ON {_qcol(serial_ib)} = cs.serial
+
+    {where_sql}
+
+    ORDER BY {plan_date_expr} ASC
+    """
+
+    try:
+        with get_conn() as conn:
+            cur = conn.cursor()
+            cur.execute(sql, params)
+            rows = cur.fetchall()
+            columns = [d[0] for d in cur.description]
+
+        out = []
+        for r in rows:
+            obj = {}
+            for i, c in enumerate(columns):
+                obj[c] = _json_safe(r[i])
+            out.append(obj)
+
+        return jsonify({"columns": columns, "rows": out})
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.get("/api/engineers")
+def get_engineers():
+
+    need = _require_login_json()
+    if need:
+        return need
+
+    install_cols = _table_columns("dbo.InstallBase")
+    if not install_cols:
+        return jsonify([])
+
+    engineer_col = _find_col(
+        install_cols,
+        aliases=["SERVICE_ENGR", "SERVICE ENGR", "SERVICE ENGINEER"],
+        must_contain=["service", "engr"]
+    )
+
+    if not engineer_col:
+        return jsonify([])
+
+    base_where, base_params = _installbase_scope_where(install_cols)
+
+    where_sql = base_where if base_where else ""
+
+    sql = f"""
+        SELECT DISTINCT {_qcol(engineer_col)} AS engineer
+        FROM dbo.InstallBase
+        {where_sql}
+        ORDER BY {_qcol(engineer_col)}
+    """
+
+    try:
+        with get_conn() as conn:
+            cur = conn.cursor()
+            cur.execute(sql, base_params)
+            rows = cur.fetchall()
+
+        engineers = [(r[0] or "").strip() for r in rows if r[0]]
+        return jsonify(engineers)
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 # ===================== RUN =====================
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))

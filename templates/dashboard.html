@@ -6,7 +6,9 @@
   <title>KGK Jet India ERP</title>
 
   <style>
-    
+    .cluster-filters {display: flex;gap: 10px;margin-bottom: 15px;}
+    .cluster-filters select,
+    .cluster-filters button {padding: 6px 10px; border-radius: 6px;border: 1px solid #ccc;}
     .subInfo{margin-top:6px;font-size:12px;font-weight:600;}
     .activeCount{ color:#2e7d32;   /* Green */font-weight:800;}
     .inactiveCount{  color:#e53935;   /* Red */  font-weight:800;  margin-left:12px;}
@@ -361,13 +363,13 @@
              <div class="kpi" id="installBaseLabel">Total InstallBase- 0</div>
              <div class="subInfo" id="kpiInstallSub"></div>
             </div>
-            <div class="card">
-              <div class="kpi" id="kpiMonth"></div>
-              <div class="label" id="kpiMonthLabel">
-                This Month Cluster Plan
-              </div>
+            <div class="card" style="cursor:pointer;"
+            onclick="showSection('clusterSummarySection', null); loadClusterSummary();">
+            <div class="kpi" id="kpiMonth"></div>
+            <div class="label" id="kpiMonthLabel">
+              This Month Cluster Plan
             </div>
-              
+          </div>
             <div class="card">
               <div class="kpi" id="kpiPending">0</div>
               <div class="label">Breakdown Task Pending</div>
@@ -427,6 +429,30 @@
               <div id="amcDonutLegend" style="margin-top:10px;"></div>
             </div>
           </div>
+        </div>
+      </section>
+
+      <section id="clusterSummarySection" class="section">
+        <div class="sectionHeader">
+          <h2>Cluster Summary (This Month)</h2>
+          <small>Rows: <b id="clusterRowCount">0</b></small>
+        </div>
+        <div class="cluster-filters">
+          <select id="engineerFilter">
+            <option value="">All Engineers</option>
+          </select>
+          <select id="statusFilter">
+            <option value="">All Status</option>
+            <option value="completed">Completed</option>
+            <option value="pending">Pending</option>
+          </select>
+          <button onclick="applyClusterFilter()">Filter</button>
+        </div>
+        <div class="tableWrap">
+          <table id="clusterSummaryTable">
+            <thead></thead>
+            <tbody></tbody>
+          </table>
         </div>
       </section>
 
@@ -1013,10 +1039,114 @@ function setupMonthYear(){
   pick.addEventListener("change", ()=> out.value = formatMMMYY(pick.value));
 }
 
+function populateEngineerFilter(data) {
+  const select = document.getElementById("engineerFilter");
+  const engineers = [...new Set(data.map(r => r.engineer))];
+
+  engineers.forEach(e => {
+    const opt = document.createElement("option");
+    opt.value = e;
+    opt.textContent = e;
+    select.appendChild(opt);
+  });
+}
+
+async function loadClusterSummary() {
+
+  showLoading("Loading Cluster Summary...");
+
+  try {
+
+    const res = await fetch("/api/installbase/month-cluster-details");
+    const data = await res.json();
+
+    const table = document.getElementById("clusterSummaryTable");
+    const thead = table.querySelector("thead");
+    const tbody = table.querySelector("tbody");
+
+    thead.innerHTML = "";
+    tbody.innerHTML = "";
+
+    if (!data.columns || !data.rows) return;
+
+    // ======================
+    // HEADER
+    // ======================
+    const trHead = document.createElement("tr");
+    data.columns.forEach(col => {
+      const th = document.createElement("th");
+      th.textContent = col;
+      trHead.appendChild(th);
+    });
+    thead.appendChild(trHead);
+
+    // ======================
+    // BODY
+    // ======================
+    data.rows.forEach(r => {
+      const tr = document.createElement("tr");
+      data.columns.forEach(c => {
+        const td = document.createElement("td");
+        td.textContent = r[c] ?? "";
+        tr.appendChild(td);
+      });
+      tbody.appendChild(tr);
+    });
+
+    // ======================
+    // ROW COUNT
+    // ======================
+    const rc = document.getElementById("clusterRowCount");
+    if (rc) rc.textContent = data.rows.length;
+
+    // ======================
+    // 🔥 AUTO ENGINEER LOAD (TABLE SE DIRECT)
+    // ======================
+
+    const engineerSet = new Set();
+
+    const headerCells = table.querySelectorAll("thead th");
+
+    let engineerIndex = -1;
+
+    headerCells.forEach((th, i) => {
+      if (th.textContent.trim().toLowerCase().includes("engineer")) {
+        engineerIndex = i;
+      }
+    });
+
+    if (engineerIndex !== -1) {
+
+      const rows = table.querySelectorAll("tbody tr");
+
+      rows.forEach(row => {
+        const eng = row.children[engineerIndex]?.textContent.trim();
+        if (eng) engineerSet.add(eng);
+      });
+    }
+
+    const select = document.getElementById("engineerFilter");
+
+    if (select) {
+      select.innerHTML = `<option value="">All Engineers</option>`;
+
+      [...engineerSet].sort().forEach(e => {
+        const opt = document.createElement("option");
+        opt.value = e;
+        opt.textContent = e;
+        select.appendChild(opt);
+      });
+    }
+
+  } catch (err) {
+    console.error("Cluster summary error:", err);
+  } finally {
+    hideLoading();
+  }
+}
 /* ===========================
    KPI
 =========================== */
-
 function loadKpis(){
   showLoading("Loading KPI...");
 
@@ -1031,13 +1161,12 @@ function loadKpis(){
       const inactive= Number(k.inactive_total ?? 0);
       const dead    = Number(k.dead_total ?? 0);
 
-      // ✅ INSTALLBASE TITLE FIX
+      // InstallBase
       const lbl = document.getElementById("installBaseLabel");
       if(lbl){
         lbl.textContent = `InstallBase - ${total}`;
       }
 
-      // ✅ Clean layout
       const sub = document.getElementById("kpiInstallSub");
       if(sub){
         sub.innerHTML = `
@@ -1045,12 +1174,10 @@ function loadKpis(){
             <span>Active</span>
             <span class="activeCount">${active}</span>
           </div>
-
           <div style="display:flex;justify-content:space-between;margin-top:4px;">
             <span>Inactive</span>
             <span class="inactiveCount">${inactive}</span>
           </div>
-
           <div style="display:flex;justify-content:space-between;margin-top:4px;">
             <span>Dead</span>
             <span class="deadCount">${dead}</span>
@@ -1061,15 +1188,32 @@ function loadKpis(){
       // Customers
       document.getElementById("kpiCustomers").textContent = k.customers ?? 0;
 
-      // Month cluster
-      const totalPlan = Number(k.this_month_cluster_plan ?? 0);
-      const visited   = Number(k.this_month_cluster_visited ?? 0);
+      // Pending
+      document.getElementById("kpiPending").textContent = k.pending ?? 0;
 
-      document.getElementById("kpiMonth").textContent = `${visited} / ${totalPlan}`;
+     
 
-      let percent = totalPlan > 0
-        ? Math.round((visited / totalPlan) * 100)
+    })
+    .catch(err => console.error("KPI error:", err))
+    .finally(()=> hideLoading());
+}
+
+
+function loadClusterKpi(){
+
+  fetch("/api/installbase/month-cluster-summary")
+    .then(r => r.json())
+    .then(cs => {
+
+      const total = Number(cs.total ?? 0);
+      const completed = Number(cs.completed ?? 0);
+
+      const percent = total > 0
+        ? Math.round((completed / total) * 100)
         : 0;
+
+      document.getElementById("kpiMonth").textContent =
+        `${total}/${completed}`;
 
       const monthLbl = document.getElementById("kpiMonthLabel");
       if(monthLbl){
@@ -1077,14 +1221,13 @@ function loadKpis(){
           `This Month Cluster Plan - <span class="kpiPercent">${percent}%</span>`;
       }
 
-      document.getElementById("kpiPending").textContent = k.pending ?? 0;
-
     })
     .catch(err => {
-      console.error("KPI error:", err);
-    })
-    .finally(()=> hideLoading());
+      console.error("Cluster KPI error:", err);
+      document.getElementById("kpiMonth").textContent = "0 / 0";
+    });
 }
+
 
 /* ===========================
    USERS (SECURE: NO PASSWORD COLUMN)
@@ -2549,6 +2692,7 @@ window.onload = function(){
   setupMonthYear();
   loadWeeklyDonut();
   loadKpis();
+  loadClusterKpi();
   applyRoleAccess(SERVER_ROLENAME);
   fillVisitCode2();
   loadWsrDonutMonth();
@@ -2726,8 +2870,61 @@ function openCustomerReport(){
   });
 }
 
+// ==========================
+// CLUSTER SUMMARY SAFE LOAD
+// ==========================
 
+function applyClusterFilter(){
+
+  const engineer = document.getElementById("engineerFilter").value.toLowerCase();
+  const status   = document.getElementById("statusFilter").value.toLowerCase();
+
+  const table = document.getElementById("clusterSummaryTable");
+  const rows = table.querySelectorAll("tbody tr");
+
+  let visibleCount = 0;
+
+  rows.forEach(row => {
+
+    const cells = row.querySelectorAll("td");
+
+    let rowEngineer = "";
+    let rowStatus = "";
+
+    // 🔍 find engineer & status column dynamically
+    const headers = table.querySelectorAll("thead th");
+
+    headers.forEach((th, i) => {
+      const text = th.textContent.trim().toLowerCase();
+
+      if(text.includes("engineer")){
+        rowEngineer = cells[i]?.textContent.trim().toLowerCase();
+      }
+
+      if(text.includes("status")){
+        rowStatus = cells[i]?.textContent.trim().toLowerCase();
+      }
+    });
+
+    const matchEngineer = !engineer || rowEngineer === engineer;
+    const matchStatus   = !status || rowStatus === status;
+
+    if(matchEngineer && matchStatus){
+      row.style.display = "";
+      visibleCount++;
+    }else{
+      row.style.display = "none";
+    }
+
+  });
+
+  // Update row count after filter
+  const rc = document.getElementById("clusterRowCount");
+  if(rc) rc.textContent = visibleCount;
+}
 
 </script>
+
+
 </body>
 </html>
