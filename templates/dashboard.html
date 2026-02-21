@@ -6,6 +6,10 @@
   <title>KGK Jet India ERP</title>
 
   <style>
+
+    .status-completed{  background-color:#2e7d32;  color:#fff;  padding:4px 8px;  border-radius:6px;  font-weight:700;  text-align:center;}
+
+    .status-pending{  background-color:#e53935;  color:#fff;  padding:4px 8px;  border-radius:6px;  font-weight:700;  text-align:center;}
     .cluster-filters {display: flex;gap: 10px;margin-bottom: 15px;}
     .cluster-filters select,
     .cluster-filters button {padding: 6px 10px; border-radius: 6px;border: 1px solid #ccc;}
@@ -1087,7 +1091,23 @@ async function loadClusterSummary() {
       const tr = document.createElement("tr");
       data.columns.forEach(c => {
         const td = document.createElement("td");
-        td.textContent = r[c] ?? "";
+        const value = r[c] ?? "";
+        const colName = c.toLowerCase();// ✅ STATUS COLOR LOGIC
+
+        if(colName.includes("status")){
+          const span = document.createElement("span");
+          span.textContent = value;
+          const v = String(value).toLowerCase();
+          if(v === "completed"){
+            span.className = "status-completed";
+          }
+          else if(v === "pending"){
+            span.className = "status-pending";
+          }
+          td.appendChild(span);
+        }else{
+          td.textContent = value;
+        }
         tr.appendChild(td);
       });
       tbody.appendChild(tr);
