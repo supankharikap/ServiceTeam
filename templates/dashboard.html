@@ -377,10 +377,8 @@
             <div class="kpi" id="kpiCustomers">—</div>
             <div class="label">Total Customers</div>
           </div>
-          </div>
-              
-          ✅ Updating is in progress.
-
+          </div>             
+        
           <div class="donutGrid">
             <!-- Weekly Plan Donut -->
             <div class="donutWrap donutCard">
@@ -411,7 +409,22 @@
                 <div class="kpi" id="kpiWsrMonth"></div>
                 <div class="label">WSR Reports (Current Month)</div>
                 <div id="wsrDonutLegend" style="margin-top:10px;"></div>
+              </div>              
+            </div>
+          </div>
+          <!-- ===== SECOND ROW (FULL WIDTH AMC DONUT) ===== -->
+           <div class="donutWrap donutCard" style="margin-top:14px;">
+            <div class="donutCanvasBox">
+              <div id="amcDonutChart" class="cssDonut"></div>
+              <div class="donutCenter">
+                <div class="donutCenterBig" id="amcDonutTotal">0</div>
+                <div class="donutCenterSmall">Total</div>
               </div>
+            </div>
+            <div class="donutMeta">
+              <div class="kpi" id="kpiAmcTotal"></div>
+              <div class="label">InstallBase Machine Status</div>
+              <div id="amcDonutLegend" style="margin-top:10px;"></div>
             </div>
           </div>
         </div>
@@ -1170,23 +1183,38 @@ const VISIT_TYPE_COLOR = {
   "Sales Support": "#2e7d32",
   "Other": "#8e24aa"
 };
+const AMC_STATUS_COLOR = {
+  "AMC": "#2e7d32",
+  "NON AMC": "#1a73e8",
+  "WARRANTY": "#e53935"
+};
+
 function renderCssDonutTo(elId, labels, values){
   const total = values.reduce((a,b)=>a+b,0);
   const ring = document.getElementById(elId);
   if(!ring) return;
+
   if(total <= 0){
     ring.style.background = "conic-gradient(#e5e7eb 0deg 360deg)";
     return;
   }
+
   let acc = 0;
   const parts = labels.map((l,i)=>{
     const v = Number(values[i]||0);
     const start = (acc/total)*360;
     acc += v;
     const end = (acc/total)*360;
-    const color = VISIT_TYPE_COLOR[l] || "#64748b";
+
+    // 🔥 FIX HERE
+    let color =
+      VISIT_TYPE_COLOR[l] ||
+      AMC_STATUS_COLOR[l] ||
+      "#64748b";
+
     return `${color} ${start}deg ${end}deg`;
   });
+
   ring.style.background = `conic-gradient(${parts.join(",")})`;
 }
 function renderLegendTo(hostId, labels, colors, values, onClick){
@@ -1207,31 +1235,60 @@ function renderLegendTo(hostId, labels, colors, values, onClick){
     host.appendChild(row);
   });
 }
+async function loadAmcDonut(){
+  showLoading("Loading InstallBase Status...");
+
+  try{
+    const res = await fetch("/api/installbase/mc-summary");
+    const data = await res.json();
+
+    const amc       = Number(data.amc || 0);
+    const nonAmc    = Number(data.non_amc || 0);
+    const warranty  = Number(data.warranty || 0);
+
+    const total = amc + nonAmc + warranty;
+
+    document.getElementById("amcDonutTotal").textContent = total;
+
+    const labels = ["AMC","NON AMC","WARRANTY"];
+    const values = [amc, nonAmc, warranty];
+
+    renderCssDonutTo("amcDonutChart", labels, values);
+
+    renderLegendTo(
+      "amcDonutLegend",
+      labels,
+      ["#2e7d32","#1a73e8","#e53935"],
+      values
+    );
+
+  }catch(e){
+    console.error("AMC Donut Error:", e);
+  }finally{
+    hideLoading();
+  }
+}
 
 /* ===========================
    WEEKLY DONUT (±7 days) -> OPEN REPORT IN SAME PAGE
 =========================== */
 function openWeekly14Days(type){
+
   const pad = n => String(n).padStart(2,'0');
   const today = new Date();
-  const fromD = new Date(today); fromD.setDate(fromD.getDate() - 7);
-  const toD   = new Date(today); toD.setDate(toD.getDate() + 7);
+
+  const fromD = new Date(today);
+  fromD.setDate(fromD.getDate() - 7);
+
+  const toD = new Date(today);
+  toD.setDate(toD.getDate() + 7);
 
   const from = `${fromD.getFullYear()}-${pad(fromD.getMonth()+1)}-${pad(fromD.getDate())}`;
   const to   = `${toD.getFullYear()}-${pad(toD.getMonth()+1)}-${pad(toD.getDate())}`;
 
-  const btn = document.getElementById("btnWeeklyPlanView");
-  showSection("weeklyViewPlanSection", btn);
-
-  const s = document.getElementById("wpReportSearch");
-  const f = document.getElementById("wpFromDate");
-  const t = document.getElementById("wpToDate");
-
-  if(s) s.value = type;
-  if(f) f.value = from;
-  if(t) t.value = to;
-
-  loadWeeklyPlanReport();
+  // ✅ Redirect to separate HTML file
+  window.location.href =
+    `/weeklyPlanReport.html?type=${encodeURIComponent(type)}&from=${from}&to=${to}`;
 }
 
 async function loadWeeklyDonut(){
@@ -1338,22 +1395,48 @@ async function loadWsrDonutMonth(){
 /* ===========================
    REPORT VIEW + WEEKLY REPORT
 =========================== */
-
 function renderTable(columns, rows) {
-  if (!rows || rows.length === 0) return "<div>No data found</div>";
-  const th = columns.map(c => `<th>${escapeHtml(c)}</th>`).join("");
-  const body = rows.map(r => {
-    const tds = columns.map(c => `<td>${escapeHtml(r[c])}</td>`).join("");
-    return `<tr>${tds}</tr>`;
-  }).join("");
-  return `
-    <div style="overflow:auto; max-height:70vh; border:1px solid #e5e7eb; border-radius:12px;">
-      <table style="width:100%; border-collapse:collapse;">
-        <thead><tr>${th}</tr></thead>
-        <tbody>${body}</tbody>
-      </table>
-    </div>
-  `;
+
+  const wrap = document.createElement("div");
+  wrap.style.overflow = "auto";
+  wrap.style.maxHeight = "70vh";
+  wrap.style.border = "1px solid #e5e7eb";
+  wrap.style.borderRadius = "12px";
+
+  const table = document.createElement("table");
+  table.style.borderCollapse = "collapse";
+  table.style.minWidth = "1600px";
+
+  const thead = document.createElement("thead");
+  const trHead = document.createElement("tr");
+
+  columns.forEach(col => {
+    const th = document.createElement("th");
+    th.textContent = col;
+    trHead.appendChild(th);
+  });
+
+  thead.appendChild(trHead);
+  table.appendChild(thead);
+
+  const tbody = document.createElement("tbody");
+
+  rows.forEach(row => {
+    const tr = document.createElement("tr");
+
+    columns.forEach(col => {
+      const td = document.createElement("td");
+      td.textContent = row[col] ?? "";
+      tr.appendChild(td);
+    });
+
+    tbody.appendChild(tr);
+  });
+
+  table.appendChild(tbody);
+  wrap.appendChild(table);
+
+  return wrap;
 }
 
 async function openMaster(){
@@ -1367,7 +1450,7 @@ async function openMaster(){
   const q = (document.getElementById("masterSearch")?.value || "").trim();
   showLoading("Loading master...");
   try {
-    const res = await fetch("/api/master/installbase?limit=2000&q=" + encodeURIComponent(q));
+    const res = await fetch("/api/master/installbase?limit=500&q=" + encodeURIComponent(q));
     const data = await res.json();
     if (!res.ok) {
       if(hint) hint.textContent = "Error";
@@ -1376,7 +1459,35 @@ async function openMaster(){
       return;
     }
     if(hint) hint.textContent = `Rows: ${(data.rows||[]).length}`;
-    if(holder) holder.innerHTML = renderTable(data.columns || [], data.rows || []);
+    if(holder) holder.innerHTML = "";
+    const desiredOrder = [
+      "ZONE","SALES ENGR","SERVICE ENGR",  "Cluster No",  
+      "CUSTOMER NAME",  "LOCATION",  "STATE",  "Address",
+      "Contact Person1", "Designation", "Contact No.",
+      "Email Id","Contact Person2","Designation (2)",
+      "Contact No. (2)","Email Id (2)","Segment","Sub-Segment",
+      "Machine Type","Model","Serial No.","Ink type","Active Status",
+      "Mc Status","Sales Invoice No","Invoice Date","Installed On",
+      "AMC Invoice Date","AMC From","AMC To","No. of Visits","AMC Amount",
+      
+      "AMC Due Date","AMC Days Remaining","Filter Invoice Date",
+      "Next Filter Due Date","Filter Days Remaining","Cluster Visit Plan",
+      "Actual Visit","Cluster","Remarks", "Teritory No", "NEXT TER2 PLAN"
+    ];
+   
+    function norm(s){
+      return String(s||"").toLowerCase().replace(/[^a-z0-9]+/g,"");
+    }
+    const apiCols = data.columns || [];
+    const apiNormMap = new Map(apiCols.map(c => [norm(c), c]));
+    const orderedCols = desiredOrder
+    .map(d => apiNormMap.get(norm(d)))
+    .filter(Boolean);// remaining columns
+    const remaining = apiCols.filter(c => !orderedCols.includes(c));
+    const finalCols = [...orderedCols, ...remaining];
+    holder.appendChild(
+      renderTable(finalCols, data.rows || [])
+    );
     loadKpis();
 
     // ✅ update cache for autosuggest (no logic change)
@@ -2434,6 +2545,7 @@ window.onload = function(){
   if(sbZone) sbZone.textContent = SERVER_TEAM || "-";
 
   refillReadonly();
+  loadAmcDonut();
   setupMonthYear();
   loadWeeklyDonut();
   loadKpis();

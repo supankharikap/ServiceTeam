@@ -604,8 +604,17 @@ def api_master_installbase():
 
     id_col = _find_col(cols, aliases=["Id", "ID"], must_contain=["id"])
     order_by = f"{_qcol(id_col)} DESC" if id_col else f"{_qcol(cols[0])} DESC"
-    select_cols = ", ".join([_qcol(c) for c in cols])
-
+    select_cols = """
+    [ID],[ZONE],[SALES ENGR],[SERVICE ENGR],[Cluster No],[CUSTOMER NAME],[LOCATION],
+    [STATE],[Address],[Contact Person1],[Designation],[Contact No.],[Email Id],
+    [Contact Person2],[Designation (2)],[Contact No. (2)],[Email Id (2)],
+    [Segment],[Sub-Segment],[Machine Type],[Model],[Serial No.],[Ink type],[Active Status],
+    [Mc Status],[Sales Invoice No],[Invoice Date],[Installed On],
+    [AMC Invoice Date],[AMC From],[AMC To],[No. of Visits],[AMC Amount],
+    [AMC Due Date],[AMC Days Remaining],[Filter Invoice Date],
+    [Next Filter Due Date],[Filter Days Remaining],[Cluster Visit Plan],
+    [Actual Visit],[Cluster],[Remarks],[Teritory No],[NEXT TER2 PLAN]
+    """
     sql = f"SELECT TOP {limit} {select_cols} FROM dbo.InstallBase{where_sql} ORDER BY {order_by}"
 
     try:
@@ -614,15 +623,27 @@ def api_master_installbase():
             cur.execute(sql, params)
             rows = cur.fetchall()
 
+
+
+        fixed_columns = [
+            "ID","ZONE","SALES ENGR","SERVICE ENGR","Cluster No","CUSTOMER NAME","LOCATION",
+            "STATE","Address","Contact Person1","Designation","Contact No.","Email Id",
+            "Contact Person2","Designation (2)","Contact No. (2)","Email Id (2)",
+            "Segment","Sub-Segment","Machine Type","Model","Serial No.","Ink type",
+            "Active Status","Mc Status","Sales Invoice No","Invoice Date","Installed On",
+            "AMC Invoice Date","AMC From","AMC To","No. of Visits","AMC Amount",
+            "AMC Due Date","AMC Days Remaining","Filter Invoice Date",
+            "Next Filter Due Date","Filter Days Remaining",
+            "Cluster Visit Plan","Actual Visit","Cluster","Remarks",
+            "Teritory No","NEXT TER2 PLAN"
+            ]
         out_rows = []
         for r in rows:
             obj = {}
-            for i, c in enumerate(cols):
-                obj[c] = _json_safe(r[i])
+            for i, col_name in enumerate(fixed_columns):
+                obj[col_name] = _json_safe(r[i])
             out_rows.append(obj)
-
-        return jsonify({"columns": cols, "rows": out_rows})
-
+        return jsonify({"columns": fixed_columns, "rows": out_rows})
     except Exception as e:
         return _json_err(f"InstallBase API error: {e}", 500)
 
@@ -1916,7 +1937,6 @@ def api_wsr_summary_month():
         return jsonify({"ok": False, "error": f"WSR summary error: {e}"}), 500
 
 # ===================== WSR SAVE =====================
-
 @app.post("/api/wsr")
 @app.post("/api/wsr/")
 def api_wsr_save():
@@ -1924,7 +1944,7 @@ def api_wsr_save():
     if "user" not in session:
         return jsonify({"ok": False, "error": "unauthorized"}), 401
 
-    # ✅ accept both JSON & FormData
+    # accept JSON & FormData
     if request.is_json:
         payload = request.get_json() or {}
     else:
@@ -1936,7 +1956,6 @@ def api_wsr_save():
     if not cols:
         return jsonify({"ok": False, "error": "WSR table not found"}), 400
 
-    # ✅ force engineer & zone from session
     payload["engineer_name"] = (session.get("engineer") or "").strip()
     payload["zone"] = (session.get("zone") or "").strip()
 
@@ -1956,7 +1975,6 @@ def api_wsr_save():
 
                 if c in db_vals:
                     v = db_vals.get(c)
-
                     if v is None:
                         continue
                     if isinstance(v, str) and v.strip() == "":
@@ -1976,6 +1994,40 @@ def api_wsr_save():
             """
 
             cur.execute(sql, params)
+
+            # ================= UPDATE INSTALLBASE IF CLUSTER =================
+            visit_code = (payload.get("visitCode1") or "").strip().upper()
+            serial_no = (payload.get("serialNo") or "").strip()
+            visit_date_raw = payload.get("visitDate")
+            visit_date = _parse_iso_date(visit_date_raw)
+
+            if visit_code == "CLUSTER" and serial_no and visit_date:
+
+                install_cols = _table_columns("dbo.InstallBase")
+
+                serial_col = _find_col(
+                    install_cols,
+                    aliases=["Serial No.", "Serial No", "Serial_No", "SERIAL NO", "SerialNo"],
+                    must_contain=["serial"]
+                )
+
+                actual_visit_col = _find_col(
+                    install_cols,
+                    aliases=["Actual Visit", "ActualVisit"],
+                    must_contain=["actual", "visit"]
+                )
+
+                if serial_col and actual_visit_col:
+
+                    update_sql = f"""
+                        UPDATE dbo.InstallBase
+                        SET {_qcol(actual_visit_col)} = ?
+                        WHERE {_cmp_ci_trim(serial_col)} = UPPER(?)
+                    """
+
+                    cur.execute(update_sql, (visit_date, serial_no))
+
+            # ✅ ONE SINGLE COMMIT (best practice)
             conn.commit()
 
         return jsonify({"ok": True, "message": "WSR Saved Successfully"})
@@ -2121,7 +2173,65 @@ def api_users_toggle_active(user_id: int):
 @app.route('/google0832a92ac05f82f8.html')
 def google_verification():
     return send_from_directory('.', 'google0832a92ac05f82f8.html')
+@app.get("/api/installbase/mc-summary")
+def api_installbase_mc_summary():
+    need = _require_login_json()
+    if need:
+        return need
 
+    install_cols = _table_columns("dbo.InstallBase")
+    if not install_cols:
+        return jsonify({"error": "InstallBase not found"}), 400
+
+    base_where, base_params = _installbase_scope_where(install_cols)
+
+    active_col = _find_col(install_cols,aliases=["Active Status", "ActiveStatus"],must_contain=["active", "status"])
+    mc_col = _find_col(install_cols,aliases=["Mc Status", "McStatus"],must_contain=["status"])
+    
+    if not active_col or not mc_col:
+        return jsonify({"error": "Required columns not found"}), 400
+    
+    active_expr = f"UPPER({_qcol(active_col)})"
+    mc_expr = f"UPPER({_qcol(mc_col)})"
+    active_expr = _cmp_ci_trim(active_col)
+    mc_expr = _cmp_ci_trim(mc_col)
+    where_parts = []
+    params = []
+
+    # Always filter active
+    where_parts.append(f"{active_expr} = 'ACTIVE'")
+
+    # Add role-based scope
+    if base_where:
+        where_parts.append(base_where.replace(" WHERE ", "", 1))
+        params += base_params
+
+    where_sql = " WHERE " + " AND ".join(where_parts)
+
+    try:
+        with get_conn() as conn:
+            cur = conn.cursor()
+
+            sql = f"""
+                SELECT 
+                    SUM(CASE WHEN {mc_expr} = 'AMC' THEN 1 ELSE 0 END),
+                    SUM(CASE WHEN {mc_expr} = 'NON AMC' THEN 1 ELSE 0 END),
+                    SUM(CASE WHEN {mc_expr} = 'WARRANTY' THEN 1 ELSE 0 END)
+                FROM dbo.InstallBase
+                {where_sql}
+            """
+
+            cur.execute(sql, params)
+            row = cur.fetchone()
+
+        return jsonify({
+            "amc": int(row[0] or 0),
+            "non_amc": int(row[1] or 0),
+            "warranty": int(row[2] or 0)
+        })
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 # ===================== RUN =====================
 if __name__ == "__main__":
