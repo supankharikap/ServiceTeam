@@ -584,9 +584,14 @@
                 <option value="">--Select--</option>
                 <option value="NA">NA</option>
                 <option value="CLUSTER">CLUSTER</option>
+                <option value="INSTALLATION">INSTALLATION</option>
                 <option value="BREAKDOWN">BREAKDOWN</option>
                 <option value="SALES SUPPORTS">SALES SUPPORTS</option>
-                <option value="OTHERS TEC">OTHERS TEC</option>
+                <option value="TRAINING">TRAINING </option>
+                <option value="SPECIAL_APPLICATION">SPECIAL_APPLICATION </option>
+                <option value="REFURBISHMENT">REFURBISHMENT </option>
+                <option value="OTHERS-VISIT">OTHERS </option>
+
               </select>
             </div>
 
@@ -1033,7 +1038,7 @@ const visitCode2Map = {
   "SPECIAL_APPLICATION":["Line Study","First Visit","Carryover Visit"],
   "TRAINING":["Onsite","Other Venue","KGK Office"],
   "REFURBISHMENT":["Onsite","KGK Workshop"],
-  "OTHERS TEC": ["S/W Upgrade", "Courtesy", "Sales Contract", "Order Followup", "Payment Followup"]
+  "OTHERS ": ["GPM","FPM","S/W Upgrade", "Courtesy", "Sales Contract", "Order Followup", "Payment Followup"]
 };
 function fillVisitCode2(){
   const v1 = document.getElementById("visitCode1");
