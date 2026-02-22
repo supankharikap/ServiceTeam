@@ -389,184 +389,181 @@ def _build_token_search_where(q: str, cols: list, preferred_cols: list):
 # ===================== KPI =====================
 @app.get("/api/kpi")
 def api_kpi():
+
     need = _require_login_json()
     if need:
         return need
 
     install_cols = _table_columns("dbo.InstallBase")
     if not install_cols:
-        return _json_err("dbo.InstallBase not found", 400)
+        return _json_err("InstallBase not found", 400)
 
+    wsr_cols = _wsr_cols()
+    if not wsr_cols:
+        return _json_err("WSR not found", 400)
+
+    # ---------------- InstallBase Scope ----------------
     where_sql, params = _installbase_scope_where(install_cols)
 
     try:
         with get_conn() as conn:
             cur = conn.cursor()
 
-            # =========================
-            # 1️⃣ InstallBase Total
-            # =========================
+            # ================= 1️⃣ TOTAL INSTALLBASE =================
             cur.execute(f"SELECT COUNT(*) FROM dbo.InstallBase{where_sql}", params)
             installbase_total = int(cur.fetchone()[0] or 0)
 
-            # =========================
-            # # Active / Inactive (Machine Status)
-            # # =========================
-            active_status_col = _find_col(
+            # ================= 2️⃣ ACTIVE / INACTIVE / DEAD =================
+            active_col = _find_col(
                 install_cols,
                 aliases=["Active Status", "ActiveStatus"],
                 must_contain=["active", "status"]
-                )
+            )
+
             active_total = 0
             inactive_total = 0
             dead_total = 0
-            if active_status_col:
-                status_expr = _cmp_ci_trim(active_status_col)
-                cur.execute(f"""
-                            SELECT
-                            SUM(CASE WHEN {status_expr} = 'ACTIVE' THEN 1 ELSE 0 END),
-                            SUM(CASE WHEN {status_expr} = 'INACTIVE' THEN 1 ELSE 0 END),
-                            SUM(CASE WHEN {status_expr} = 'DEAD' THEN 1 ELSE 0 END)
-                            FROM dbo.InstallBase
-                            {where_sql}
-                """, params)
+
+            if active_col:
+
+                active_expr = _cmp_ci_trim(active_col)
+
+                status_where_parts = []
+                status_params = []
+
+                if where_sql:
+                    status_where_parts.append(where_sql.replace(" WHERE ", "", 1))
+                    status_params += params
+
+                status_where_sql = (
+                    " WHERE " + " AND ".join(status_where_parts)
+                    if status_where_parts else ""
+                )
+
+                sql_status = f"""
+                    SELECT
+                        SUM(CASE WHEN {active_expr} = 'ACTIVE' THEN 1 ELSE 0 END),
+                        SUM(CASE WHEN {active_expr} = 'INACTIVE' THEN 1 ELSE 0 END),
+                        SUM(CASE WHEN {active_expr} = 'DEAD' THEN 1 ELSE 0 END)
+                    FROM dbo.InstallBase
+                    {status_where_sql}
+                """
+
+                cur.execute(sql_status, status_params)
                 row = cur.fetchone()
+
                 if row:
                     active_total = int(row[0] or 0)
                     inactive_total = int(row[1] or 0)
                     dead_total = int(row[2] or 0)
 
-            # =========================
-            # # Customers (unique customer name)
-            # # =========================
-            cust_col = _find_col(
-                install_cols,
-                aliases=["CUSTOMER_NAME", "CUSTOMER NAME", "CustomerName", "Customer Name"],
-                must_contain=["customer", "name"]
-                )
+            # ================= 3️⃣ CUSTOMERS =================
+            cust_col = _find_col(install_cols, must_contain=["customer","name"])
             customers = 0
             if cust_col:
                 cur.execute(
                     f"SELECT COUNT(DISTINCT {_qcol(cust_col)}) FROM dbo.InstallBase{where_sql}",
                     params
-                    )
+                )
                 customers = int(cur.fetchone()[0] or 0)
 
-
-            # =========================
-            # 2️⃣ This Month Cluster Plan (InstallBase)
-            # =========================
-            cluster_no_col = _find_col(
-                install_cols,
-                aliases=["Cluster No", "Cluster_No", "CLUSTER NO"],
-                must_contain=["cluster"]
-            )
-            plan_col = _find_col(
-                install_cols,
-                aliases=["Cluster Visit Plan", "ClusterVisitPlan"],
-                must_contain=["cluster", "visit", "plan"]
-            )
-
+            # ================= 4️⃣ THIS MONTH CLUSTER PLAN =================
+            plan_col = _find_col(install_cols, must_contain=["cluster","visit","plan"])
             this_month_cluster_plan = 0
 
-            if cluster_no_col and plan_col:
+            if plan_col:
 
-                plan_date_expr = (
-                    f"COALESCE("
-                    f"TRY_CONVERT(date, {_qcol(plan_col)}, 23),"
-                    f"TRY_CONVERT(date, {_qcol(plan_col)}, 105),"
-                    f"TRY_CONVERT(date, {_qcol(plan_col)})"
-                    f")"
-                )
+                plan_date_expr = f"""
+                    COALESCE(
+                        TRY_CONVERT(date, {_qcol(plan_col)}, 23),
+                        TRY_CONVERT(date, {_qcol(plan_col)}, 105),
+                        TRY_CONVERT(date, {_qcol(plan_col)})
+                    )
+                """
 
-                where_parts = []
-                p = []
+                plan_where_parts = []
+                plan_params = []
 
                 if where_sql:
-                    where_parts.append(where_sql.replace(" WHERE ", "", 1))
-                    p += params
+                    plan_where_parts.append(where_sql.replace(" WHERE ", "", 1))
+                    plan_params += params
 
-                where_parts.append(
+                plan_where_parts.append(
                     f"{plan_date_expr} >= DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()), 1)"
                 )
-                where_parts.append(
-                    f"{plan_date_expr} < DATEADD(month, 1, DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()), 1))"
+                plan_where_parts.append(
+                    f"{plan_date_expr} < DATEADD(month,1,DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()),1))"
                 )
 
-                w = " WHERE " + " AND ".join(where_parts)
+                plan_where_sql = " WHERE " + " AND ".join(plan_where_parts)
 
-                cur.execute(f"SELECT COUNT(*) FROM dbo.InstallBase{w}", p)
+                plan_sql = f"""
+                    SELECT COUNT(DISTINCT {_cmp_ci_trim(_find_col(install_cols, must_contain=['serial']))})
+                    FROM dbo.InstallBase
+                    {plan_where_sql}
+                """
+
+                cur.execute(plan_sql, plan_params)
                 this_month_cluster_plan = int(cur.fetchone()[0] or 0)
 
-            # =========================
-            # 3️⃣ This Month Unique Cluster Visited (WSR)
-            # =========================
-            wsr_cols = _wsr_cols()
+            # ================= 5️⃣ THIS MONTH CLUSTER VISITED =================
+            dcol = _wsr_date_col(wsr_cols)
+            vcol = _wsr_visit_code1_col(wsr_cols)
+            serial_col = _find_col(wsr_cols, must_contain=["serial"])
+
             this_month_cluster_visited = 0
 
-            if wsr_cols:
-                dcol = _wsr_date_col(wsr_cols)
-                vcol = _wsr_visit_code1_col(wsr_cols)
-                serial_col = _find_col(
-                    wsr_cols,
-                    aliases=["Serial No", "Serial_No", "SERIAL NO"],
-                    must_contain=["serial"]
+            if dcol and vcol and serial_col:
+
+                base_where_wsr, base_params_wsr = _wsr_scope_where(wsr_cols)
+
+                date_expr = f"""
+                    COALESCE(
+                        TRY_CONVERT(date, {_qcol(dcol)}, 23),
+                        TRY_CONVERT(date, {_qcol(dcol)}, 105),
+                        TRY_CONVERT(date, {_qcol(dcol)})
+                    )
+                """
+
+                where_parts2 = []
+                params2 = []
+
+                if base_where_wsr:
+                    where_parts2.append(base_where_wsr.replace(" WHERE ", "", 1))
+                    params2 += base_params_wsr
+
+                where_parts2.append(f"{_cmp_ci_trim(vcol)} = 'CLUSTER'")
+                where_parts2.append(
+                    f"{date_expr} >= DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()), 1)"
+                )
+                where_parts2.append(
+                    f"{date_expr} < DATEADD(month,1,DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()),1))"
                 )
 
-                if dcol and vcol and serial_col:
+                where_sql2 = " WHERE " + " AND ".join(where_parts2)
 
-                    date_expr = (
-                        f"COALESCE("
-                        f"TRY_CONVERT(date, {_qcol(dcol)}, 23),"
-                        f"TRY_CONVERT(date, {_qcol(dcol)}, 105),"
-                        f"TRY_CONVERT(date, {_qcol(dcol)})"
-                        f")"
-                    )
+                sql2 = f"""
+                    SELECT COUNT(DISTINCT {_cmp_ci_trim(serial_col)})
+                    FROM dbo.WSR
+                    {where_sql2}
+                """
 
-                    scope_where, scope_params = _wsr_scope_where(wsr_cols)
+                cur.execute(sql2, params2)
+                this_month_cluster_visited = int(cur.fetchone()[0] or 0)
 
-                    where_parts = []
-                    p = []
-
-                    if scope_where:
-                        where_parts.append(scope_where.replace(" WHERE ", "", 1))
-                        p += scope_params
-
-                    where_parts.append(
-                        f"{date_expr} >= DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()), 1)"
-                    )
-                    where_parts.append(
-                        f"{date_expr} < DATEADD(month, 1, DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()), 1))"
-                    )
-
-                    where_parts.append(
-                        f"UPPER(LTRIM(RTRIM({_qcol(vcol)}))) = 'CLUSTER'"
-                    )
-
-                    w = " WHERE " + " AND ".join(where_parts)
-
-                    sql = f"""
-                        SELECT COUNT(DISTINCT {_qcol(serial_col)})
-                        FROM dbo.WSR
-                        {w}
-                    """
-
-                    cur.execute(sql, p)
-                    this_month_cluster_visited = int(cur.fetchone()[0] or 0)
+        return jsonify({
+            "installbase_total": installbase_total,
+            "active_total": active_total,
+            "inactive_total": inactive_total,
+            "dead_total": dead_total,
+            "customers": customers,
+            "this_month_cluster_plan": this_month_cluster_plan,
+            "this_month_cluster_visited": this_month_cluster_visited
+        })
 
     except Exception as e:
         return _json_err(f"KPI error: {e}", 500)
 
-    return jsonify({
-        "customers": customers,
-        "installbase_total": installbase_total,
-        "active_total": active_total,
-        "inactive_total": inactive_total,
-        "dead_total": dead_total,
-        "this_month_cluster_plan": this_month_cluster_plan,
-        "this_month_cluster_visited": this_month_cluster_visited
-
-    })
 
 
 # ===================== MASTER INSTALLBASE =====================
@@ -1881,8 +1878,15 @@ def api_wsr_summary_month():
 
     dcol = _wsr_date_col(cols)
     vcol = _wsr_visit_code1_col(cols)
-    if not dcol or not vcol:
-        return jsonify({"ok": False, "error": "WSR VisitDate / VisitCode1 column not found"}), 400
+
+    serial_col = _find_col(
+        cols,
+        aliases=["Serial No", "Serial_No", "SERIAL NO"],
+        must_contain=["serial"]
+    )
+
+    if not dcol or not vcol or not serial_col:
+        return jsonify({"ok": False, "error": "WSR VisitDate / VisitCode1 / Serial column not found"}), 400
 
     scope_where, scope_params = _wsr_scope_where(cols)
 
@@ -1901,27 +1905,37 @@ def api_wsr_summary_month():
         where_parts.append(scope_where.replace(" WHERE ", "", 1))
         params += scope_params
 
-    # current month range
-    where_parts.append(f"{date_expr} >= DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()), 1)")
-    where_parts.append(f"{date_expr} <  DATEADD(month, 1, DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()), 1))")
+    # ✅ Current month filter
+    where_parts.append(
+        f"{date_expr} >= DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()), 1)"
+    )
+    where_parts.append(
+        f"{date_expr} < DATEADD(month, 1, DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()), 1))"
+    )
 
     where_sql = " WHERE " + " AND ".join(where_parts)
 
+    # ✅ COUNT DISTINCT SERIAL (VERY IMPORTANT FIX)
     sql = f"""
-      SELECT UPPER(LTRIM(RTRIM(CAST({_qcol(vcol)} AS NVARCHAR(200))))) AS vt, COUNT(*) AS cnt
+      SELECT 
+        UPPER(LTRIM(RTRIM(CAST({_qcol(vcol)} AS NVARCHAR(200))))) AS vt,
+        COUNT(DISTINCT {_cmp_ci_trim(serial_col)}) AS cnt
       FROM {WSR_TABLE}
       {where_sql}
       GROUP BY UPPER(LTRIM(RTRIM(CAST({_qcol(vcol)} AS NVARCHAR(200)))))
     """
 
     counts = {"Cluster": 0, "Breakdown": 0, "Sales Support": 0, "Other": 0}
+
     try:
         with get_conn() as conn:
             cur = conn.cursor()
             cur.execute(sql, params)
+
             for vt, cnt in cur.fetchall():
                 vt = (vt or "").strip().upper()
                 n = int(cnt or 0)
+
                 if vt == "CLUSTER":
                     counts["Cluster"] += n
                 elif vt == "BREAKDOWN":
@@ -1932,11 +1946,15 @@ def api_wsr_summary_month():
                     counts["Other"] += n
 
         total = sum(counts.values())
-        return jsonify({"ok": True, "total": total, "counts": counts})
+
+        return jsonify({
+            "ok": True,
+            "total": total,
+            "counts": counts
+        })
 
     except Exception as e:
         return jsonify({"ok": False, "error": f"WSR summary error: {e}"}), 500
-
 # ===================== WSR SAVE =====================
 @app.post("/api/wsr")
 @app.post("/api/wsr/")
@@ -2236,7 +2254,6 @@ def api_installbase_mc_summary():
 
 
 
-
 @app.get("/api/installbase/month-cluster-summary")
 def month_cluster_summary():
 
@@ -2245,26 +2262,37 @@ def month_cluster_summary():
         return need
 
     install_cols = _table_columns("dbo.InstallBase")
-    if not install_cols:
-        return _json_err("InstallBase not found", 400)
-
     wsr_cols = _wsr_cols()
-    if not wsr_cols:
-        return _json_err("WSR not found", 400)
 
-    serial_ib = _find_col(install_cols, must_contain=["serial"])
-    plan_col = _find_col(install_cols, must_contain=["cluster", "visit", "plan"])
-    active_col = _find_col(install_cols, must_contain=["active", "status"])
+    if not install_cols or not wsr_cols:
+        return jsonify({"error": "Tables not found"}), 400
 
-    serial_wsr = _find_col(wsr_cols, must_contain=["serial"])
+    # 🔍 Detect Columns Dynamically
+    serial_ib = _find_col(
+        install_cols,
+        aliases=["Serial No.", "Serial No", "Serial_No", "SERIAL NO"],
+        must_contain=["serial"]
+    )
+
+    plan_col = _find_col(
+        install_cols,
+        aliases=["Cluster Visit Plan", "ClusterVisitPlan"],
+        must_contain=["cluster", "visit", "plan"]
+    )
+
+    serial_wsr = _find_col(
+        wsr_cols,
+        aliases=["Serial No", "Serial_No", "SERIAL NO"],
+        must_contain=["serial"]
+    )
+
     visit_date_col = _wsr_date_col(wsr_cols)
     visit_code_col = _wsr_visit_code1_col(wsr_cols)
 
-    if not all([serial_ib, plan_col, active_col, serial_wsr, visit_date_col, visit_code_col]):
-        return _json_err("Required columns missing", 400)
+    if not all([serial_ib, plan_col, serial_wsr, visit_date_col, visit_code_col]):
+        return jsonify({"error": "Required columns missing"}), 400
 
-    base_where, base_params = _installbase_scope_where(install_cols)
-
+    # 🔄 Date Expressions (robust parsing)
     plan_date_expr = f"""
         COALESCE(
             TRY_CONVERT(date, {_qcol(plan_col)}, 23),
@@ -2281,60 +2309,78 @@ def month_cluster_summary():
         )
     """
 
-    where_parts = []
-    params = []
-
-    if base_where:
-        where_parts.append(base_where.replace(" WHERE ", "", 1))
-        params += base_params
-
-    where_parts.append(f"{_cmp_ci_trim(active_col)} = 'ACTIVE'")
-    where_parts.append(f"{plan_date_expr} >= DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()), 1)")
-    where_parts.append(f"{plan_date_expr} < DATEADD(month,1,DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()),1))")
-
-    where_sql = " WHERE " + " AND ".join(where_parts)
-
-    sql = f"""
-    WITH CompletedSerials AS (
-        SELECT DISTINCT {_qcol(serial_wsr)} AS serial
-        FROM dbo.WSR
-        WHERE 
-            {_cmp_ci_trim(visit_code_col)} = 'CLUSTER'
-            AND {visit_date_expr} >= DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()), 1)
-            AND {visit_date_expr} < DATEADD(month,1,DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()),1))
-    )
-
-    SELECT 
-        COUNT(*) AS total_plan,
-        SUM(CASE WHEN cs.serial IS NOT NULL THEN 1 ELSE 0 END) AS completed,
-        SUM(CASE WHEN cs.serial IS NULL THEN 1 ELSE 0 END) AS pending
-    FROM dbo.InstallBase i
-    LEFT JOIN CompletedSerials cs
-        ON {_qcol(serial_ib)} = cs.serial
-    {where_sql}
-    """
+    # 🔐 Role Based Scope
+    base_where_ib, base_params_ib = _installbase_scope_where(install_cols)
+    base_where_wsr, base_params_wsr = _wsr_scope_where(wsr_cols)
 
     try:
         with get_conn() as conn:
             cur = conn.cursor()
-            cur.execute(sql, params)
-            row = cur.fetchone()
 
-        total = int(row[0] or 0)
-        completed = int(row[1] or 0)
-        pending = int(row[2] or 0)
-        percentage = round((completed / total * 100), 0) if total else 0
+            # ================= PLAN COUNT =================
+            plan_where_parts = []
+            plan_params = []
+
+            if base_where_ib:
+                plan_where_parts.append(base_where_ib.replace(" WHERE ", "", 1))
+                plan_params += base_params_ib
+
+            plan_where_parts.append(
+                f"{plan_date_expr} >= DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()), 1)"
+            )
+            plan_where_parts.append(
+                f"{plan_date_expr} < DATEADD(month,1,DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()),1))"
+            )
+
+            plan_where_sql = " WHERE " + " AND ".join(plan_where_parts)
+
+            plan_sql = f"""
+                SELECT COUNT(DISTINCT {_cmp_ci_trim(serial_ib)})
+                FROM dbo.InstallBase
+                {plan_where_sql}
+            """
+
+            cur.execute(plan_sql, plan_params)
+            total = int(cur.fetchone()[0] or 0)
+
+            # ================= VISITED COUNT =================
+            visit_where_parts = []
+            visit_params = []
+
+            if base_where_wsr:
+                visit_where_parts.append(base_where_wsr.replace(" WHERE ", "", 1))
+                visit_params += base_params_wsr
+
+            visit_where_parts.append(
+                f"{_cmp_ci_trim(visit_code_col)} = 'CLUSTER'"
+            )
+            visit_where_parts.append(
+                f"{visit_date_expr} >= DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()), 1)"
+            )
+            visit_where_parts.append(
+                f"{visit_date_expr} < DATEADD(month,1,DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()),1))"
+            )
+
+            visit_where_sql = " WHERE " + " AND ".join(visit_where_parts)
+
+            visit_sql = f"""
+                SELECT COUNT(DISTINCT {_cmp_ci_trim(serial_wsr)})
+                FROM dbo.WSR
+                {visit_where_sql}
+            """
+
+            cur.execute(visit_sql, visit_params)
+            completed = int(cur.fetchone()[0] or 0)
 
         return jsonify({
             "total": total,
-            "completed": completed,
-            "pending": pending,
-            "percentage": percentage
+            "completed": completed
         })
 
     except Exception as e:
-        return _json_err(f"Cluster summary error: {e}", 500)
-    
+        return jsonify({"error": str(e)}), 500
+
+
 @app.get("/api/installbase/month-cluster-details")
 def month_cluster_details():
 
@@ -2624,8 +2670,44 @@ def get_all_engineers():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
     
+# =========================
+# SMS EXPIRY BY SERIAL
+# =========================
+@app.get("/api/sms/by-serial")
+def api_sms_by_serial():
 
+    need = _require_login_json()
+    if need:
+        return need
 
+    serial = (request.args.get("serial") or "").strip()
+
+    if not serial:
+        return jsonify({"ok": True, "expiry_date": ""})
+
+    try:
+        sql = """
+            SELECT TOP 1 END_DAY
+            FROM dbo.sms
+            WHERE UPPER(LTRIM(RTRIM(MC_SERIAL_NO))) = UPPER(?)
+            ORDER BY END_DAY DESC
+        """
+
+        with get_conn() as conn:
+            cur = conn.cursor()
+            cur.execute(sql, (serial,))
+            row = cur.fetchone()
+
+        if row and row[0]:
+            return jsonify({
+                "ok": True,
+                "expiry_date": row[0].strftime("%Y-%m-%d")
+            })
+
+        return jsonify({"ok": True, "expiry_date": ""})
+
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)})
 # ================= EXPIRY FILTER MAIN API =================
 
 @app.get("/api/expiry/filter")
@@ -2638,10 +2720,16 @@ def api_expiry_filter():
     filter_type = (request.args.get("type") or "").strip()
     engineer = (request.args.get("engineer") or "").strip()
 
+    # 🔐 Session Info
+    role = (session.get("role") or "").strip().lower()
+    zone = (session.get("zone") or "").strip()
+    logged_engineer = (session.get("engineer") or "").strip()
+
     try:
         with get_conn() as conn:
             cur = conn.cursor()
 
+            # ================= SMS (15 DAYS) =================
             if filter_type == "sms_15":
 
                 query = """
@@ -2659,15 +2747,21 @@ def api_expiry_filter():
 
                 params = []
 
+                # ✅ SMS → Full Zone Access (non-admin)
+                if role != "admin":
+                    query += " AND UPPER(REG) = UPPER(?)"
+                    params.append(zone)
+
                 if engineer:
                     query += " AND UPPER(ENGINEER) = UPPER(?)"
                     params.append(engineer)
 
-                query += " ORDER BY END_DAY"
+                query += " ORDER BY END_DAY ASC"
 
                 cur.execute(query, params)
 
 
+            # ================= AMC (60 DAYS) =================
             elif filter_type == "amc_60":
 
                 query = """
@@ -2685,15 +2779,28 @@ def api_expiry_filter():
 
                 params = []
 
+                # 🔒 ROLE BASED CONTROL
+                if role != "admin":
+
+                    # Zone restriction
+                    query += " AND UPPER([ZONE]) = UPPER(?)"
+                    params.append(zone)
+
+                    # Engineer restriction (only for normal users)
+                    if role not in ["manager", "team leader"]:
+                        query += " AND UPPER([SERVICE ENGR]) = UPPER(?)"
+                        params.append(logged_engineer)
+
                 if engineer:
                     query += " AND UPPER([SERVICE ENGR]) = UPPER(?)"
                     params.append(engineer)
 
-                query += " ORDER BY [AMC Due Date]"
+                query += " ORDER BY [AMC Due Date] ASC"
 
                 cur.execute(query, params)
 
 
+            # ================= FILTER (60 DAYS) =================
             elif filter_type == "filter_60":
 
                 query = """
@@ -2711,11 +2818,21 @@ def api_expiry_filter():
 
                 params = []
 
+                # 🔒 ROLE BASED CONTROL
+                if role != "admin":
+
+                    query += " AND UPPER([ZONE]) = UPPER(?)"
+                    params.append(zone)
+
+                    if role not in ["manager", "team leader"]:
+                        query += " AND UPPER([SERVICE ENGR]) = UPPER(?)"
+                        params.append(logged_engineer)
+
                 if engineer:
                     query += " AND UPPER([SERVICE ENGR]) = UPPER(?)"
                     params.append(engineer)
 
-                query += " ORDER BY [Next Filter Due Date]"
+                query += " ORDER BY [Next Filter Due Date] ASC"
 
                 cur.execute(query, params)
 
@@ -2729,6 +2846,9 @@ def api_expiry_filter():
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+
+
 # ===================== RUN =====================
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))

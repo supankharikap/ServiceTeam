@@ -5,6 +5,16 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>KGK Jet India ERP</title>
 
+  <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css">
+<link href="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/css/select2.min.css" rel="stylesheet"/>
+
+<script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/js/select2.min.js"></script>
+
+
+
+
   <style>
     .filter-btn {padding:8px 15px;margin-right:10px; border:none;border-radius:6px;background:#1f6feb;color:white;    cursor:pointer; transition:0.2s;}
     .filter-btn:hover { background:#1558b0;}
@@ -619,7 +629,7 @@
             <div><label>AMC Due Date</label><input type="date" name="amcDueDate" id="wp_amcDueDate"></div>
             <div><label>Filter Due Date / Hrs</label><input name="filterDue" id="wp_filterDue"></div>
 
-            <div><label>SMS Expiry Date</label><input type="date" name="smsExpiry"></div>
+            <div><label>SMS Expiry Date</label><input type="date" name="smsExpiry" id="wp_smsExpiry"></div>
 
             <div><label>Outstanding Amount</label><input name="outstandingAmount"></div>
 
@@ -1215,7 +1225,7 @@ function loadKpis(){
       // InstallBase
       const lbl = document.getElementById("installBaseLabel");
       if(lbl){
-        lbl.textContent = `InstallBase - ${total}`;
+        lbl.textContent = `Installase  -   ${total}`;
       }
 
       const sub = document.getElementById("kpiInstallSub");
@@ -2559,10 +2569,28 @@ function setupCascadeForForm(cfg){
       }catch(e){
         console.error("WSR auto-fill error:", e);
       }
+
+
+
     })();
+    
+    // ===== FETCH SMS EXPIRY =====
+    // ===== FETCH SMS EXPIRY =====
+    (async function(){
+      try{
+        const res = await fetch(`/api/sms/by-serial?serial=${serial}`);
+        const data = await res.json();
 
-
-
+        if(!res.ok || !data.ok) return;
+        const smsField = document.getElementById("wp_smsExpiry");
+        if(smsField){
+          smsField.value = data.expiry_date || "";
+        }
+      }catch(e){
+        console.error("SMS auto-fill error:", e);
+      }
+    })();
+    
   });
   
 
@@ -3038,7 +3066,7 @@ function loadExpiry(type, btn) {
             }
 
             let html = `
-            <table style="width:100%;border-collapse:collapse;margin-top:15px;">
+            <table id="engineerTable" class="display"tyle="width:100%;border-collapse:collapse;margin-top:15px;">
                 <thead>
                     <tr style="background:#0b2a55;color:white;">
                         <th style="padding:8px;">Engineer</th>
@@ -3092,6 +3120,61 @@ function loadExpiry(type, btn) {
 
             html += "</tbody></table>";
             container.innerHTML = html;
+
+            // Destroy old table if exists
+            if ($.fn.DataTable.isDataTable('#engineerTable')) {
+              $('#engineerTable').DataTable().destroy();
+            }
+            // Initialize DataTable
+            var table = $('#engineerTable').DataTable({
+              pageLength: 25,
+              orderCellsTop: true,
+              fixedHeader: true,
+              order: [[4, 'asc']],   
+              // 👈 Days column (index 4) always small → big
+              columnDefs: [
+                {
+                  targets: 4,
+                  type: 'num'        // 👈 force numeric sorting
+                }
+              ]
+            });
+            // -------- Engineer Multi Filter --------
+            var engineerColumn = table.column(0);
+            var engineerSelect = $('<select multiple style="width:100%"></select>')     .appendTo($(engineerColumn.header()).empty())
+            .on('change', function () {
+              var selected = $(this).val();
+              if (selected && selected.length > 0) {
+                var regex = selected.join('|');
+                engineerColumn.search(regex, true, false).draw();
+              } else {
+                engineerColumn.search('').draw();
+              }
+            });
+            engineerColumn.data().unique().sort().each(function (d) {
+              engineerSelect.append('<option value="'+d+'">'+d+'</option>');
+            });
+            engineerSelect.select2({
+              placeholder: "Select Engineer"
+            });
+            // -------- Days Multi Filter --------
+            var daysColumn = table.column(4);
+            var daysSelect = $('<select multiple style="width:100%"></select>')   .appendTo($(daysColumn.header()).empty())
+            .on('change', function () {
+              var selected = $(this).val();
+              if (selected && selected.length > 0) {
+                var regex = selected.join('|');
+                daysColumn.search(regex, true, false).draw();
+              } else {
+                daysColumn.search('').draw();
+              }
+            });
+            daysColumn.data().unique().sort().each(function (d) {
+              daysSelect.append('<option value="'+d+'">'+d+'</option>');
+            });
+            daysSelect.select2({
+              placeholder: "Select Days"
+            });
         })
         .catch(err => {
             console.error("Expiry Load Error:", err);
