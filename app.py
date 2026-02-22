@@ -976,12 +976,17 @@ def _installbase_payload_to_db(cols, payload: dict):
 
         if dtype in ("date", "datetime", "datetime2", "smalldatetime"):
             val = _parse_iso_date(val)
+
         elif dtype in ("time",):
             val = _parse_time_any(val)
         elif dtype in ("int", "bigint", "smallint", "tinyint"):
             val = _to_int(val)
         elif dtype in ("decimal", "numeric", "float", "real", "money", "smallmoney"):
             val = _to_decimal(val)
+        if _norm(dbcol) == "filterduedatehrs":
+            parsed = _parse_iso_date(val)
+        if parsed:
+            val = parsed.strftime("%Y-%m-%d")   # always store same format   
 
         out[dbcol] = val
 
@@ -2380,7 +2385,6 @@ def month_cluster_summary():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-
 @app.get("/api/installbase/month-cluster-details")
 def month_cluster_details():
 
@@ -2388,16 +2392,16 @@ def month_cluster_details():
     if need:
         return need
 
+    engineer_filter = (request.args.get("engineer") or "").strip()
+    customer_filter = (request.args.get("customer") or "").strip()
+    status_filter   = (request.args.get("status") or "").strip().upper()
+
     install_cols = _table_columns("dbo.InstallBase")
     wsr_cols = _wsr_cols()
 
-    if not install_cols or not wsr_cols:
-        return jsonify({"error": "Tables not found"}), 400
-
     serial_ib = _find_col(install_cols, must_contain=["serial"])
     engineer_col = _find_col(install_cols, must_contain=["service", "engr"])
-    customer_col = _find_col(install_cols, must_contain=["customer"])
-    cluster_col = _find_col(install_cols, must_contain=["cluster"])
+    customer_col = _find_col(install_cols, must_contain=["customer", "name"])
     plan_col = _find_col(install_cols, must_contain=["cluster", "visit", "plan"])
     active_col = _find_col(install_cols, must_contain=["active", "status"])
 
@@ -2409,6 +2413,7 @@ def month_cluster_details():
                 serial_wsr, visit_date_col, visit_code_col]):
         return jsonify({"error": "Required columns missing"}), 400
 
+    # -------- Date Expressions --------
     plan_date_expr = f"""
         COALESCE(
             TRY_CONVERT(date, {_qcol(plan_col)}, 23),
@@ -2419,9 +2424,9 @@ def month_cluster_details():
 
     visit_date_expr = f"""
         COALESCE(
-            TRY_CONVERT(date, {_qcol(visit_date_col)}, 23),
-            TRY_CONVERT(date, {_qcol(visit_date_col)}, 105),
-            TRY_CONVERT(date, {_qcol(visit_date_col)})
+            TRY_CONVERT(date, w.{_qcol(visit_date_col)}, 23),
+            TRY_CONVERT(date, w.{_qcol(visit_date_col)}, 105),
+            TRY_CONVERT(date, w.{_qcol(visit_date_col)})
         )
     """
 
@@ -2438,36 +2443,41 @@ def month_cluster_details():
     where_parts.append(f"{plan_date_expr} >= DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()), 1)")
     where_parts.append(f"{plan_date_expr} < DATEADD(month,1,DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()),1))")
 
+    if engineer_filter and engineer_filter != "All":
+        where_parts.append(f"{_cmp_ci_trim(engineer_col)} = UPPER(?)")
+        params.append(engineer_filter)
+
+    if customer_filter and customer_filter != "All":
+        where_parts.append(f"CAST({_qcol(customer_col)} AS NVARCHAR(300)) LIKE ?")
+        params.append(f"%{customer_filter}%")
+
     where_sql = " WHERE " + " AND ".join(where_parts)
 
     sql = f"""
-    WITH CompletedSerials AS (
-        SELECT DISTINCT {_qcol(serial_wsr)} AS serial
-        FROM dbo.WSR
-        WHERE {_cmp_ci_trim(visit_code_col)} = 'CLUSTER'
-          AND {visit_date_expr} >= DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()), 1)
-          AND {visit_date_expr} < DATEADD(month,1,DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()),1))
-    )
-
-    SELECT 
-        {_qcol(engineer_col)} AS engineer,
-        {_qcol(customer_col)} AS customer,
-        {_qcol(serial_ib)} AS serial_no,
-        CONVERT(varchar(10), {plan_date_expr}, 23) AS cluster_visit_plan,
-
-        CASE 
-            WHEN cs.serial IS NOT NULL THEN 'COMPLETED'
-            ELSE 'PENDING'
-        END AS status
-
-    FROM dbo.InstallBase ib
-    LEFT JOIN CompletedSerials cs
-        ON {_qcol(serial_ib)} = cs.serial
-
-    {where_sql}
-
-    ORDER BY {plan_date_expr} ASC
+        SELECT 
+            i.{_qcol(engineer_col)} AS engineer,
+            i.{_qcol(customer_col)} AS customer,
+            i.{_qcol(serial_ib)} AS serial_no,
+            CONVERT(varchar(10), {plan_date_expr}, 23) AS cluster_visit_plan,
+            CASE 
+                WHEN EXISTS (
+                    SELECT 1 FROM dbo.WSR w
+                    WHERE {_cmp_ci_trim('i.' + serial_ib)} = {_cmp_ci_trim('w.' + serial_wsr)}
+                      AND {_cmp_ci_trim(visit_code_col)} = 'CLUSTER'
+                      AND {visit_date_expr} >= DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()), 1)
+                      AND {visit_date_expr} < DATEADD(month,1,DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()),1))
+                )
+                THEN 'COMPLETED'
+                ELSE 'PENDING'
+            END AS status
+        FROM dbo.InstallBase i
+        {where_sql}
+        ORDER BY cluster_visit_plan ASC
     """
+
+    if status_filter in ["COMPLETED", "PENDING"]:
+        sql = f"SELECT * FROM ({sql}) x WHERE UPPER(status) = ?"
+        params.append(status_filter)
 
     try:
         with get_conn() as conn:
@@ -2487,6 +2497,8 @@ def month_cluster_details():
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+    
+    
 
 @app.get("/api/engineers")
 def get_engineers():
@@ -2847,7 +2859,133 @@ def api_expiry_filter():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+# ================= INSTALLBASE EXCEL UPLOAD =================
 
+@app.route("/api/installbase/excel-upload", methods=["POST"])
+def api_installbase_excel_upload():
+
+    need = _require_login_json()
+    if need:
+        return need
+
+    role = (session.get("role") or "").strip().lower()
+
+    
+    if "excel_file" not in request.files:
+        return jsonify({"error": "No file selected"}), 400
+
+    file = request.files["excel_file"]
+
+    try:
+        import pandas as pd
+
+        df = pd.read_excel(file)
+
+        if df.empty:
+            return jsonify({"error": "Excel is empty"}), 400
+
+        df.columns = df.columns.str.strip()
+
+        install_cols = _table_columns("dbo.InstallBase")
+        col_types = _table_column_types("dbo.InstallBase")
+
+        # 🔎 Serial column detect
+        serial_col = _find_col(
+            install_cols,
+            aliases=["Serial No.", "Serial No", "Serial_No", "SERIAL NO", "SerialNo"],
+            must_contain=["serial"]
+        )
+
+        if not serial_col:
+            return jsonify({"error": "Serial column not found in InstallBase"}), 400
+
+        inserted = 0
+        skipped_duplicates = 0
+
+        with get_conn() as conn:
+            cur = conn.cursor()
+
+            for _, row in df.iterrows():
+
+                if row.isnull().all():
+                    continue
+
+                serial_value = str(row.get(serial_col, "")).strip()
+
+                if not serial_value:
+                    continue
+
+                # 🔎 Duplicate Check
+                cur.execute(
+                    f"SELECT TOP 1 1 FROM dbo.InstallBase WHERE {_cmp_ci_trim(serial_col)} = UPPER(?)",
+                    (serial_value,)
+                )
+
+                if cur.fetchone():
+                    skipped_duplicates += 1
+                    continue
+
+                # 🔄 Build Insert Data
+                insert_cols = []
+                insert_vals = []
+                params = []
+
+                for col in install_cols:
+
+                    # ❌ Skip identity & computed columns
+                    if _norm(col) in [
+                        "id",
+                        "amcduedate",
+                        "amcdaysremaining",
+                        "nextfilterduedate",
+                        "filterdaysremaining",
+                        "cluster"
+                    ]:
+                        continue
+
+                    if col not in df.columns:
+                        continue
+
+                    value = row.get(col)
+
+                    if pd.isna(value):
+                        continue
+
+                    dtype = (col_types.get(col) or "").lower()
+
+                    if dtype in ("date", "datetime", "datetime2", "smalldatetime"):
+                        try:
+                            value = pd.to_datetime(value).date()
+                        except:
+                            value = None
+
+                    insert_cols.append(f"[{col}]")
+                    insert_vals.append("?")
+                    params.append(value)
+
+                if not insert_cols:
+                    continue
+
+                sql = f"""
+                    INSERT INTO dbo.InstallBase
+                    ({', '.join(insert_cols)})
+                    VALUES ({', '.join(insert_vals)})
+                """
+
+                cur.execute(sql, params)
+                inserted += 1
+
+            conn.commit()
+
+        return jsonify({
+            "message": "InstallBase Excel Uploaded Successfully ✅",
+            "inserted": inserted,
+            "skipped_duplicates": skipped_duplicates
+        })
+
+    except Exception as e:
+        print("INSTALLBASE UPLOAD ERROR:", str(e))
+        return jsonify({"error": str(e)}), 500
 
 # ===================== RUN =====================
 if __name__ == "__main__":

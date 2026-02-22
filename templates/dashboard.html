@@ -570,7 +570,7 @@
               <div id="wpLocationSuggest" class="suggestBox" style="top:calc(100% + 6px); width:100%;"></div>
             </div>
 
-            <div><label>Contact Person Name</label><input id="wp_contactPerson" name="contactPerson"></div>
+            <div><label>Contact Person Name</label><input id="wp_contactPerson" name="contact_person_name"></div>
             <div><label>Phone Number</label><input id="wp_phoneNumber" name="phoneNumber"></div>
             <div><label>E-mail id</label><input id="wp_email" name="email"></div>
 
@@ -627,9 +627,9 @@
 
 
             <div><label>AMC Due Date</label><input type="date" name="amcDueDate" id="wp_amcDueDate"></div>
-            <div><label>Filter Due Date / Hrs</label><input name="filterDue" id="wp_filterDue"></div>
+            <div><label>Filter Due Date / Hrs</label><input name="filter_due_date_hrs" id="wp_filterDue"></div>
 
-            <div><label>SMS Expiry Date</label><input type="date" name="smsExpiry" id="wp_smsExpiry"></div>
+            <div><label>SMS Expiry Date</label><input type="date" name="sms_expiry_date" id="wp_smsExpiry"></div>
 
             <div><label>Outstanding Amount</label><input name="outstandingAmount"></div>
 
@@ -654,7 +654,7 @@
             </div>
 
             <div><label>Stock Check</label>
-              <select name="stockCheck"><option value="">--Select--</option><option>OK</option><option>NOT OK</option></select>
+              <select name="stockCheck"><option value="">--Select--</option><option>YES</option><option>NO</option></select>
             </div>
 
             <div><label>Other</label><input name="other"></div>
@@ -2014,10 +2014,10 @@ async function exportWeeklyPlanReport(){
 
     const desired = [
       "zone","engineerName","clusterCode","visit_date","customerName","location",
-      "contactPerson","phoneNumber","email","localOutstation","distance_km",
+      "contact_person_name","phoneNumber","email","localOutstation","distance_km",
       "mode_of_transport","expectedExpense","printerModel","printer_sr_no",
       "printerStatus","visitType","lastVisitDate","tot","pot","ink","solvent","cnc",
-      "amcDueDate","filterDue","smsExpiry","outstandingAmount","filterChange",
+      "amcDueDate","filter_due_date_hrs","sms_expiry_date","outstandingAmount","filterChange",
       "smsUpdate","paymentCollected","inkexpiryfollowup","amcFollowup",
       "filterKitFollowup","stockCheck","other","visitCompleteDate","remarks"
     ];
@@ -2573,24 +2573,24 @@ function setupCascadeForForm(cfg){
 
 
     })();
-    
-    // ===== FETCH SMS EXPIRY =====
     // ===== FETCH SMS EXPIRY =====
     (async function(){
       try{
-        const res = await fetch(`/api/sms/by-serial?serial=${serial}`);
+        const res = await fetch(`/api/sms/by-serial?serial=${encodeURIComponent(serial)}`);
         const data = await res.json();
+      if(!res.ok || !data.ok) return;
+      const smsField = document.getElementById("wp_smsExpiry");
+      if(smsField){
+        smsField.value = data.expiry_date || "";}
 
-        if(!res.ok || !data.ok) return;
-        const smsField = document.getElementById("wp_smsExpiry");
-        if(smsField){
-          smsField.value = data.expiry_date || "";
-        }
-      }catch(e){
-        console.error("SMS auto-fill error:", e);
-      }
-    })();
-    
+  }catch(e){
+    console.error("SMS auto-fill error:", e);
+  }
+})();
+
+
+
+
   });
   
 
