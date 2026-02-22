@@ -1,7 +1,7 @@
 from flask import Flask, render_template, request, redirect, url_for, session, jsonify, send_from_directory
 import os
 import pyodbc
-import pandas as pd
+
 from dotenv import load_dotenv
 from pathlib import Path
 from datetime import datetime, date, timedelta
@@ -2642,7 +2642,6 @@ def api_expiry_filter():
         with get_conn() as conn:
             cur = conn.cursor()
 
-            # ================= SMS (0–15 days) =================
             if filter_type == "sms_15":
 
                 query = """
@@ -2651,7 +2650,7 @@ def api_expiry_filter():
                     CUSTOMER_NAME,
                     MC_SERIAL_NO,
                     END_DAY AS EXPIRY_DATE,
-                    DATEDIFF(DAY, CAST(GETDATE() AS DATE), END_DAY) AS EXPIRY_DAYS
+                    DATEDIFF(DAY, CAST(GETDATE() AS DATE), END_DAY) AS REM_DAYS
                 FROM dbo.sms
                 WHERE END_DAY IS NOT NULL
                   AND DATEDIFF(DAY, CAST(GETDATE() AS DATE), END_DAY)
@@ -2669,7 +2668,6 @@ def api_expiry_filter():
                 cur.execute(query, params)
 
 
-            # ================= AMC (Next 60 days) =================
             elif filter_type == "amc_60":
 
                 query = """
@@ -2678,7 +2676,7 @@ def api_expiry_filter():
                     [CUSTOMER NAME] AS CUSTOMER_NAME,
                     [Serial No.] AS MC_SERIAL_NO,
                     [AMC Due Date] AS EXPIRY_DATE,
-                    DATEDIFF(DAY, CAST(GETDATE() AS DATE), [AMC Due Date]) AS EXPIRY_DAYS
+                    DATEDIFF(DAY, CAST(GETDATE() AS DATE), [AMC Due Date]) AS REM_DAYS
                 FROM dbo.InstallBase
                 WHERE [AMC Due Date] IS NOT NULL
                   AND DATEDIFF(DAY, CAST(GETDATE() AS DATE), [AMC Due Date])
@@ -2696,7 +2694,6 @@ def api_expiry_filter():
                 cur.execute(query, params)
 
 
-            # ================= FILTER (Next 60 days) =================
             elif filter_type == "filter_60":
 
                 query = """
@@ -2705,7 +2702,7 @@ def api_expiry_filter():
                     [CUSTOMER NAME] AS CUSTOMER_NAME,
                     [Serial No.] AS MC_SERIAL_NO,
                     [Next Filter Due Date] AS EXPIRY_DATE,
-                    DATEDIFF(DAY, CAST(GETDATE() AS DATE), [Next Filter Due Date]) AS EXPIRY_DAYS
+                    DATEDIFF(DAY, CAST(GETDATE() AS DATE), [Next Filter Due Date]) AS REM_DAYS
                 FROM dbo.InstallBase
                 WHERE [Next Filter Due Date] IS NOT NULL
                   AND DATEDIFF(DAY, CAST(GETDATE() AS DATE), [Next Filter Due Date])
@@ -2732,7 +2729,6 @@ def api_expiry_filter():
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-
 # ===================== RUN =====================
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))

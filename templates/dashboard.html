@@ -318,13 +318,13 @@
         <button id="btnDashboard" class="active" data-roles="Admin,Manager,Team Leader,User"
                 onclick="showSection('dashboardSection', this)">🏠 Dashboard</button>
 
-        <button id="btnWsr" data-roles="Admin,Manager,Team Leader,User"
+        <button id="btnWsr" data-roles="Manager,Team Leader,User"
                 onclick="showSection('wsrSection', this)">📚 WSR Report</button>
 
         <button id="btnReport" data-roles="Admin,Manager,Team Leader,User"
                 onclick="showSection('reportSection', this); loadReport();">📋 Report View</button>
 
-        <button id="btnWeeklyPlan" data-roles="Admin,Manager,Team Leader,User"
+        <button id="btnWeeklyPlan" data-roles="Manager,Team Leader,User"
                 onclick="showSection('weeklyPlanSection', this);">📅 Weekly Plan</button>
 
         <button id="btnWeeklyPlanView" data-roles="Admin,Manager,Team Leader,User"
@@ -2925,53 +2925,49 @@ function openCustomerReport(){
 // CLUSTER SUMMARY SAFE LOAD
 // ==========================
 
-function applyClusterFilter(){
+async function loadExpiry(type) {
 
-  const engineer = document.getElementById("engineerFilter").value.toLowerCase();
-  const status   = document.getElementById("statusFilter").value.toLowerCase();
+    const engineer = document.getElementById("engineerFilter")?.value || "";
 
-  const table = document.getElementById("clusterSummaryTable");
-  const rows = table.querySelectorAll("tbody tr");
+    const res = await fetch(`/api/expiry/filter?type=${type}&engineer=${engineer}`);
+    const data = await res.json();
 
-  let visibleCount = 0;
+    let html = "";
 
-  rows.forEach(row => {
+    data.forEach(row => {
 
-    const cells = row.querySelectorAll("td");
+        const days = parseInt(row.REM_DAYS);
 
-    let rowEngineer = "";
-    let rowStatus = "";
+        let bg = "";
 
-    // 🔍 find engineer & status column dynamically
-    const headers = table.querySelectorAll("thead th");
+        if (!isNaN(days)) {
 
-    headers.forEach((th, i) => {
-      const text = th.textContent.trim().toLowerCase();
+            if (days < 0) {
+                bg = "#b71c1c";        // expired
+            }
+            else if (days < 3) {
+                bg = "#ffcccc";        // red
+            }
+            else if (days >= 3 && days <= 6) {
+                bg = "#fff3cd";        // yellow
+            }
+            else if (days > 6 && days <= 15) {
+                bg = "#d4edda";        // green
+            }
+        }
 
-      if(text.includes("engineer")){
-        rowEngineer = cells[i]?.textContent.trim().toLowerCase();
-      }
-
-      if(text.includes("status")){
-        rowStatus = cells[i]?.textContent.trim().toLowerCase();
-      }
+        html += `
+        <tr style="background:${bg}; color:${days < 0 ? 'white' : 'black'};">
+            <td>${row.ENGINEER || ""}</td>
+            <td>${row.CUSTOMER_NAME || ""}</td>
+            <td>${row.MC_SERIAL_NO || ""}</td>
+            <td>${formatDate(row.EXPIRY_DATE)}</td>
+            <td style="font-weight:bold;">${days}</td>
+        </tr>
+        `;
     });
 
-    const matchEngineer = !engineer || rowEngineer === engineer;
-    const matchStatus   = !status || rowStatus === status;
-
-    if(matchEngineer && matchStatus){
-      row.style.display = "";
-      visibleCount++;
-    }else{
-      row.style.display = "none";
-    }
-
-  });
-
-  // Update row count after filter
-  const rc = document.getElementById("clusterRowCount");
-  if(rc) rc.textContent = visibleCount;
+    document.getElementById("expiryTableBody").innerHTML = html;
 }
 
 </script>
@@ -3021,14 +3017,22 @@ function formatDate(dateString) {
 
     return `${day}-${month}-${year}`;
 }
-function loadExpiry(type) {
+function loadExpiry(type, btn) {
+
+    // Active button highlight
+    document.querySelectorAll('.filter-btn').forEach(b => {
+        b.classList.remove('active');
+    });
+    if (btn) btn.classList.add('active');
 
     fetch(`/api/expiry/filter?type=${type}`)
         .then(res => res.json())
         .then(data => {
 
+            const container = document.getElementById("expiryTableContainer");
+
             if (!data || data.length === 0) {
-                document.getElementById("expiryTableContainer").innerHTML =
+                container.innerHTML =
                     "<p style='margin-top:10px;'>No Data Found</p>";
                 return;
             }
@@ -3036,12 +3040,12 @@ function loadExpiry(type) {
             let html = `
             <table style="width:100%;border-collapse:collapse;margin-top:15px;">
                 <thead>
-                    <tr style="background:#1f6feb;color:white;">
-                        <th style="padding:8px;">Engineer Name</th>
-                        <th style="padding:8px;">Customer Name</th>
-                        <th style="padding:8px;">Machine SL Number</th>
+                    <tr style="background:#0b2a55;color:white;">
+                        <th style="padding:8px;">Engineer</th>
+                        <th style="padding:8px;">Customer</th>
+                        <th style="padding:8px;">Machine SL</th>
                         <th style="padding:8px;">Expiry Date</th>
-                        <th style="padding:8px;">Expiry Days</th>
+                        <th style="padding:8px;">Days</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -3049,39 +3053,50 @@ function loadExpiry(type) {
 
             data.forEach(row => {
 
+                const days = parseInt(row.REM_DAYS);
                 let bg = "";
+                let textColor = "black";
 
-                if (row.REM_DAYS <= 3)
-                    bg = "#ffdddd";     // urgent red
-                else if (row.REM_DAYS <= 7)
-                    bg = "#fff3cd";     // warning yellow
-                else
-                    bg = "#d4edda";     // safe green
+                if (!isNaN(days)) {
+
+                    if (days < 0) {
+                        bg = "#7f1d1d";
+                        textColor = "white";
+                    }
+                    else if (days <= 2) {
+                        bg = "#ef4444";
+                        textColor = "white";
+                    }
+                    else if (days >= 3 && days <= 6) {
+                        bg = "#facc15";
+                        textColor = "black";
+                    }
+                    else if (days >= 7 && days <= 15) {
+                        bg = "#16a34a";
+                        textColor = "white";
+                    }
+                }
 
                 html += `
-                <tr style="background:${bg};">
+                <tr style="background:${bg}; color:${textColor}; font-weight:600;">
                     <td style="padding:8px;">${row.ENGINEER || ""}</td>
                     <td style="padding:8px;">${row.CUSTOMER_NAME || ""}</td>
                     <td style="padding:8px;">${row.MC_SERIAL_NO || ""}</td>
-                    <td style="padding:8px;">
-                        ${formatDate(row.EXPIRY_DATE)}
-                    </td>
+                    <td style="padding:8px;">${formatDate(row.EXPIRY_DATE)}</td>
                     <td style="padding:8px;font-weight:bold;">
-                        ${row.REM_DAYS}
+                        ${!isNaN(days) ? days : ""}
                     </td>
                 </tr>
                 `;
             });
 
             html += "</tbody></table>";
-
-            document.getElementById("expiryTableContainer").innerHTML = html;
+            container.innerHTML = html;
+        })
+        .catch(err => {
+            console.error("Expiry Load Error:", err);
         });
 }
-
-
-
-
 </script>
 
 </body>
