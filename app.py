@@ -1,6 +1,7 @@
 from flask import Flask, render_template, request, redirect, url_for, session, jsonify, send_from_directory
 import os
 import pyodbc
+import pandas as pd
 from dotenv import load_dotenv
 from pathlib import Path
 from datetime import datetime, date, timedelta
@@ -2480,6 +2481,254 @@ def get_engineers():
 
         engineers = [(r[0] or "").strip() for r in rows if r[0]]
         return jsonify(engineers)
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    
+
+
+# ===================== SMS EXCEL UPLOAD =====================
+
+@app.route("/api/sms/upload", methods=["POST"])
+def api_sms_upload():
+
+    need = _require_login_json()
+    if need:
+        return need
+
+    role = (session.get("role") or "").strip().lower()
+    if "admin" not in role:
+        return jsonify({"error": "Only Admin allowed"}), 403
+
+    if "excel_file" not in request.files:
+        return jsonify({"error": "No file selected"}), 400
+
+    file = request.files["excel_file"]
+
+    try:
+        import pandas as pd
+        from datetime import timedelta
+
+        df = pd.read_excel(file)
+
+        if df.empty:
+            return jsonify({"error": "Excel is empty"}), 400
+
+        # Normalize column names
+        df.columns = df.columns.str.strip().str.upper()
+
+        rename_map = {
+            "S.NO": "SNO",
+            "DATE": "DATE",
+            "CUSTOMER NAME": "CUSTOMER_NAME",
+            "M/C S,NO": "MC_SERIAL_NO",
+            "INK": "INK",
+            "DAYS": "DAYS",
+            "ENGINEER": "ENGINEER",
+            "REG": "REG"
+        }
+
+        df.rename(columns=rename_map, inplace=True)
+
+        insert_sql = """
+        INSERT INTO dbo.sms
+        ([SNO],[DATE],[CUSTOMER_NAME],[MC_SERIAL_NO],
+         [INK],[DAYS],[ENGINEER],[REG],[END_DAY])
+        VALUES (?,?,?,?,?,?,?,?,?)
+        """
+
+        data = []
+
+        for _, row in df.iterrows():
+
+            if row.isnull().all():
+                continue
+
+            # ✅ ROBUST DATE PARSER (FIXED)
+            excel_date = row.get("DATE")
+            start_date = None
+
+            if pd.notna(excel_date):
+                start_date = pd.to_datetime(excel_date, errors="coerce")
+                if pd.notna(start_date):
+                    start_date = start_date.date()
+
+            # Days
+            days_val = None
+            if pd.notna(row.get("DAYS")):
+                try:
+                    days_val = int(row.get("DAYS"))
+                except:
+                    days_val = None
+
+            # Calculate END_DAY properly
+            end_day = None
+            if start_date and days_val is not None:
+                end_day = start_date + timedelta(days=days_val)
+
+            data.append([
+                int(row.get("SNO")) if pd.notna(row.get("SNO")) else None,
+                start_date,
+                row.get("CUSTOMER_NAME"),
+                row.get("MC_SERIAL_NO"),
+                row.get("INK"),
+                days_val,
+                row.get("ENGINEER"),
+                row.get("REG"),
+                end_day
+            ])
+
+        if not data:
+            return jsonify({"error": "No valid rows found"}), 400
+
+        with get_conn() as conn:
+            cur = conn.cursor()
+
+            # Delete old data
+            cur.execute("DELETE FROM dbo.sms")
+
+            cur.fast_executemany = True
+            cur.executemany(insert_sql, data)
+            conn.commit()
+
+        return jsonify({"message": f"{len(data)} rows uploaded successfully ✅"})
+
+    except Exception as e:
+        print("UPLOAD ERROR:", str(e))
+        return jsonify({"error": str(e)}), 500    
+
+
+# ================= EXPIRY FILTER API =================
+
+@app.get("/api/expiry/engineers")
+def get_all_engineers():
+
+    try:
+        with get_conn() as conn:
+            cur = conn.cursor()
+
+            cur.execute("""
+                SELECT DISTINCT [SERVICE ENGR] FROM dbo.installbase
+                WHERE [SERVICE ENGR] IS NOT NULL
+                UNION
+                SELECT DISTINCT ENGINEER FROM dbo.sms
+                WHERE ENGINEER IS NOT NULL
+                ORDER BY 1
+            """)
+
+            rows = cur.fetchall()
+
+        engineers = [(r[0] or "").strip() for r in rows if r[0]]
+        return jsonify(engineers)
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    
+
+
+# ================= EXPIRY FILTER MAIN API =================
+
+@app.get("/api/expiry/filter")
+def api_expiry_filter():
+
+    need = _require_login_json()
+    if need:
+        return need
+
+    filter_type = (request.args.get("type") or "").strip()
+    engineer = (request.args.get("engineer") or "").strip()
+
+    try:
+        with get_conn() as conn:
+            cur = conn.cursor()
+
+            # ================= SMS (0–15 days) =================
+            if filter_type == "sms_15":
+
+                query = """
+                SELECT 
+                    ENGINEER,
+                    CUSTOMER_NAME,
+                    MC_SERIAL_NO,
+                    END_DAY AS EXPIRY_DATE,
+                    DATEDIFF(DAY, CAST(GETDATE() AS DATE), END_DAY) AS EXPIRY_DAYS
+                FROM dbo.sms
+                WHERE END_DAY IS NOT NULL
+                  AND DATEDIFF(DAY, CAST(GETDATE() AS DATE), END_DAY)
+                      BETWEEN 0 AND 15
+                """
+
+                params = []
+
+                if engineer:
+                    query += " AND UPPER(ENGINEER) = UPPER(?)"
+                    params.append(engineer)
+
+                query += " ORDER BY END_DAY"
+
+                cur.execute(query, params)
+
+
+            # ================= AMC (Next 60 days) =================
+            elif filter_type == "amc_60":
+
+                query = """
+                SELECT 
+                    [SERVICE ENGR] AS ENGINEER,
+                    [CUSTOMER NAME] AS CUSTOMER_NAME,
+                    [Serial No.] AS MC_SERIAL_NO,
+                    [AMC Due Date] AS EXPIRY_DATE,
+                    DATEDIFF(DAY, CAST(GETDATE() AS DATE), [AMC Due Date]) AS EXPIRY_DAYS
+                FROM dbo.InstallBase
+                WHERE [AMC Due Date] IS NOT NULL
+                  AND DATEDIFF(DAY, CAST(GETDATE() AS DATE), [AMC Due Date])
+                      BETWEEN 0 AND 60
+                """
+
+                params = []
+
+                if engineer:
+                    query += " AND UPPER([SERVICE ENGR]) = UPPER(?)"
+                    params.append(engineer)
+
+                query += " ORDER BY [AMC Due Date]"
+
+                cur.execute(query, params)
+
+
+            # ================= FILTER (Next 60 days) =================
+            elif filter_type == "filter_60":
+
+                query = """
+                SELECT 
+                    [SERVICE ENGR] AS ENGINEER,
+                    [CUSTOMER NAME] AS CUSTOMER_NAME,
+                    [Serial No.] AS MC_SERIAL_NO,
+                    [Next Filter Due Date] AS EXPIRY_DATE,
+                    DATEDIFF(DAY, CAST(GETDATE() AS DATE), [Next Filter Due Date]) AS EXPIRY_DAYS
+                FROM dbo.InstallBase
+                WHERE [Next Filter Due Date] IS NOT NULL
+                  AND DATEDIFF(DAY, CAST(GETDATE() AS DATE), [Next Filter Due Date])
+                      BETWEEN 0 AND 60
+                """
+
+                params = []
+
+                if engineer:
+                    query += " AND UPPER([SERVICE ENGR]) = UPPER(?)"
+                    params.append(engineer)
+
+                query += " ORDER BY [Next Filter Due Date]"
+
+                cur.execute(query, params)
+
+            else:
+                return jsonify([])
+
+            columns = [column[0] for column in cur.description]
+            rows = [dict(zip(columns, row)) for row in cur.fetchall()]
+
+        return jsonify(rows)
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500

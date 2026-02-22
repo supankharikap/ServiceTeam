@@ -6,6 +6,15 @@
   <title>KGK Jet India ERP</title>
 
   <style>
+    .filter-btn {padding:8px 15px;margin-right:10px; border:none;border-radius:6px;background:#1f6feb;color:white;    cursor:pointer; transition:0.2s;}
+    .filter-btn:hover { background:#1558b0;}
+    /* Active button */
+    .filter-btn.active {  background:#ff9800;   /* Orange highlight */      color:black; font-weight:bold;}
+
+
+    .filter-btn {padding:8px 15px;margin-right:10px;border:none;border-radius:6px;background:#1f6feb;color:white;cursor:pointer;}
+    .filter-btn:hover {background:#1558b0;}
+
 
     .status-completed{  background-color:#2e7d32;  color:#fff;  padding:4px 8px;  border-radius:6px;  font-weight:700;  text-align:center;}
 
@@ -329,6 +338,13 @@
 
         <button id="btnusercreate" data-roles="Admin"
                 onclick="openUserCreate(this)">👤 User Create</button>
+
+         <button id="btnupload" data-roles="Admin" onclick="openFilePicker()">
+          👤 SMS ID Sheet Upload
+        </button>
+        <input type="file" id="excelFileInput" accept=".xlsx"
+        style="display:none"
+        onchange="uploadExcel(this)">             
       </div>
 
       <div class="sidebarFooter">
@@ -433,7 +449,22 @@
               <div id="amcDonutLegend" style="margin-top:10px;"></div>
             </div>
           </div>
+          <!-- ================= Expiry Filter Section ================= -->
+           <div style="margin:25px 0;">
+            <button onclick="loadExpiry('sms_15', this)" class="filter-btn">
+              SMS (0-15 Days)
+            </button>
+            <button onclick="loadExpiry('amc_60', this)" class="filter-btn">
+              AMC (Next 60 Days)
+            </button>
+            <button onclick="loadExpiry('filter_60', this)" class="filter-btn">
+              Filter (Next 60 Days)
+            </button>
+          </div>
+          <div id="expiryTableContainer"></div>
+          <!-- ========================================================= -->
         </div>
+
       </section>
 
       <section id="clusterSummarySection" class="section">
@@ -2945,6 +2976,113 @@ function applyClusterFilter(){
 
 </script>
 
+<script>
+function openFilePicker() {
+    document.getElementById("excelFileInput").click();
+}
+
+function uploadExcel(input) {
+    const file = input.files[0];
+    if (!file) return;
+
+    const formData = new FormData();
+    formData.append("excel_file", file);
+
+    fetch("/api/sms/upload", {   // ✅ FIXED HERE
+        method: "POST",
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.error) {
+            alert("Error: " + data.error);
+        } else {
+            alert(data.message || "Uploaded Successfully");
+        }
+        location.reload();
+    })
+    .catch(error => {
+        alert("Upload Failed");
+        console.error(error);
+    });
+}
+</script>
+<script>
+
+
+function formatDate(dateString) {
+    if (!dateString) return "";
+
+    const d = new Date(dateString);
+
+    const day = String(d.getDate()).padStart(2, '0');
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const year = d.getFullYear();
+
+    return `${day}-${month}-${year}`;
+}
+function loadExpiry(type) {
+
+    fetch(`/api/expiry/filter?type=${type}`)
+        .then(res => res.json())
+        .then(data => {
+
+            if (!data || data.length === 0) {
+                document.getElementById("expiryTableContainer").innerHTML =
+                    "<p style='margin-top:10px;'>No Data Found</p>";
+                return;
+            }
+
+            let html = `
+            <table style="width:100%;border-collapse:collapse;margin-top:15px;">
+                <thead>
+                    <tr style="background:#1f6feb;color:white;">
+                        <th style="padding:8px;">Engineer Name</th>
+                        <th style="padding:8px;">Customer Name</th>
+                        <th style="padding:8px;">Machine SL Number</th>
+                        <th style="padding:8px;">Expiry Date</th>
+                        <th style="padding:8px;">Expiry Days</th>
+                    </tr>
+                </thead>
+                <tbody>
+            `;
+
+            data.forEach(row => {
+
+                let bg = "";
+
+                if (row.REM_DAYS <= 3)
+                    bg = "#ffdddd";     // urgent red
+                else if (row.REM_DAYS <= 7)
+                    bg = "#fff3cd";     // warning yellow
+                else
+                    bg = "#d4edda";     // safe green
+
+                html += `
+                <tr style="background:${bg};">
+                    <td style="padding:8px;">${row.ENGINEER || ""}</td>
+                    <td style="padding:8px;">${row.CUSTOMER_NAME || ""}</td>
+                    <td style="padding:8px;">${row.MC_SERIAL_NO || ""}</td>
+                    <td style="padding:8px;">
+                        ${formatDate(row.EXPIRY_DATE)}
+                    </td>
+                    <td style="padding:8px;font-weight:bold;">
+                        ${row.REM_DAYS}
+                    </td>
+                </tr>
+                `;
+            });
+
+            html += "</tbody></table>";
+
+            document.getElementById("expiryTableContainer").innerHTML = html;
+        });
+}
+
+
+
+
+</script>
 
 </body>
 </html>
