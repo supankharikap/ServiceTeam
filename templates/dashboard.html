@@ -1712,68 +1712,7 @@ function renderTable(columns, rows) {
   return wrap;
 }
 
-async function openMaster(){
-  const hint = document.getElementById("masterHint");
-  const holder = document.getElementById("masterTable");
-  const errBox = document.getElementById("masterErr");
-  if(errBox) errBox.textContent = "";
-  if(hint) hint.textContent = "Loading...";
-  if(holder) holder.innerHTML = "Loading...";
 
-  const q = (document.getElementById("masterSearch")?.value || "").trim();
-  showLoading("Loading master...");
-  try {
-    const res = await fetch("/api/master/installbase?limit=500&q=" + encodeURIComponent(q));
-    const data = await res.json();
-    if (!res.ok) {
-      if(hint) hint.textContent = "Error";
-      if(errBox) errBox.textContent = data.error || "Error";
-      if(holder) holder.innerHTML = "";
-      return;
-    }
-    if(hint) hint.textContent = `Rows: ${(data.rows||[]).length}`;
-    if(holder) holder.innerHTML = "";
-    const desiredOrder = [
-      "ZONE","SALES ENGR","SERVICE ENGR",  "Cluster No",  
-      "CUSTOMER NAME",  "LOCATION",  "STATE",  "Address",
-      "Contact Person1", "Designation", "Contact No.",
-      "Email Id","Contact Person2","Designation (2)",
-      "Contact No. (2)","Email Id (2)","Segment","Sub-Segment",
-      "Machine Type","Model","Serial No.","Ink type","Active Status",
-      "Mc Status","Sales Invoice No","Invoice Date","Installed On",
-      "AMC Invoice Date","AMC From","AMC To","No. of Visits","AMC Amount",
-      
-      "AMC Due Date","AMC Days Remaining","Filter Invoice Date",
-      "Next Filter Due Date","Filter Days Remaining","Cluster Visit Plan",
-      "Actual Visit","Cluster","Remarks", "Teritory No", "NEXT TER2 PLAN"
-    ];
-   
-    function norm(s){
-      return String(s||"").toLowerCase().replace(/[^a-z0-9]+/g,"");
-    }
-    const apiCols = data.columns || [];
-    const apiNormMap = new Map(apiCols.map(c => [norm(c), c]));
-    const orderedCols = desiredOrder
-    .map(d => apiNormMap.get(norm(d)))
-    .filter(Boolean);// remaining columns
-    const remaining = apiCols.filter(c => !orderedCols.includes(c));
-    const finalCols = [...orderedCols, ...remaining];
-    holder.appendChild(
-      renderTable(finalCols, data.rows || [])
-    );
-    loadKpis();
-
-    // ✅ update cache for autosuggest (no logic change)
-    INSTALLBASE_CACHE = { columns: data.columns || [], rows: data.rows || [] };
-
-  } catch (e) {
-    if(hint) hint.textContent = "Network error";
-    if(errBox) errBox.textContent = String(e);
-    if(holder) holder.innerHTML = "";
-  } finally {
-    hideLoading();
-  }
-}
 function masterDoSearch(){ openMaster(); }
 function masterClear(){
   const ms = document.getElementById("masterSearch");

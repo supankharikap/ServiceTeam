@@ -593,9 +593,11 @@ def api_kpi():
 
 
 
-# ===================== MASTER INSTALLBASE =====================
+# ===================== MASTER INSTALLBASE =================
+
 @app.get("/api/master/installbase")
 def api_master_installbase():
+
     need = _require_login_json()
     if need:
         return need
@@ -611,16 +613,19 @@ def api_master_installbase():
     base_where, base_params = _installbase_scope_where(cols)
 
     preferred = [
-        "ZONE", "SERVICE_ENGR", "Cluster_No", "CUSTOMER_NAME", "Location", "Machine_Type", "Model", "Serial_No",
-        "SERVICE ENGR", "CLUSTER NO", "CUSTOMER NAME", "SERIAL NO"
+        "ZONE", "SERVICE_ENGR", "Cluster_No", "CUSTOMER_NAME",
+        "Machine_Type", "Model", "Serial_No"
     ]
+
     search_where, search_params = _build_token_search_where(q, cols, preferred)
 
     where_parts = []
     params = []
+
     if base_where:
         where_parts.append(base_where.replace(" WHERE ", "", 1))
         params += base_params
+
     if search_where:
         where_parts.append(search_where)
         params += search_params
@@ -628,19 +633,51 @@ def api_master_installbase():
     where_sql = (" WHERE " + " AND ".join(where_parts)) if where_parts else ""
 
     id_col = _find_col(cols, aliases=["Id", "ID"], must_contain=["id"])
-    order_by = f"{_qcol(id_col)} DESC" if id_col else f"{_qcol(cols[0])} DESC"
-    select_cols = """
-    [ID],[ZONE],[SALES ENGR],[SERVICE ENGR],[Cluster No],[CUSTOMER NAME],[LOCATION],
-    [STATE],[Address],[Contact Person1],[Designation],[Contact No.],[Email Id],
-    [Contact Person2],[Designation (2)],[Contact No. (2)],[Email Id (2)],
-    [Segment],[Sub-Segment],[Machine Type],[Model],[Serial No.],[Ink type],[Active Status],
-    [Mc Status],[Sales Invoice No],[Invoice Date],[Installed On],
-    [AMC Invoice Date],[AMC From],[AMC To],[No. of Visits],[AMC Amount],
-    [AMC Due Date],[AMC Days Remaining],[Filter Invoice Date],
-    [Next Filter Due Date],[Filter Days Remaining],[Cluster Visit Plan],
-    [Actual Visit],[Cluster],[Remarks],[Teritory No],[NEXT TER2 PLAN]
+    order_by = f"[{id_col}] DESC" if id_col else f"[{cols[0]}] DESC"
+
+    # ✅ EXACT COLUMN ORDER (Excel Format)
+    fixed_columns = [
+        "ZONE",
+        "SALES ENGR",
+        "SERVICE ENGR",
+        "Cluster No",
+        "CUSTOMER NAME",
+        "Machine Type",
+        "Model",
+        "Serial No.",
+        "Ink type",
+        "Active Status",
+        "Mc Status",
+        "Sales Invoice No",
+        "Invoice Date",
+        "Installed On",
+        "AMC Invoice Date",
+        "AMC From",
+        "AMC To",
+        "No. of Visits",
+        "AMC Amount",
+        "AMC Due Date",
+        "AMC Days Remaining",
+        "Filter Invoice Date",
+        "Next Filter Due Date",
+        "Filter Days Remaining",
+        "Cluster Visit Plan",
+        "Actual Visit",
+        "Cluster",
+        "Remarks",
+        "Teritory No",
+        "SMSUpdated_Days"
+    ]
+
+    # Build SELECT in same order
+    select_cols = ", ".join([f"[{c}]" for c in fixed_columns])
+
+    sql = f"""
+        SELECT TOP {limit} {select_cols}
+        FROM dbo.InstallBase
+        {where_sql}
+        ORDER BY {order_by}
     """
-    sql = f"SELECT TOP {limit} {select_cols} FROM dbo.InstallBase{where_sql} ORDER BY {order_by}"
 
     try:
         with get_conn() as conn:
@@ -648,27 +685,19 @@ def api_master_installbase():
             cur.execute(sql, params)
             rows = cur.fetchall()
 
-
-
-        fixed_columns = [
-            "ID","ZONE","SALES ENGR","SERVICE ENGR","Cluster No","CUSTOMER NAME","LOCATION",
-            "STATE","Address","Contact Person1","Designation","Contact No.","Email Id",
-            "Contact Person2","Designation (2)","Contact No. (2)","Email Id (2)",
-            "Segment","Sub-Segment","Machine Type","Model","Serial No.","Ink type",
-            "Active Status","Mc Status","Sales Invoice No","Invoice Date","Installed On",
-            "AMC Invoice Date","AMC From","AMC To","No. of Visits","AMC Amount",
-            "AMC Due Date","AMC Days Remaining","Filter Invoice Date",
-            "Next Filter Due Date","Filter Days Remaining",
-            "Cluster Visit Plan","Actual Visit","Cluster","Remarks",
-            "Teritory No","NEXT TER2 PLAN"
-            ]
         out_rows = []
+
         for r in rows:
             obj = {}
             for i, col_name in enumerate(fixed_columns):
                 obj[col_name] = _json_safe(r[i])
             out_rows.append(obj)
-        return jsonify({"columns": fixed_columns, "rows": out_rows})
+
+        return jsonify({
+            "columns": fixed_columns,
+            "rows": out_rows
+        })
+
     except Exception as e:
         return _json_err(f"InstallBase API error: {e}", 500)
 
@@ -3101,7 +3130,7 @@ def api_installbase_excel_upload():
 
 
 
-    
+
 @app.get("/api/installbase/by-mc-status")
 def installbase_by_mc_status():
 
