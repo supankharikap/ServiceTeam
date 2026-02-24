@@ -394,14 +394,37 @@ def api_kpi():
     if need:
         return need
 
-    install_cols = _table_columns("dbo.InstallBase")
-    if not install_cols:
-        return _json_err("InstallBase not found", 400)
+    try:
+        with get_conn() as conn:
+            cur = conn.cursor()
 
-    wsr_cols = _wsr_cols()
-    if not wsr_cols:
-        return _json_err("WSR not found", 400)
+            sql = """
+                SELECT 
+                    COUNT(*) AS installbase_total,
+                    COUNT(DISTINCT [CUSTOMER NAME]) AS customers,
+                    SUM(CASE WHEN UPPER(LTRIM(RTRIM([Active Status]))) = 'ACTIVE' THEN 1 ELSE 0 END) AS active_total,
+                    SUM(CASE WHEN UPPER(LTRIM(RTRIM([Active Status]))) = 'INACTIVE' THEN 1 ELSE 0 END) AS inactive_total,
+                    SUM(CASE WHEN UPPER(LTRIM(RTRIM([Active Status]))) = 'DEAD' THEN 1 ELSE 0 END) AS dead_total
+                FROM dbo.InstallBase
+            """
 
+            cur.execute(sql)
+            row = cur.fetchone()
+
+            return jsonify({
+                "installbase_total": int(row[0] or 0),
+                "customers": int(row[1] or 0),
+                "active_total": int(row[2] or 0),
+                "inactive_total": int(row[3] or 0),
+                "dead_total": int(row[4] or 0),
+                "this_month_cluster_plan": 0,
+                "this_month_cluster_visited": 0
+            })
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    
+    
     # ---------------- InstallBase Scope ----------------
     where_sql, params = _installbase_scope_where(install_cols)
 
@@ -2378,7 +2401,6 @@ def month_cluster_summary():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-
 @app.get("/api/installbase/month-cluster-details")
 def month_cluster_details():
 
@@ -2389,6 +2411,8 @@ def month_cluster_details():
     engineer_filter = (request.args.get("engineer") or "").strip()
     customer_filter = (request.args.get("customer") or "").strip()
     status_filter   = (request.args.get("status") or "").strip().upper()
+    from_s = (request.args.get("from_date") or "").strip()
+    to_s   = (request.args.get("to_date") or "").strip()
 
     install_cols = _table_columns("dbo.InstallBase")
     wsr_cols = _wsr_cols()
@@ -2407,7 +2431,6 @@ def month_cluster_details():
                 serial_wsr, visit_date_col, visit_code_col]):
         return jsonify({"error": "Required columns missing"}), 400
 
-    # -------- Date Expressions --------
     plan_date_expr = f"""
         COALESCE(
             TRY_CONVERT(date, {_qcol(plan_col)}, 23),
@@ -2434,8 +2457,18 @@ def month_cluster_details():
         params += base_params
 
     where_parts.append(f"{_cmp_ci_trim(active_col)} = 'ACTIVE'")
-    where_parts.append(f"{plan_date_expr} >= DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()), 1)")
-    where_parts.append(f"{plan_date_expr} < DATEADD(month,1,DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()),1))")
+
+    # ✅ DATE FILTER (NEW FIX)
+    fd = _parse_iso_date(from_s) if from_s else None
+    td = _parse_iso_date(to_s) if to_s else None
+
+    if fd:
+        where_parts.append(f"{plan_date_expr} >= ?")
+        params.append(fd)
+
+    if td:
+        where_parts.append(f"{plan_date_expr} <= ?")
+        params.append(td)
 
     if engineer_filter and engineer_filter != "All":
         where_parts.append(f"{_cmp_ci_trim(engineer_col)} = UPPER(?)")
@@ -2460,8 +2493,8 @@ def month_cluster_details():
                     WHERE UPPER(LTRIM(RTRIM(w.{_qcol(serial_wsr)}))) =
                         UPPER(LTRIM(RTRIM(i.{_qcol(serial_ib)})))
                     AND UPPER(LTRIM(RTRIM(w.{_qcol(visit_code_col)}))) = 'CLUSTER'
-                    AND {visit_date_expr} >= DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()), 1)
-                    AND {visit_date_expr} < DATEADD(month,1,DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()),1))
+                    {f"AND {visit_date_expr} >= ?" if fd else ""}
+                    {f"AND {visit_date_expr} <= ?" if td else ""}
                 )
                 THEN 'COMPLETED'
                 ELSE 'PENDING'            
@@ -2470,6 +2503,11 @@ def month_cluster_details():
         {where_sql}
         ORDER BY cluster_visit_plan ASC
     """
+
+    if fd:
+        params.append(fd)
+    if td:
+        params.append(td)
 
     if status_filter in ["COMPLETED", "PENDING"]:
         sql = f"SELECT * FROM ({sql}) x WHERE UPPER(status) = ?"
@@ -2493,7 +2531,6 @@ def month_cluster_details():
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-       
 
 @app.get("/api/engineers")
 def get_engineers():
