@@ -2931,7 +2931,6 @@ def api_expiry_filter():
         return jsonify({"error": str(e)}), 500
 
 # ================= INSTALLBASE EXCEL UPLOAD =================
-
 @app.route("/api/installbase/excel-upload", methods=["POST"])
 def api_installbase_excel_upload():
 
@@ -2939,9 +2938,6 @@ def api_installbase_excel_upload():
     if need:
         return need
 
-    role = (session.get("role") or "").strip().lower()
-
-    
     if "excel_file" not in request.files:
         return jsonify({"error": "No file selected"}), 400
 
@@ -2960,7 +2956,6 @@ def api_installbase_excel_upload():
         install_cols = _table_columns("dbo.InstallBase")
         col_types = _table_column_types("dbo.InstallBase")
 
-        # 🔎 Serial column detect
         serial_col = _find_col(
             install_cols,
             aliases=["Serial No.", "Serial No", "Serial_No", "SERIAL NO", "SerialNo"],
@@ -2968,10 +2963,10 @@ def api_installbase_excel_upload():
         )
 
         if not serial_col:
-            return jsonify({"error": "Serial column not found in InstallBase"}), 400
+            return jsonify({"error": "Serial column not found"}), 400
 
         inserted = 0
-        skipped_duplicates = 0
+        updated = 0
 
         with get_conn() as conn:
             cur = conn.cursor()
@@ -2986,78 +2981,127 @@ def api_installbase_excel_upload():
                 if not serial_value:
                     continue
 
-                # 🔎 Duplicate Check
+                # Check exists
                 cur.execute(
-                    f"SELECT TOP 1 1 FROM dbo.InstallBase WHERE {_cmp_ci_trim(serial_col)} = UPPER(?)",
+                    f"SELECT 1 FROM dbo.InstallBase WHERE {_cmp_ci_trim(serial_col)} = UPPER(?)",
                     (serial_value,)
                 )
 
-                if cur.fetchone():
-                    skipped_duplicates += 1
-                    continue
+                exists = cur.fetchone()
 
-                # 🔄 Build Insert Data
-                insert_cols = []
-                insert_vals = []
-                params = []
+                # ================= UPDATE =================
+                if exists:
 
-                for col in install_cols:
+                    update_cols = []
+                    update_params = []
 
-                    # ❌ Skip identity & computed columns
-                    if _norm(col) in [
-                        "id",
-                        "amcduedate",
-                        "amcdaysremaining",
-                        "nextfilterduedate",
-                        "filterdaysremaining",
-                        "cluster"
-                    ]:
-                        continue
+                    for col in install_cols:
 
-                    if col not in df.columns:
-                        continue
+                        if _norm(col) in [
+                            "id",
+                            "amcduedate",
+                            "amcdaysremaining",
+                            "nextfilterduedate",
+                            "filterdaysremaining",
+                            "cluster"
+                        ]:
+                            continue
 
-                    value = row.get(col)
+                        if col not in df.columns:
+                            continue
 
-                    if pd.isna(value):
-                        continue
+                        value = row.get(col)
 
-                    dtype = (col_types.get(col) or "").lower()
+                        if pd.isna(value):
+                            continue
 
-                    if dtype in ("date", "datetime", "datetime2", "smalldatetime"):
-                        try:
-                            value = pd.to_datetime(value).date()
-                        except:
-                            value = None
+                        dtype = (col_types.get(col) or "").lower()
 
-                    insert_cols.append(f"[{col}]")
-                    insert_vals.append("?")
-                    params.append(value)
+                        if dtype in ("date", "datetime", "datetime2", "smalldatetime"):
+                            try:
+                                value = pd.to_datetime(value).date()
+                            except:
+                                value = None
 
-                if not insert_cols:
-                    continue
+                        update_cols.append(f"[{col}] = ?")
+                        update_params.append(value)
 
-                sql = f"""
-                    INSERT INTO dbo.InstallBase
-                    ({', '.join(insert_cols)})
-                    VALUES ({', '.join(insert_vals)})
-                """
+                    if update_cols:
+                        update_sql = f"""
+                            UPDATE dbo.InstallBase
+                            SET {', '.join(update_cols)}
+                            WHERE {_cmp_ci_trim(serial_col)} = UPPER(?)
+                        """
 
-                cur.execute(sql, params)
-                inserted += 1
+                        update_params.append(serial_value)
+                        cur.execute(update_sql, update_params)
+                        updated += 1
+
+                # ================= INSERT =================
+                else:
+
+                    insert_cols = []
+                    insert_vals = []
+                    insert_params = []
+
+                    for col in install_cols:
+
+                        if _norm(col) in [
+                            "id",
+                            "amcduedate",
+                            "amcdaysremaining",
+                            "nextfilterduedate",
+                            "filterdaysremaining",
+                            "cluster"
+                        ]:
+                            continue
+
+                        if col not in df.columns:
+                            continue
+
+                        value = row.get(col)
+
+                        if pd.isna(value):
+                            continue
+
+                        dtype = (col_types.get(col) or "").lower()
+
+                        if dtype in ("date", "datetime", "datetime2", "smalldatetime"):
+                            try:
+                                value = pd.to_datetime(value).date()
+                            except:
+                                value = None
+
+                        insert_cols.append(f"[{col}]")
+                        insert_vals.append("?")
+                        insert_params.append(value)
+
+                    if insert_cols:
+                        insert_sql = f"""
+                            INSERT INTO dbo.InstallBase
+                            ({', '.join(insert_cols)})
+                            VALUES ({', '.join(insert_vals)})
+                        """
+
+                        cur.execute(insert_sql, insert_params)
+                        inserted += 1
 
             conn.commit()
 
         return jsonify({
             "message": "InstallBase Excel Uploaded Successfully ✅",
             "inserted": inserted,
-            "skipped_duplicates": skipped_duplicates
+            "updated": updated
         })
 
     except Exception as e:
-        print("INSTALLBASE UPLOAD ERROR:", str(e))
+        print("UPLOAD ERROR:", str(e))
         return jsonify({"error": str(e)}), 500
+    
 
+
+
+    
 @app.get("/api/installbase/by-mc-status")
 def installbase_by_mc_status():
 

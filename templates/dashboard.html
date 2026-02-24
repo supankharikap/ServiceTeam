@@ -354,7 +354,28 @@
         <button id="btnusercreate" data-roles="Admin"
                 onclick="openUserCreate(this)">👤 User Create</button>
 
-         <button id="btnupload" data-roles="Admin" onclick="openFilePicker()">
+        <button id="btnInstallUpload"
+          data-roles="User,admin,team leader,manager"
+          onclick="openInstallFilePicker()">
+          📤 Master InstallBase Sheet Upload
+        </button>
+        <input type="file"
+          id="installExcelFileInput"
+          accept=".xlsx"
+          style="display:none"
+          onchange="uploadInstallExcel(this)">  
+
+        <div id="installUploadProgressBox" style="display:none; margin-top:8px;">
+          <div style="width:100%; background:#e5e7eb; border-radius:8px; overflow:hidden;">
+            <div id="installUploadProgressBar"
+            style="width:0%; height:18px; background:#1a73e8; text-align:center; color:white; font-size:12px;">
+            0%
+          </div>
+        </div>
+      </div>
+
+
+        <button id="btnupload" data-roles="Admin" onclick="openFilePicker()">
           👤 SMS ID Sheet Upload
         </button>
         <input type="file" id="excelFileInput" accept=".xlsx"
@@ -3338,6 +3359,72 @@ function initCommonDataTable(tableId){
 
         dom: '<"dt-top"f l>rt<"dt-bottom"i p>'
     });
+}
+
+
+
+function openInstallFilePicker() {
+    document.getElementById("installExcelFileInput").click();
+}
+
+function uploadInstallExcel(input) {
+
+    if (!input.files.length) return;
+
+    const file = input.files[0];
+    const formData = new FormData();
+    formData.append("excel_file", file);
+
+    const box = document.getElementById("installUploadProgressBox");
+    const bar = document.getElementById("installUploadProgressBar");
+
+    box.style.display = "block";
+    bar.style.width = "0%";
+    bar.innerText = "0%";
+
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", "/api/installbase/excel-upload", true);
+
+    // 🔥 Real Upload Progress
+    xhr.upload.onprogress = function (e) {
+        if (e.lengthComputable) {
+            const percent = Math.round((e.loaded / e.total) * 100);
+            bar.style.width = percent + "%";
+            bar.innerText = percent + "%";
+        }
+    };
+
+    xhr.onload = function () {
+
+        if (xhr.status === 200) {
+            const data = JSON.parse(xhr.responseText);
+
+            alert(
+                "✅ Upload Success\n\n" +
+                "Inserted: " + data.inserted +
+                "\nSkipped Duplicates: " + data.skipped_duplicates
+            );
+
+            openMaster(); // reload master table
+
+        } else {
+            alert("❌ Upload Failed");
+        }
+
+        setTimeout(() => {
+            box.style.display = "none";
+        }, 1500);
+
+        input.value = "";
+    };
+
+    xhr.onerror = function () {
+        alert("❌ Upload Error");
+        box.style.display = "none";
+        input.value = "";
+    };
+
+    xhr.send(formData);
 }
 </script>
 
