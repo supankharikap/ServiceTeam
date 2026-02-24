@@ -3179,8 +3179,23 @@ function loadExpiry(type, btn) {
         .catch(err => {
             console.error("Expiry Load Error:", err);
         });
+
 }
+
+function applyClusterFilter() {
+
+  const engineerSelect = document.getElementById("engineerFilter");
+  const selectedEngineer = engineerSelect.value;
+
+  loadClusterSummary().then(() => {
+    // 🔥 selected value restore
+    engineerSelect.value = selectedEngineer;
+  });
+
+}
+
 </script>
 
 </body>
 </html>
+

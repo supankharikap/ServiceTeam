@@ -473,14 +473,7 @@ def api_kpi():
 
             if plan_col:
 
-                plan_date_expr = f"""
-                    COALESCE(
-                        TRY_CONVERT(date, {_qcol(plan_col)}, 23),
-                        TRY_CONVERT(date, {_qcol(plan_col)}, 105),
-                        TRY_CONVERT(date, {_qcol(plan_col)})
-                    )
-                """
-
+                plan_date_expr = f"i.{_qcol(plan_col)}"
                 plan_where_parts = []
                 plan_params = []
 
@@ -2385,6 +2378,7 @@ def month_cluster_summary():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+
 @app.get("/api/installbase/month-cluster-details")
 def month_cluster_details():
 
@@ -2459,16 +2453,18 @@ def month_cluster_details():
             i.{_qcol(customer_col)} AS customer,
             i.{_qcol(serial_ib)} AS serial_no,
             CONVERT(varchar(10), {plan_date_expr}, 23) AS cluster_visit_plan,
-            CASE 
+            CASE               
                 WHEN EXISTS (
-                    SELECT 1 FROM dbo.WSR w
-                    WHERE {_cmp_ci_trim('i.' + serial_ib)} = {_cmp_ci_trim('w.' + serial_wsr)}
-                      AND {_cmp_ci_trim(visit_code_col)} = 'CLUSTER'
-                      AND {visit_date_expr} >= DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()), 1)
-                      AND {visit_date_expr} < DATEADD(month,1,DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()),1))
+                    SELECT 1 
+                    FROM dbo.WSR w
+                    WHERE UPPER(LTRIM(RTRIM(w.{_qcol(serial_wsr)}))) =
+                        UPPER(LTRIM(RTRIM(i.{_qcol(serial_ib)})))
+                    AND UPPER(LTRIM(RTRIM(w.{_qcol(visit_code_col)}))) = 'CLUSTER'
+                    AND {visit_date_expr} >= DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()), 1)
+                    AND {visit_date_expr} < DATEADD(month,1,DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()),1))
                 )
                 THEN 'COMPLETED'
-                ELSE 'PENDING'
+                ELSE 'PENDING'            
             END AS status
         FROM dbo.InstallBase i
         {where_sql}
@@ -2497,8 +2493,7 @@ def month_cluster_details():
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-    
-    
+       
 
 @app.get("/api/engineers")
 def get_engineers():
