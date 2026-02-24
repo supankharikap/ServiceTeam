@@ -2960,6 +2960,7 @@ def api_expiry_filter():
         return jsonify({"error": str(e)}), 500
 
 # ================= INSTALLBASE EXCEL UPLOAD =================
+# ================= INSTALLBASE EXCEL UPLOAD =================
 @app.route("/api/installbase/excel-upload", methods=["POST"])
 def api_installbase_excel_upload():
 
@@ -2980,6 +2981,7 @@ def api_installbase_excel_upload():
         if df.empty:
             return jsonify({"error": "Excel is empty"}), 400
 
+        # Clean column names
         df.columns = df.columns.str.strip()
 
         install_cols = _table_columns("dbo.InstallBase")
@@ -2997,6 +2999,9 @@ def api_installbase_excel_upload():
         inserted = 0
         updated = 0
 
+        # Normalize Excel columns once
+        excel_cols_norm = {_norm(c): c for c in df.columns}
+
         with get_conn() as conn:
             cur = conn.cursor()
 
@@ -3010,12 +3015,11 @@ def api_installbase_excel_upload():
                 if not serial_value:
                     continue
 
-                # Check exists
+                # Check if exists
                 cur.execute(
                     f"SELECT 1 FROM dbo.InstallBase WHERE {_cmp_ci_trim(serial_col)} = UPPER(?)",
                     (serial_value,)
                 )
-
                 exists = cur.fetchone()
 
                 # ================= UPDATE =================
@@ -3026,6 +3030,7 @@ def api_installbase_excel_upload():
 
                     for col in install_cols:
 
+                        # Skip identity + computed columns
                         if _norm(col) in [
                             "id",
                             "amcduedate",
@@ -3036,10 +3041,11 @@ def api_installbase_excel_upload():
                         ]:
                             continue
 
-                        if col not in df.columns:
+                        if _norm(col) not in excel_cols_norm:
                             continue
 
-                        value = row.get(col)
+                        excel_col_name = excel_cols_norm[_norm(col)]
+                        value = row.get(excel_col_name)
 
                         if pd.isna(value):
                             continue
@@ -3085,10 +3091,11 @@ def api_installbase_excel_upload():
                         ]:
                             continue
 
-                        if col not in df.columns:
+                        if _norm(col) not in excel_cols_norm:
                             continue
 
-                        value = row.get(col)
+                        excel_col_name = excel_cols_norm[_norm(col)]
+                        value = row.get(excel_col_name)
 
                         if pd.isna(value):
                             continue
@@ -3124,7 +3131,11 @@ def api_installbase_excel_upload():
         })
 
     except Exception as e:
-        print("UPLOAD ERROR:", str(e))
+        import traceback
+        print("========== UPLOAD ERROR ==========")
+        print(str(e))
+        traceback.print_exc()
+        print("==================================")
         return jsonify({"error": str(e)}), 500
     
 
