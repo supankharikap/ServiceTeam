@@ -175,10 +175,21 @@ def _qcol(c: str) -> str:
 def _json_safe(v):
     if v is None:
         return ""
-    if isinstance(v, (datetime, date)):
-        return v.isoformat()
-    return str(v)
 
+    # datetime / date
+    if isinstance(v, (datetime, date)):
+        return v.strftime("%d-%m-%Y")
+
+    # string date like "Thu, 01 Dec 2022 00:00:00 GMT"
+    try:
+        if isinstance(v, str) and "GMT" in v:
+            from email.utils import parsedate_to_datetime
+            dt = parsedate_to_datetime(v)
+            return dt.strftime("%d-%m-%Y")
+    except:
+        pass
+
+    return str(v)
 
 def _json_err(msg, code=400):
     return jsonify({"error": msg}), code
@@ -424,7 +435,7 @@ def api_kpi():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
     
-    
+
     # ---------------- InstallBase Scope ----------------
     where_sql, params = _installbase_scope_where(install_cols)
 
@@ -2005,6 +2016,7 @@ def api_wsr_save():
         with get_conn() as conn:
             cur = conn.cursor()
 
+            # ================= INSERT WSR =================
             insert_cols = []
             insert_vals = []
             params = []
@@ -2040,6 +2052,8 @@ def api_wsr_save():
             serial_no = (payload.get("serialNo") or "").strip()
             visit_date_raw = payload.get("visitDate")
             visit_date = _parse_iso_date(visit_date_raw)
+            sms_days_raw = payload.get("smsUpdatedDays")
+            sms_days = _to_int(sms_days_raw)
 
             if visit_code == "CLUSTER" and serial_no and visit_date:
 
@@ -2057,17 +2071,40 @@ def api_wsr_save():
                     must_contain=["actual", "visit"]
                 )
 
-                if serial_col and actual_visit_col:
+                sms_days_col = _find_col(
+                    install_cols,
+                    aliases=["SMSUpdated_Days"],
+                    must_contain=["sms", "days"]
+                )
+
+                cluster_plan_col = _find_col(
+                    install_cols,
+                    aliases=["Cluster Visit Plan"],
+                    must_contain=["cluster", "visit", "plan"]
+                )
+
+                if serial_col and actual_visit_col and sms_days_col and cluster_plan_col:
+
+                    # Direct auto calculation
+                    cluster_plan_date = (
+                        visit_date + timedelta(days=sms_days)
+                        if sms_days is not None else None
+                    )
 
                     update_sql = f"""
                         UPDATE dbo.InstallBase
-                        SET {_qcol(actual_visit_col)} = ?
+                        SET {_qcol(actual_visit_col)} = ?,
+                            {_qcol(sms_days_col)} = ?,
+                            {_qcol(cluster_plan_col)} = ?
                         WHERE {_cmp_ci_trim(serial_col)} = UPPER(?)
                     """
 
-                    cur.execute(update_sql, (visit_date, serial_no))
+                    cur.execute(
+                        update_sql,
+                        (visit_date, sms_days, cluster_plan_date, serial_no)
+                    )
 
-            # ✅ ONE SINGLE COMMIT (best practice)
+            # ✅ SINGLE COMMIT
             conn.commit()
 
         return jsonify({"ok": True, "message": "WSR Saved Successfully"})
@@ -2256,7 +2293,8 @@ def api_installbase_mc_summary():
                 SELECT 
                     SUM(CASE WHEN {mc_expr} = 'AMC' THEN 1 ELSE 0 END),
                     SUM(CASE WHEN {mc_expr} = 'NON AMC' THEN 1 ELSE 0 END),
-                    SUM(CASE WHEN {mc_expr} = 'WARRANTY' THEN 1 ELSE 0 END)
+                    SUM(CASE WHEN {mc_expr} = 'WARRANTY' THEN 1 ELSE 0 END),
+                    SUM(CASE WHEN {mc_expr} = 'NOT IN USE' THEN 1 ELSE 0 END)
                 FROM dbo.InstallBase
                 {where_sql}
             """
@@ -2267,7 +2305,8 @@ def api_installbase_mc_summary():
         return jsonify({
             "amc": int(row[0] or 0),
             "non_amc": int(row[1] or 0),
-            "warranty": int(row[2] or 0)
+            "warranty": int(row[2] or 0),
+            "not_in_use": int(row[3] or 0)
         })
 
     except Exception as e:
@@ -3018,6 +3057,93 @@ def api_installbase_excel_upload():
     except Exception as e:
         print("INSTALLBASE UPLOAD ERROR:", str(e))
         return jsonify({"error": str(e)}), 500
+
+@app.get("/api/installbase/by-mc-status")
+def installbase_by_mc_status():
+
+    status = request.args.get("status")
+
+    if not status:
+        return jsonify({"columns": [], "rows": []})
+
+    try:
+        with get_conn() as conn:
+            cur = conn.cursor()
+
+            sql = """
+                SELECT *
+                FROM dbo.InstallBase
+                WHERE 
+                    UPPER(LTRIM(RTRIM([Active Status]))) = 'ACTIVE'
+                AND 
+                    UPPER(LTRIM(RTRIM([Mc Status]))) = ?
+            """
+
+            cur.execute(sql, status.upper())
+
+            rows = cur.fetchall()
+            columns = [col[0] for col in cur.description]
+
+            result = []
+            for r in rows:
+                row_dict = {}
+                for i, col in enumerate(columns):
+                    row_dict[col] = _json_safe(r[i])
+                    
+                    
+                result.append(row_dict)
+
+            return jsonify({
+                "columns": columns,
+                "rows": result
+            })
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.get("/api/installbase/by-active-status")
+def installbase_by_active_status():
+
+    status = (request.args.get("status") or "").strip().upper()
+
+    try:
+        with get_conn() as conn:
+            cur = conn.cursor()
+
+            base_sql = """
+                SELECT *
+                FROM dbo.InstallBase
+            """
+
+            params = []
+
+            if status and status != "ALL":
+                base_sql += """
+                    WHERE UPPER(LTRIM(RTRIM([Active Status]))) = ?
+                """
+                params.append(status)
+
+            cur.execute(base_sql, params)
+
+            rows = cur.fetchall()
+            columns = [col[0] for col in cur.description]
+
+            result = []
+            for r in rows:
+                row_dict = {}
+                for i, col in enumerate(columns):
+                    row_dict[col] = _json_safe(r[i])
+                    
+                result.append(row_dict)
+
+            return jsonify({
+                "columns": columns,
+                "rows": result
+            })
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500        
 
 # ===================== RUN =====================
 if __name__ == "__main__":

@@ -25,6 +25,11 @@
     .filter-btn {padding:8px 15px;margin-right:10px;border:none;border-radius:6px;background:#1f6feb;color:white;cursor:pointer;}
     .filter-btn:hover {background:#1558b0;}
 
+    .dataTables_filter { text-align: left !important;}
+    .dataTables_length {  text-align: right !important;}
+    .dt-top{display:flex;  justify-content:space-between;  align-items:center;  margin-bottom:10px;}
+    .dt-bottom{  display:flex;  justify-content:space-between;  align-items:center;    margin-top:10px;}
+
 
     .status-completed{  background-color:#2e7d32;  color:#fff;  padding:4px 8px;  border-radius:6px;  font-weight:700;  text-align:center;}
 
@@ -387,7 +392,7 @@
         <div style="color:var(--muted); line-height:1.6">
           <div class="cards">
              <div class="card" style="cursor:pointer;"
-             onclick="showSection('masterSection', null); openMaster();">
+              onclick="openActiveStatusDetails('ALL')">
              
              
              <div class="kpi" id="installBaseLabel">Total InstallBase- 0</div>
@@ -482,17 +487,7 @@
           <h2>Cluster Summary (This Month)</h2>
           <small>Rows: <b id="clusterRowCount">0</b></small>
         </div>
-        <div class="cluster-filters">
-          <select id="engineerFilter">
-            <option value="">All Engineers</option>
-          </select>
-          <select id="statusFilter">
-            <option value="">All Status</option>
-            <option value="completed">Completed</option>
-            <option value="pending">Pending</option>
-          </select>
-          <button onclick="applyClusterFilter()">Filter</button>
-        </div>
+        
         <div class="tableWrap">
           <table id="clusterSummaryTable">
             <thead></thead>
@@ -522,7 +517,18 @@
 
         <div id="masterTable"></div>
       </section>
+      <section id="mcStatusSection" class="section">
+        <div class="card">
+          <h3 id="mcStatusTitle">Machine Status Details</h3>
+          <div id="mcStatusTable"></div>
+          <button class="btn gray" onclick="showSection('dashboardSection', document.getElementById('btnDashboard'))">
+            ⬅ Back to Dashboard
+          </button>
+        </div>
+      </section>
       
+
+
        <!-- Customer List -->
       <section id="customerSummarySection" class="section">
         <div class="sectionHeader">
@@ -733,6 +739,10 @@
                 <option value="OTHERS-VISIT">OTHERS-VISIT </option>
 
               </select>
+              <div id="smsDaysBox" style="display:none;">
+                <label>SMS Updated Days</label>
+                <input type="number" id="smsUpdatedDays" name="smsUpdatedDays" min="1">
+              </div>
             </div>
 
             <div>
@@ -1099,6 +1109,9 @@ function populateEngineerFilter(data) {
 async function loadClusterSummary() {
 
   showLoading("Loading Cluster Summary...");
+  if ($.fn.DataTable.isDataTable('#clusterSummaryTable')) {
+    $('#clusterSummaryTable').DataTable().clear().destroy();
+  }
 
   try {
 
@@ -1159,6 +1172,8 @@ async function loadClusterSummary() {
     // ======================
     const rc = document.getElementById("clusterRowCount");
     if (rc) rc.textContent = data.rows.length;
+    initCommonDataTable("clusterSummaryTable");
+    
 
     // ======================
     // 🔥 AUTO ENGINEER LOAD (TABLE SE DIRECT)
@@ -1231,18 +1246,21 @@ function loadKpis(){
       const sub = document.getElementById("kpiInstallSub");
       if(sub){
         sub.innerHTML = `
-          <div style="display:flex;justify-content:space-between;margin-top:4px;">
-            <span>Active</span>
-            <span class="activeCount">${active}</span>
-          </div>
-          <div style="display:flex;justify-content:space-between;margin-top:4px;">
-            <span>Inactive</span>
-            <span class="inactiveCount">${inactive}</span>
-          </div>
-          <div style="display:flex;justify-content:space-between;margin-top:4px;">
-            <span>Dead</span>
-            <span class="deadCount">${dead}</span>
-          </div>
+        <div style="display:flex;justify-content:space-between;margin-top:4px;cursor:pointer;"
+        onclick="openActiveStatusDetails('ACTIVE')">
+        <span>Active</span>
+        <span class="activeCount">${active}</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;margin-top:4px;cursor:pointer;"
+        onclick="openActiveStatusDetails('INACTIVE')">
+        <span>Inactive</span>
+        <span class="inactiveCount">${inactive}</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;margin-top:4px;cursor:pointer;"
+        onclick="openActiveStatusDetails('DEAD')">
+        <span>Dead</span>
+        <span class="deadCount">${dead}</span>
+        </div>
         `;
       }
 
@@ -1378,6 +1396,27 @@ document.addEventListener("change", (e)=>{
   if (e.target && e.target.id === "visitCode1") fillVisitCode2();
 });
 
+function toggleSmsDaysInput() {
+  const visitCode = document.getElementById("visitCode1").value;
+  const box = document.getElementById("smsDaysBox");
+  const input = document.getElementById("smsUpdatedDays");
+
+  if (visitCode === "CLUSTER") {
+    box.style.display = "block";
+    input.setAttribute("required", "required");
+  } else {
+    box.style.display = "none";
+    input.removeAttribute("required");
+    input.value = "";
+  }
+}
+
+document.addEventListener("change", function(e){
+  if(e.target && e.target.id === "visitCode1"){
+    toggleSmsDaysInput();
+  }
+});
+
 /* ===========================
    DONUT HELPERS (ONE CLEAN VERSION)
 =========================== */
@@ -1390,7 +1429,8 @@ const VISIT_TYPE_COLOR = {
 const AMC_STATUS_COLOR = {
   "AMC": "#2e7d32",
   "NON AMC": "#1a73e8",
-  "WARRANTY": "#e53935"
+  "WARRANTY": "#e53935",
+  "NOT IN USE": "#9e9e9e",
 };
 
 function renderCssDonutTo(elId, labels, values){
@@ -1449,21 +1489,23 @@ async function loadAmcDonut(){
     const amc       = Number(data.amc || 0);
     const nonAmc    = Number(data.non_amc || 0);
     const warranty  = Number(data.warranty || 0);
+    const notInUse  = Number(data.not_in_use || 0);   // 👈 add this
 
-    const total = amc + nonAmc + warranty;
+    const labels = ["AMC","NON AMC","WARRANTY","NOT IN USE"];
+    const values = [amc, nonAmc, warranty, notInUse];
+
+    const total = values.reduce((a,b)=>a+b,0);
 
     document.getElementById("amcDonutTotal").textContent = total;
-
-    const labels = ["AMC","NON AMC","WARRANTY"];
-    const values = [amc, nonAmc, warranty];
 
     renderCssDonutTo("amcDonutChart", labels, values);
 
     renderLegendTo(
       "amcDonutLegend",
       labels,
-      ["#2e7d32","#1a73e8","#e53935"],
-      values
+      labels.map(l => AMC_STATUS_COLOR[l] || "#64748b"),
+      values,
+      (status) => openMcStatusDetails(status)
     );
 
   }catch(e){
@@ -1472,6 +1514,10 @@ async function loadAmcDonut(){
     hideLoading();
   }
 }
+
+
+
+
 
 /* ===========================
    WEEKLY DONUT (±7 days) -> OPEN REPORT IN SAME PAGE
@@ -1608,6 +1654,8 @@ function renderTable(columns, rows) {
   wrap.style.borderRadius = "12px";
 
   const table = document.createElement("table");
+  table.id = "mcStatusDataTable";  
+  table.className = "display";
   table.style.borderCollapse = "collapse";
   table.style.minWidth = "1600px";
 
@@ -2767,6 +2815,7 @@ window.onload = function(){
   if(sbZone) sbZone.textContent = SERVER_TEAM || "-";
 
   refillReadonly();
+  toggleSmsDaysInput();
   loadAmcDonut();
   setupMonthYear();
   loadWeeklyDonut();
@@ -3179,6 +3228,116 @@ function loadExpiry(type, btn) {
         .catch(err => {
             console.error("Expiry Load Error:", err);
         });
+}
+
+async function openMcStatusDetails(status){
+
+  showSection("mcStatusSection", null);   // 🔥 Proper section switch
+
+  showLoading("Loading " + status + " machines...");
+
+  try{
+    const res = await fetch(`/api/installbase/by-mc-status?status=${encodeURIComponent(status)}`);
+    const data = await res.json();
+
+    if(!res.ok || data.error){
+      alert("Error loading data");
+      return;
+    }
+
+    document.getElementById("mcStatusTitle").innerText = status + " Machines";
+
+    const holder = document.getElementById("mcStatusTable");
+    holder.innerHTML = "";
+    holder.appendChild(renderTable(data.columns, data.rows));
+
+  }catch(e){
+    console.error(e);
+  }finally{
+    hideLoading();
+  }
+}
+
+
+async function openActiveStatusDetails(status){
+
+  showSection("mcStatusSection", null);
+  showLoading("Loading " + status + " InstallBase...");
+
+  try{
+
+    let url = "/api/installbase/by-active-status";
+
+    if(status !== "ALL"){
+      url += "?status=" + encodeURIComponent(status);
+    }
+
+    const res = await fetch(url);
+    const data = await res.json();
+
+    if(!res.ok || data.error){
+      alert("Error loading data");
+      return;
+    }
+
+    // Set Title
+    document.getElementById("mcStatusTitle").innerText =
+      status === "ALL"
+        ? "All InstallBase"
+        : status + " InstallBase";
+
+    const holder = document.getElementById("mcStatusTable");
+
+    // 🔥 Destroy existing DataTable properly BEFORE clearing
+    if ($.fn.DataTable.isDataTable('#mcStatusDataTable')) {
+      $('#mcStatusDataTable').DataTable().clear().destroy();
+    }
+
+    holder.innerHTML = "";
+
+    // Render fresh table
+    const table = renderTable(data.columns, data.rows);
+    holder.appendChild(table);
+
+    // 🔥 Initialize DataTable AFTER appending
+    $('#mcStatusDataTable').DataTable({
+      pageLength: 25,
+      orderCellsTop: true,
+      fixedHeader: true,
+      responsive: true,
+      autoWidth: false,
+      searching: true,
+      lengthChange: true ,
+
+      dom: '<"dt-top"f l>rt<"dt-bottom"i p>'
+    });
+
+  }catch(e){
+    console.error("InstallBase Load Error:", e);
+    alert("Something went wrong while loading data.");
+  }finally{
+    hideLoading();
+  }
+}
+
+function initCommonDataTable(tableId){
+
+    if ($.fn.DataTable.isDataTable('#' + tableId)) {
+        $('#' + tableId).DataTable().clear().destroy();
+    }
+
+    $('#' + tableId).DataTable({
+        pageLength: 25,
+        searching: true,
+        lengthChange: true,
+        ordering: true,
+        info: true,
+        paging: true,
+        autoWidth: false,
+        responsive: true,
+
+        dom: '<"dt-top"f l>rt<"dt-bottom"i p>'
+    });
 }
 </script>
 
