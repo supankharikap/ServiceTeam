@@ -175,21 +175,10 @@ def _qcol(c: str) -> str:
 def _json_safe(v):
     if v is None:
         return ""
-
-    # datetime / date
     if isinstance(v, (datetime, date)):
-        return v.strftime("%d-%m-%Y")
-
-    # string date like "Thu, 01 Dec 2022 00:00:00 GMT"
-    try:
-        if isinstance(v, str) and "GMT" in v:
-            from email.utils import parsedate_to_datetime
-            dt = parsedate_to_datetime(v)
-            return dt.strftime("%d-%m-%Y")
-    except:
-        pass
-
+        return v.isoformat()
     return str(v)
+
 
 def _json_err(msg, code=400):
     return jsonify({"error": msg}), code
@@ -397,6 +386,7 @@ def _build_token_search_where(q: str, cols: list, preferred_cols: list):
     return "(" + " AND ".join(parts) + ")", params
 
 
+
 # ===================== KPI =====================
 @app.get("/api/kpi")
 def api_kpi():
@@ -591,13 +581,9 @@ def api_kpi():
     except Exception as e:
         return _json_err(f"KPI error: {e}", 500)
 
-
-
-# ===================== MASTER INSTALLBASE =================
-
+# ===================== MASTER INSTALLBASE =====================
 @app.get("/api/master/installbase")
 def api_master_installbase():
-
     need = _require_login_json()
     if need:
         return need
@@ -613,19 +599,16 @@ def api_master_installbase():
     base_where, base_params = _installbase_scope_where(cols)
 
     preferred = [
-        "ZONE", "SERVICE_ENGR", "Cluster_No", "CUSTOMER_NAME",
-        "Machine_Type", "Model", "Serial_No"
+        "ZONE", "SERVICE_ENGR", "Cluster_No", "CUSTOMER_NAME", "Location", "Machine_Type", "Model", "Serial_No",
+        "SERVICE ENGR", "CLUSTER NO", "CUSTOMER NAME", "SERIAL NO"
     ]
-
     search_where, search_params = _build_token_search_where(q, cols, preferred)
 
     where_parts = []
     params = []
-
     if base_where:
         where_parts.append(base_where.replace(" WHERE ", "", 1))
         params += base_params
-
     if search_where:
         where_parts.append(search_where)
         params += search_params
@@ -633,51 +616,19 @@ def api_master_installbase():
     where_sql = (" WHERE " + " AND ".join(where_parts)) if where_parts else ""
 
     id_col = _find_col(cols, aliases=["Id", "ID"], must_contain=["id"])
-    order_by = f"[{id_col}] DESC" if id_col else f"[{cols[0]}] DESC"
-
-    # ✅ EXACT COLUMN ORDER (Excel Format)
-    fixed_columns = [
-        "ZONE",
-        "SALES ENGR",
-        "SERVICE ENGR",
-        "Cluster No",
-        "CUSTOMER NAME",
-        "Machine Type",
-        "Model",
-        "Serial No.",
-        "Ink type",
-        "Active Status",
-        "Mc Status",
-        "Sales Invoice No",
-        "Invoice Date",
-        "Installed On",
-        "AMC Invoice Date",
-        "AMC From",
-        "AMC To",
-        "No. of Visits",
-        "AMC Amount",
-        "AMC Due Date",
-        "AMC Days Remaining",
-        "Filter Invoice Date",
-        "Next Filter Due Date",
-        "Filter Days Remaining",
-        "Cluster Visit Plan",
-        "Actual Visit",
-        "Cluster",
-        "Remarks",
-        "Teritory No",
-        "SMSUpdated_Days"
-    ]
-
-    # Build SELECT in same order
-    select_cols = ", ".join([f"[{c}]" for c in fixed_columns])
-
-    sql = f"""
-        SELECT TOP {limit} {select_cols}
-        FROM dbo.InstallBase
-        {where_sql}
-        ORDER BY {order_by}
+    order_by = f"{_qcol(id_col)} DESC" if id_col else f"{_qcol(cols[0])} DESC"
+    select_cols = """
+    [ID],[ZONE],[SALES ENGR],[SERVICE ENGR],[Cluster No],[CUSTOMER NAME],[LOCATION],
+    [STATE],[Address],[Contact Person1],[Designation],[Contact No.],[Email Id],
+    [Contact Person2],[Designation (2)],[Contact No. (2)],[Email Id (2)],
+    [Segment],[Sub-Segment],[Machine Type],[Model],[Serial No.],[Ink type],[Active Status],
+    [Mc Status],[Sales Invoice No],[Invoice Date],[Installed On],
+    [AMC Invoice Date],[AMC From],[AMC To],[No. of Visits],[AMC Amount],
+    [AMC Due Date],[AMC Days Remaining],[Filter Invoice Date],
+    [Next Filter Due Date],[Filter Days Remaining],[Cluster Visit Plan],
+    [Actual Visit],[Cluster],[Remarks],[Teritory No],[NEXT TER2 PLAN]
     """
+    sql = f"SELECT TOP {limit} {select_cols} FROM dbo.InstallBase{where_sql} ORDER BY {order_by}"
 
     try:
         with get_conn() as conn:
@@ -685,19 +636,27 @@ def api_master_installbase():
             cur.execute(sql, params)
             rows = cur.fetchall()
 
-        out_rows = []
 
+
+        fixed_columns = [
+            "ID","ZONE","SALES ENGR","SERVICE ENGR","Cluster No","CUSTOMER NAME","LOCATION",
+            "STATE","Address","Contact Person1","Designation","Contact No.","Email Id",
+            "Contact Person2","Designation (2)","Contact No. (2)","Email Id (2)",
+            "Segment","Sub-Segment","Machine Type","Model","Serial No.","Ink type",
+            "Active Status","Mc Status","Sales Invoice No","Invoice Date","Installed On",
+            "AMC Invoice Date","AMC From","AMC To","No. of Visits","AMC Amount",
+            "AMC Due Date","AMC Days Remaining","Filter Invoice Date",
+            "Next Filter Due Date","Filter Days Remaining",
+            "Cluster Visit Plan","Actual Visit","Cluster","Remarks",
+            "Teritory No","NEXT TER2 PLAN"
+            ]
+        out_rows = []
         for r in rows:
             obj = {}
             for i, col_name in enumerate(fixed_columns):
                 obj[col_name] = _json_safe(r[i])
             out_rows.append(obj)
-
-        return jsonify({
-            "columns": fixed_columns,
-            "rows": out_rows
-        })
-
+        return jsonify({"columns": fixed_columns, "rows": out_rows})
     except Exception as e:
         return _json_err(f"InstallBase API error: {e}", 500)
 
@@ -2045,7 +2004,6 @@ def api_wsr_save():
         with get_conn() as conn:
             cur = conn.cursor()
 
-            # ================= INSERT WSR =================
             insert_cols = []
             insert_vals = []
             params = []
@@ -2081,8 +2039,6 @@ def api_wsr_save():
             serial_no = (payload.get("serialNo") or "").strip()
             visit_date_raw = payload.get("visitDate")
             visit_date = _parse_iso_date(visit_date_raw)
-            sms_days_raw = payload.get("smsUpdatedDays")
-            sms_days = _to_int(sms_days_raw)
 
             if visit_code == "CLUSTER" and serial_no and visit_date:
 
@@ -2100,40 +2056,17 @@ def api_wsr_save():
                     must_contain=["actual", "visit"]
                 )
 
-                sms_days_col = _find_col(
-                    install_cols,
-                    aliases=["SMSUpdated_Days"],
-                    must_contain=["sms", "days"]
-                )
-
-                cluster_plan_col = _find_col(
-                    install_cols,
-                    aliases=["Cluster Visit Plan"],
-                    must_contain=["cluster", "visit", "plan"]
-                )
-
-                if serial_col and actual_visit_col and sms_days_col and cluster_plan_col:
-
-                    # Direct auto calculation
-                    cluster_plan_date = (
-                        visit_date + timedelta(days=sms_days)
-                        if sms_days is not None else None
-                    )
+                if serial_col and actual_visit_col:
 
                     update_sql = f"""
                         UPDATE dbo.InstallBase
-                        SET {_qcol(actual_visit_col)} = ?,
-                            {_qcol(sms_days_col)} = ?,
-                            {_qcol(cluster_plan_col)} = ?
+                        SET {_qcol(actual_visit_col)} = ?
                         WHERE {_cmp_ci_trim(serial_col)} = UPPER(?)
                     """
 
-                    cur.execute(
-                        update_sql,
-                        (visit_date, sms_days, cluster_plan_date, serial_no)
-                    )
+                    cur.execute(update_sql, (visit_date, serial_no))
 
-            # ✅ SINGLE COMMIT
+            # ✅ ONE SINGLE COMMIT (best practice)
             conn.commit()
 
         return jsonify({"ok": True, "message": "WSR Saved Successfully"})
@@ -2322,8 +2255,7 @@ def api_installbase_mc_summary():
                 SELECT 
                     SUM(CASE WHEN {mc_expr} = 'AMC' THEN 1 ELSE 0 END),
                     SUM(CASE WHEN {mc_expr} = 'NON AMC' THEN 1 ELSE 0 END),
-                    SUM(CASE WHEN {mc_expr} = 'WARRANTY' THEN 1 ELSE 0 END),
-                    SUM(CASE WHEN {mc_expr} = 'NOT IN USE' THEN 1 ELSE 0 END)
+                    SUM(CASE WHEN {mc_expr} = 'WARRANTY' THEN 1 ELSE 0 END)
                 FROM dbo.InstallBase
                 {where_sql}
             """
@@ -2334,8 +2266,7 @@ def api_installbase_mc_summary():
         return jsonify({
             "amc": int(row[0] or 0),
             "non_amc": int(row[1] or 0),
-            "warranty": int(row[2] or 0),
-            "not_in_use": int(row[3] or 0)
+            "warranty": int(row[2] or 0)
         })
 
     except Exception as e:
@@ -2469,6 +2400,7 @@ def month_cluster_summary():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+
 @app.get("/api/installbase/month-cluster-details")
 def month_cluster_details():
 
@@ -2479,8 +2411,6 @@ def month_cluster_details():
     engineer_filter = (request.args.get("engineer") or "").strip()
     customer_filter = (request.args.get("customer") or "").strip()
     status_filter   = (request.args.get("status") or "").strip().upper()
-    from_s = (request.args.get("from_date") or "").strip()
-    to_s   = (request.args.get("to_date") or "").strip()
 
     install_cols = _table_columns("dbo.InstallBase")
     wsr_cols = _wsr_cols()
@@ -2499,6 +2429,7 @@ def month_cluster_details():
                 serial_wsr, visit_date_col, visit_code_col]):
         return jsonify({"error": "Required columns missing"}), 400
 
+    # -------- Date Expressions --------
     plan_date_expr = f"""
         COALESCE(
             TRY_CONVERT(date, {_qcol(plan_col)}, 23),
@@ -2525,18 +2456,8 @@ def month_cluster_details():
         params += base_params
 
     where_parts.append(f"{_cmp_ci_trim(active_col)} = 'ACTIVE'")
-
-    # ✅ DATE FILTER (NEW FIX)
-    fd = _parse_iso_date(from_s) if from_s else None
-    td = _parse_iso_date(to_s) if to_s else None
-
-    if fd:
-        where_parts.append(f"{plan_date_expr} >= ?")
-        params.append(fd)
-
-    if td:
-        where_parts.append(f"{plan_date_expr} <= ?")
-        params.append(td)
+    where_parts.append(f"{plan_date_expr} >= DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()), 1)")
+    where_parts.append(f"{plan_date_expr} < DATEADD(month,1,DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()),1))")
 
     if engineer_filter and engineer_filter != "All":
         where_parts.append(f"{_cmp_ci_trim(engineer_col)} = UPPER(?)")
@@ -2561,8 +2482,8 @@ def month_cluster_details():
                     WHERE UPPER(LTRIM(RTRIM(w.{_qcol(serial_wsr)}))) =
                         UPPER(LTRIM(RTRIM(i.{_qcol(serial_ib)})))
                     AND UPPER(LTRIM(RTRIM(w.{_qcol(visit_code_col)}))) = 'CLUSTER'
-                    {f"AND {visit_date_expr} >= ?" if fd else ""}
-                    {f"AND {visit_date_expr} <= ?" if td else ""}
+                    AND {visit_date_expr} >= DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()), 1)
+                    AND {visit_date_expr} < DATEADD(month,1,DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()),1))
                 )
                 THEN 'COMPLETED'
                 ELSE 'PENDING'            
@@ -2571,11 +2492,6 @@ def month_cluster_details():
         {where_sql}
         ORDER BY cluster_visit_plan ASC
     """
-
-    if fd:
-        params.append(fd)
-    if td:
-        params.append(td)
 
     if status_filter in ["COMPLETED", "PENDING"]:
         sql = f"SELECT * FROM ({sql}) x WHERE UPPER(status) = ?"
@@ -2599,6 +2515,7 @@ def month_cluster_details():
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+       
 
 @app.get("/api/engineers")
 def get_engineers():
@@ -2960,7 +2877,7 @@ def api_expiry_filter():
         return jsonify({"error": str(e)}), 500
 
 # ================= INSTALLBASE EXCEL UPLOAD =================
-# ================= INSTALLBASE EXCEL UPLOAD =================
+
 @app.route("/api/installbase/excel-upload", methods=["POST"])
 def api_installbase_excel_upload():
 
@@ -2968,6 +2885,9 @@ def api_installbase_excel_upload():
     if need:
         return need
 
+    role = (session.get("role") or "").strip().lower()
+
+    
     if "excel_file" not in request.files:
         return jsonify({"error": "No file selected"}), 400
 
@@ -2981,12 +2901,12 @@ def api_installbase_excel_upload():
         if df.empty:
             return jsonify({"error": "Excel is empty"}), 400
 
-        # Clean column names
         df.columns = df.columns.str.strip()
 
         install_cols = _table_columns("dbo.InstallBase")
         col_types = _table_column_types("dbo.InstallBase")
 
+        # 🔎 Serial column detect
         serial_col = _find_col(
             install_cols,
             aliases=["Serial No.", "Serial No", "Serial_No", "SERIAL NO", "SerialNo"],
@@ -2994,13 +2914,10 @@ def api_installbase_excel_upload():
         )
 
         if not serial_col:
-            return jsonify({"error": "Serial column not found"}), 400
+            return jsonify({"error": "Serial column not found in InstallBase"}), 400
 
         inserted = 0
-        updated = 0
-
-        # Normalize Excel columns once
-        excel_cols_norm = {_norm(c): c for c in df.columns}
+        skipped_duplicates = 0
 
         with get_conn() as conn:
             cur = conn.cursor()
@@ -3015,216 +2932,109 @@ def api_installbase_excel_upload():
                 if not serial_value:
                     continue
 
-                # Check if exists
+                # 🔎 Duplicate Check
                 cur.execute(
-                    f"SELECT 1 FROM dbo.InstallBase WHERE {_cmp_ci_trim(serial_col)} = UPPER(?)",
+                    f"SELECT TOP 1 1 FROM dbo.InstallBase WHERE {_cmp_ci_trim(serial_col)} = UPPER(?)",
                     (serial_value,)
                 )
-                exists = cur.fetchone()
 
-                # ================= UPDATE =================
-                if exists:
+                if cur.fetchone():
+                    skipped_duplicates += 1
+                    continue
 
-                    update_cols = []
-                    update_params = []
+                # 🔄 Build Insert Data
+                insert_cols = []
+                insert_vals = []
+                params = []
 
-                    for col in install_cols:
+                for col in install_cols:
 
-                        # Skip identity + computed columns
-                        if _norm(col) in [
-                            "id",
-                            "amcduedate",
-                            "amcdaysremaining",
-                            "nextfilterduedate",
-                            "filterdaysremaining",
-                            "cluster"
-                        ]:
-                            continue
+                    # ❌ Skip identity & computed columns
+                    if _norm(col) in [
+                        "id",
+                        "amcduedate",
+                        "amcdaysremaining",
+                        "nextfilterduedate",
+                        "filterdaysremaining",
+                        "cluster"
+                    ]:
+                        continue
 
-                        if _norm(col) not in excel_cols_norm:
-                            continue
+                    if col not in df.columns:
+                        continue
 
-                        excel_col_name = excel_cols_norm[_norm(col)]
-                        value = row.get(excel_col_name)
+                    value = row.get(col)
 
-                        if pd.isna(value):
-                            continue
+                    if pd.isna(value):
+                        continue
 
-                        dtype = (col_types.get(col) or "").lower()
+                    dtype = (col_types.get(col) or "").lower()
 
-                        if dtype in ("date", "datetime", "datetime2", "smalldatetime"):
-                            try:
-                                value = pd.to_datetime(value).date()
-                            except:
-                                value = None
+                    if dtype in ("date", "datetime", "datetime2", "smalldatetime"):
+                        try:
+                            value = pd.to_datetime(value).date()
+                        except:
+                            value = None
 
-                        update_cols.append(f"[{col}] = ?")
-                        update_params.append(value)
+                    insert_cols.append(f"[{col}]")
+                    insert_vals.append("?")
+                    params.append(value)
 
-                    if update_cols:
-                        update_sql = f"""
-                            UPDATE dbo.InstallBase
-                            SET {', '.join(update_cols)}
-                            WHERE {_cmp_ci_trim(serial_col)} = UPPER(?)
-                        """
+                if not insert_cols:
+                    continue
 
-                        update_params.append(serial_value)
-                        cur.execute(update_sql, update_params)
-                        updated += 1
+                sql = f"""
+                    INSERT INTO dbo.InstallBase
+                    ({', '.join(insert_cols)})
+                    VALUES ({', '.join(insert_vals)})
+                """
 
-                # ================= INSERT =================
-                else:
-
-                    insert_cols = []
-                    insert_vals = []
-                    insert_params = []
-
-                    for col in install_cols:
-
-                        if _norm(col) in [
-                            "id",
-                            "amcduedate",
-                            "amcdaysremaining",
-                            "nextfilterduedate",
-                            "filterdaysremaining",
-                            "cluster"
-                        ]:
-                            continue
-
-                        if _norm(col) not in excel_cols_norm:
-                            continue
-
-                        excel_col_name = excel_cols_norm[_norm(col)]
-                        value = row.get(excel_col_name)
-
-                        if pd.isna(value):
-                            continue
-
-                        dtype = (col_types.get(col) or "").lower()
-
-                        if dtype in ("date", "datetime", "datetime2", "smalldatetime"):
-                            try:
-                                value = pd.to_datetime(value).date()
-                            except:
-                                value = None
-
-                        insert_cols.append(f"[{col}]")
-                        insert_vals.append("?")
-                        insert_params.append(value)
-
-                    if insert_cols:
-                        insert_sql = f"""
-                            INSERT INTO dbo.InstallBase
-                            ({', '.join(insert_cols)})
-                            VALUES ({', '.join(insert_vals)})
-                        """
-
-                        cur.execute(insert_sql, insert_params)
-                        inserted += 1
+                cur.execute(sql, params)
+                inserted += 1
 
             conn.commit()
 
         return jsonify({
             "message": "InstallBase Excel Uploaded Successfully ✅",
             "inserted": inserted,
-            "updated": updated
+            "skipped_duplicates": skipped_duplicates
         })
 
     except Exception as e:
-        import traceback
-        print("========== UPLOAD ERROR ==========")
-        print(str(e))
-        traceback.print_exc()
-        print("==================================")
-        return jsonify({"error": str(e)}), 500
-    
-
-
-
-
-@app.get("/api/installbase/by-mc-status")
-def installbase_by_mc_status():
-
-    status = request.args.get("status")
-
-    if not status:
-        return jsonify({"columns": [], "rows": []})
-
-    try:
-        with get_conn() as conn:
-            cur = conn.cursor()
-
-            sql = """
-                SELECT *
-                FROM dbo.InstallBase
-                WHERE 
-                    UPPER(LTRIM(RTRIM([Active Status]))) = 'ACTIVE'
-                AND 
-                    UPPER(LTRIM(RTRIM([Mc Status]))) = ?
-            """
-
-            cur.execute(sql, status.upper())
-
-            rows = cur.fetchall()
-            columns = [col[0] for col in cur.description]
-
-            result = []
-            for r in rows:
-                row_dict = {}
-                for i, col in enumerate(columns):
-                    row_dict[col] = _json_safe(r[i])
-                    
-                    
-                result.append(row_dict)
-
-            return jsonify({
-                "columns": columns,
-                "rows": result
-            })
-
-    except Exception as e:
+        print("INSTALLBASE UPLOAD ERROR:", str(e))
         return jsonify({"error": str(e)}), 500
 
 
+# ===================== INSTALLBASE BY ACTIVE STATUS =====================
 @app.get("/api/installbase/by-active-status")
 def installbase_by_active_status():
 
-    status = (request.args.get("status") or "").strip().upper()
+    need = _require_login_json()
+    if need:
+        return need
 
     try:
+        status = request.args.get("status")
+
         with get_conn() as conn:
             cur = conn.cursor()
 
-            base_sql = """
-                SELECT *
-                FROM dbo.InstallBase
-            """
-
-            params = []
-
             if status and status != "ALL":
-                base_sql += """
+                cur.execute("""
+                    SELECT *
+                    FROM dbo.InstallBase
                     WHERE UPPER(LTRIM(RTRIM([Active Status]))) = ?
-                """
-                params.append(status)
+                """, status.upper())
+            else:
+                cur.execute("SELECT * FROM dbo.InstallBase")
 
-            cur.execute(base_sql, params)
+            columns = [c[0] for c in cur.description]
+            rows = [dict(zip(columns, r)) for r in cur.fetchall()]
 
-            rows = cur.fetchall()
-            columns = [col[0] for col in cur.description]
-
-            result = []
-            for r in rows:
-                row_dict = {}
-                for i, col in enumerate(columns):
-                    row_dict[col] = _json_safe(r[i])
-                    
-                result.append(row_dict)
-
-            return jsonify({
-                "columns": columns,
-                "rows": result
-            })
+        return jsonify({
+            "columns": columns,
+            "rows": rows
+        })
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500        
