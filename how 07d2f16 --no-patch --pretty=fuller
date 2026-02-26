@@ -1,0 +1,37 @@
+[33mcce251f[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m)[m HEAD@{0}: reset: moving to cce251f
+[33ma9487ad[m[33m ([m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m HEAD@{1}: reset: moving to HEAD~1
+[33md72fd16[m HEAD@{2}: commit: InstallBase save working version (before int-datetime fix)
+[33ma9487ad[m[33m ([m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m HEAD@{3}: commit: Trigger fresh deploy
+[33mcce251f[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m)[m HEAD@{4}: commit: Update dashboard and report pages
+[33m446d906[m HEAD@{5}: pull origin main --rebase (finish): returning to refs/heads/main
+[33m446d906[m HEAD@{6}: pull origin main --rebase (pick): Upgrade openpyxl to 3.1.5
+[33mcbeaf3a[m HEAD@{7}: pull origin main --rebase (start): checkout cbeaf3a8c44118615c6b0ed677f398da23e15327
+[33mb5d45d9[m HEAD@{8}: commit: Upgrade openpyxl to 3.1.5
+[33mc1c1ad6[m HEAD@{9}: commit: Upgrade openpyxl to 3.1.5+
+[33maba891b[m HEAD@{10}: commit: Update dashboard and report pages
+[33m78130e1[m HEAD@{11}: commit: Added openpyxl dependency
+[33md36fab8[m HEAD@{12}: commit: Added openpyxl
+[33m6f3a500[m HEAD@{13}: commit: Update dashboard and report pages
+[33mf1da58b[m HEAD@{14}: commit: Update dashboard and report pages
+[33m10e3d9b[m HEAD@{15}: commit: Update dashboard and report pages
+[33maf85c4c[m HEAD@{16}: commit: Update dashboard and report pages
+[33ma00ae39[m HEAD@{17}: commit: Update dashboard and report pages
+[33m8678ca7[m HEAD@{18}: commit: Update dashboard and report pages
+[33m326cbe1[m HEAD@{19}: commit: Update dashboard and report pages
+[33mcdf58a5[m HEAD@{20}: commit: Updated expiry color logic and dashboard UI fix
+[33m7c1315d[m HEAD@{21}: commit: Updated expiry color logic and dashboard UI fix
+[33mff7ef31[m HEAD@{22}: commit: Added pandas
+[33me69aea1[m HEAD@{23}: commit: Update dashboard and report pages
+[33m1dcb504[m HEAD@{24}: commit: Update dashboard
+[33mdd4f3ce[m HEAD@{25}: commit: Update tempaltes/dasboard
+[33mb4e1d2f[m HEAD@{26}: commit: Update dashboard and report pages
+[33m597f056[m HEAD@{27}: commit: Update dashboard and report pages
+[33mbdda443[m HEAD@{28}: commit: Update dashboard and report pages
+[33me9425cc[m HEAD@{29}: commit: Updated dashboard design
+[33mae1e930[m HEAD@{30}: commit: Switch to publish profile deployment
+[33m20d2b71[m HEAD@{31}: commit: Fix KPI customers and cluster plan ratio display
+[33m5b64c78[m HEAD@{32}: commit: Update dashboard script and fixes
+[33m36d68fb[m HEAD@{33}: commit: Fixed Google verification import
+[33m23e6b0e[m HEAD@{34}: commit: Update dashboard and report pages
+[33m13d368d[m HEAD@{35}: commit: Update dashboard and report pages
+[33mefb2a10[m HEAD@{36}: clone: from https://github.com/supankharikap/ServiceTeam.git
