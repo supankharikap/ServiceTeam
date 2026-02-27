@@ -405,35 +405,77 @@ def api_kpi():
     if need:
         return need
 
+    install_cols = _table_columns("dbo.InstallBase")
+    if not install_cols:
+        return _json_err("InstallBase not found", 400)
+
+    where_sql, params = _installbase_scope_where(install_cols)
+
     try:
         with get_conn() as conn:
             cur = conn.cursor()
 
-            sql = """
-                SELECT 
-                    COUNT(*) AS installbase_total,
-                    COUNT(DISTINCT [CUSTOMER NAME]) AS customers,
-                    SUM(CASE WHEN UPPER(LTRIM(RTRIM([Active Status]))) = 'ACTIVE' THEN 1 ELSE 0 END) AS active_total,
-                    SUM(CASE WHEN UPPER(LTRIM(RTRIM([Active Status]))) = 'INACTIVE' THEN 1 ELSE 0 END) AS inactive_total,
-                    SUM(CASE WHEN UPPER(LTRIM(RTRIM([Active Status]))) = 'DEAD' THEN 1 ELSE 0 END) AS dead_total
-                FROM dbo.InstallBase
-            """
+            # TOTAL
+            cur.execute(
+                f"SELECT COUNT(*) FROM dbo.InstallBase{where_sql}",
+                params
+            )
+            installbase_total = int(cur.fetchone()[0] or 0)
 
-            cur.execute(sql)
-            row = cur.fetchone()
+            # ACTIVE / INACTIVE / DEAD
+            active_col = _find_col(
+                install_cols,
+                aliases=["Active Status", "ActiveStatus"],
+                must_contain=["active", "status"]
+            )
 
-            return jsonify({
-                "installbase_total": int(row[0] or 0),
-                "customers": int(row[1] or 0),
-                "active_total": int(row[2] or 0),
-                "inactive_total": int(row[3] or 0),
-                "dead_total": int(row[4] or 0),
-                "this_month_cluster_plan": 0,
-                "this_month_cluster_visited": 0
-            })
+            active_total = inactive_total = dead_total = 0
+
+            if active_col:
+                active_expr = _cmp_ci_trim(active_col)
+
+                sql = f"""
+                    SELECT
+                        SUM(CASE WHEN {active_expr} = 'ACTIVE' THEN 1 ELSE 0 END),
+                        SUM(CASE WHEN {active_expr} = 'INACTIVE' THEN 1 ELSE 0 END),
+                        SUM(CASE WHEN {active_expr} = 'DEAD' THEN 1 ELSE 0 END)
+                    FROM dbo.InstallBase
+                    {where_sql}
+                """
+
+                cur.execute(sql, params)
+                row = cur.fetchone()
+
+                active_total = int(row[0] or 0)
+                inactive_total = int(row[1] or 0)
+                dead_total = int(row[2] or 0)
+
+            # CUSTOMERS
+            cust_col = _find_col(
+                install_cols,
+                must_contain=["customer", "name"]
+            )
+
+            customers = 0
+            if cust_col:
+                cur.execute(
+                    f"SELECT COUNT(DISTINCT {_qcol(cust_col)}) FROM dbo.InstallBase{where_sql}",
+                    params
+                )
+                customers = int(cur.fetchone()[0] or 0)
+
+        return jsonify({
+            "installbase_total": installbase_total,
+            "active_total": active_total,
+            "inactive_total": inactive_total,
+            "dead_total": dead_total,
+            "customers": customers,
+            "this_month_cluster_plan": 0,
+            "this_month_cluster_visited": 0
+        })
 
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return _json_err(f"KPI error: {e}", 500)
     
 
     # ---------------- InstallBase Scope ----------------
@@ -1894,8 +1936,60 @@ def api_wsr_report():
 
     except Exception as e:
         return _json_err(f"WSR report error: {e}", 500)
+    
+    
+@app.get("/api/wsr-report/export")
+def api_wsr_report_export():
 
+    need = _require_login_json()
+    if need:
+        return need
 
+    cols = _wsr_cols()
+    if not cols:
+        return _json_err(f"{WSR_TABLE} not found", 400)
+
+    where_sql, params = _wsr_scope_where(cols)
+
+    select_cols = ", ".join([_qcol(c) for c in cols])
+
+    # ✅ FINAL SORTING LOGIC (Same as SQL working one)
+    order_by = """
+        ORDER BY 
+            TRY_CONVERT(date, [Visit Date], 105) ASC,
+            CASE 
+                WHEN TRY_CONVERT(time, [Travel Start (HH:MM)]) IS NOT NULL 
+                    THEN TRY_CONVERT(time, [Travel Start (HH:MM)])
+                ELSE CAST('23:59:59' AS time)
+            END ASC
+    """
+
+    sql = f"""
+        SELECT {select_cols}
+        FROM {WSR_TABLE}
+        {where_sql}
+        {order_by}
+    """
+
+    try:
+        with get_conn() as conn:
+            cur = conn.cursor()
+            cur.execute(sql, params)
+            rows = cur.fetchall()
+
+        out_rows = []
+        for r in rows:
+            obj = {}
+            for i, c in enumerate(cols):
+                obj[c] = _json_safe(r[i])
+            out_rows.append(obj)
+
+        return jsonify({"columns": cols, "rows": out_rows})
+
+    except Exception as e:
+        return _json_err(f"WSR export error: {e}", 500)
+    
+    
 
 @app.get("/api/wsr/summary_month")
 @app.get("/api/wsr/summary_month/")
@@ -2500,6 +2594,14 @@ def month_cluster_details():
     # ✅ DATE FILTER (NEW FIX)
     fd = _parse_iso_date(from_s) if from_s else None
     td = _parse_iso_date(to_s) if to_s else None
+
+    # 🔥 FORCE CURRENT MONTH FILTER (Cluster Visit Plan)
+    where_parts.append(
+        f"{plan_date_expr} >= DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()), 1)"
+    )
+    where_parts.append(
+        f"{plan_date_expr} < DATEADD(month,1,DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()),1))"
+    )
 
     if fd:
         where_parts.append(f"{plan_date_expr} >= ?")
