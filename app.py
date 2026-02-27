@@ -308,10 +308,12 @@ def _is_manager_like(role: str) -> bool:
 
 # ✅✅ FINAL FIX: USER = zone + SERVICE ENGINEER ONLY (sales engineer removed)
 def _installbase_scope_where(install_cols):
+
     role = (session.get("role") or "").strip().lower()
     zone = (session.get("zone") or "").strip()
     eng  = (session.get("engineer") or "").strip()
 
+    # ✅ ADMIN = ALL DATA
     if role == "admin":
         return "", []
 
@@ -325,14 +327,18 @@ def _installbase_scope_where(install_cols):
     where = []
     params = []
 
-    # Manager/Team Leader => only zone
+    # ✅ MANAGER / TEAM LEADER = ZONE ONLY
     if _is_manager_like(role):
         if zone and zone_col:
             where.append(f"{_cmp_ci_trim(zone_col)} = UPPER(?)")
             params.append(zone)
         return (" WHERE " + " AND ".join(where)) if where else "", params
 
-    # User => zone + service engineer
+    # ✅ NORMAL USER = ZONE + ENGINEER
+    if zone and zone_col:
+        where.append(f"{_cmp_ci_trim(zone_col)} = UPPER(?)")
+        params.append(zone)
+
     if eng and svc_col:
         where.append(f"{_cmp_ci_trim(svc_col)} = UPPER(?)")
         params.append(eng)
@@ -340,29 +346,6 @@ def _installbase_scope_where(install_cols):
     return (" WHERE " + " AND ".join(where)) if where else "", params
 
 
-def _wsr_scope_where(wsr_cols):
-    role = (session.get("role") or "").strip().lower()
-    zone = (session.get("zone") or "").strip()
-    eng  = (session.get("engineer") or "").strip()
-
-    if role == "admin":
-        return "", []
-
-    zone_col = _find_col(wsr_cols, aliases=["Zone", "ZONE"], must_contain=["zone"])
-    eng_col  = _find_col(wsr_cols, aliases=["EngineerName", "Engineer Name", "ENGINEER_NAME"], must_contain=["engineer", "name"])
-
-    where = []
-    params = []
-
-    if zone and zone_col:
-        where.append(f"{_cmp_ci_trim(zone_col)} = UPPER(?)")
-        params.append(zone)
-
-    if (not _is_manager_like(role)) and eng and eng_col:
-        where.append(f"{_cmp_ci_trim(eng_col)} = UPPER(?)")
-        params.append(eng)
-
-    return (" WHERE " + " AND ".join(where)) if where else "", params
 
 
 # ===================== SEARCH BUILDERS =====================
@@ -409,26 +392,32 @@ def api_kpi():
     if not install_cols:
         return _json_err("InstallBase not found", 400)
 
+    # 🔥 APPLY ROLE-BASED SCOPE
     where_sql, params = _installbase_scope_where(install_cols)
+
+    active_col = _find_col(
+        install_cols,
+        aliases=["Active Status", "ActiveStatus"],
+        must_contain=["active", "status"]
+    )
+
+    cust_col = _find_col(
+        install_cols,
+        must_contain=["customer", "name"]
+    )
 
     try:
         with get_conn() as conn:
             cur = conn.cursor()
 
-            # TOTAL
+            # ✅ TOTAL INSTALLBASE (ZONE FILTER APPLIED)
             cur.execute(
                 f"SELECT COUNT(*) FROM dbo.InstallBase{where_sql}",
                 params
             )
             installbase_total = int(cur.fetchone()[0] or 0)
 
-            # ACTIVE / INACTIVE / DEAD
-            active_col = _find_col(
-                install_cols,
-                aliases=["Active Status", "ActiveStatus"],
-                must_contain=["active", "status"]
-            )
-
+            # ✅ ACTIVE / INACTIVE / DEAD (ZONE FILTER APPLIED)
             active_total = inactive_total = dead_total = 0
 
             if active_col:
@@ -450,12 +439,7 @@ def api_kpi():
                 inactive_total = int(row[1] or 0)
                 dead_total = int(row[2] or 0)
 
-            # CUSTOMERS
-            cust_col = _find_col(
-                install_cols,
-                must_contain=["customer", "name"]
-            )
-
+            # ✅ DISTINCT CUSTOMERS (ZONE FILTER APPLIED)
             customers = 0
             if cust_col:
                 cur.execute(
@@ -469,14 +453,11 @@ def api_kpi():
             "active_total": active_total,
             "inactive_total": inactive_total,
             "dead_total": dead_total,
-            "customers": customers,
-            "this_month_cluster_plan": 0,
-            "this_month_cluster_visited": 0
+            "customers": customers
         })
 
     except Exception as e:
-        return _json_err(f"KPI error: {e}", 500)
-    
+        return _json_err(f"KPI error: {e}", 500)    
 
     # ---------------- InstallBase Scope ----------------
     where_sql, params = _installbase_scope_where(install_cols)
@@ -1024,39 +1005,66 @@ def _parse_time_any(v):
         return s[:8]
     return v
 
-
 def _installbase_payload_to_db(cols, payload: dict):
-    """
-    payload (snake_case) -> db columns mapping by normalized match.
-    returns: dict(dbcol -> value)
-    """
+
     col_types = _table_column_types("dbo.InstallBase")
     idx = _col_index(cols)
 
+    # 🔵 DATE COLUMNS YOU WANT TO ENABLE (ADD ONE BY ONE HERE)
+    ALLOWED_DATE_COLS = set(_norm(x) for x in [
+        "Invoice Date",      # ✅ currently enabled
+        "Installed On",
+         "AMC From",
+         "AMC To",
+         "Filter Invoice Date",
+         "Cluster Visit Plan",
+         "Actual Visit",
+         "NEXT TER2 PLAN",
+         "AMC Due Date",
+         "Next Filter Due Date",
+    ])
+
     out = {}
+
     for k, raw_val in (payload or {}).items():
+
         nk = _norm(k)
         if nk not in idx:
             continue
 
         dbcol = idx[nk]
-        val = _clean_val(raw_val)
         dtype = (col_types.get(dbcol) or "").lower()
 
+        # ================= DATE HANDLING =================
         if dtype in ("date", "datetime", "datetime2", "smalldatetime"):
-            val = _parse_iso_date(val)
 
-        elif dtype in ("time",):
-            val = _parse_time_any(val)
-        elif dtype in ("int", "bigint", "smallint", "tinyint"):
-            val = _to_int(val)
-        elif dtype in ("decimal", "numeric", "float", "real", "money", "smallmoney"):
-            val = _to_decimal(val)
-        if _norm(dbcol) == "filterduedatehrs":
-            parsed = _parse_iso_date(val)
-        if parsed:
-            val = parsed.strftime("%Y-%m-%d")   # always store same format   
+            # ❌ skip if not allowed
+            if _norm(dbcol) not in ALLOWED_DATE_COLS:
+                continue
 
+            d = _parse_iso_date(raw_val)
+
+            # skip invalid or blank
+            if not d:
+                continue
+
+            out[dbcol] = d
+            continue
+
+        # ================= INTEGER =================
+        if dtype in ("int", "bigint", "smallint", "tinyint"):
+            val = _to_int(raw_val)
+            out[dbcol] = val
+            continue
+
+        # ================= DECIMAL =================
+        if dtype in ("decimal", "numeric", "float", "real", "money", "smallmoney"):
+            val = _to_decimal(raw_val)
+            out[dbcol] = val
+            continue
+
+        # ================= NORMAL TEXT =================
+        val = _clean_val(raw_val)
         out[dbcol] = val
 
     return out
@@ -1066,6 +1074,7 @@ def _installbase_payload_to_db(cols, payload: dict):
 @app.post("/api/installbase/save")
 @app.post("/api/installbase/save/")
 def api_installbase_save():
+
     if "user" not in session:
         return jsonify({"ok": False, "message": "Unauthorized"}), 401
 
@@ -1073,6 +1082,7 @@ def api_installbase_save():
 
     customer_name = (payload.get("customer_name") or "").strip()
     serial_no = (payload.get("serial_no") or "").strip()
+
     if not customer_name or not serial_no:
         return jsonify({"ok": False, "message": "Customer Name & Serial No required!"}), 400
 
@@ -1080,83 +1090,23 @@ def api_installbase_save():
     if not cols:
         return jsonify({"ok": False, "message": "dbo.InstallBase not found"}), 400
 
-    serial_col = _find_col(
-        cols,
-        aliases=["Serial No.", "Serial No", "Serial_No", "SERIAL NO", "SerialNo", "Serial"],
-        must_contain=["serial"]
-    )
-    cust_col = _find_col(
-        cols,
-        aliases=["CUSTOMER_NAME", "CUSTOMER NAME", "CustomerName", "Customer Name"],
-        must_contain=["customer", "name"]
-    )
-    if not serial_col:
-        return jsonify({"ok": False, "message": "Serial column not found in dbo.InstallBase"}), 400
-    if not cust_col:
-        return jsonify({"ok": False, "message": "Customer column not found in dbo.InstallBase"}), 400
+    serial_col = _find_col(cols, must_contain=["serial"])
+    cust_col   = _find_col(cols, must_contain=["customer","name"])
+    id_col     = _find_col(cols, must_contain=["id"])
 
+    if not serial_col or not cust_col:
+        return jsonify({"ok": False, "message": "Serial/Customer column not found"}), 400
+
+    # ✅ use SAFE payload conversion
     db_vals = _installbase_payload_to_db(cols, payload)
+
+    # ensure key fields always present
     db_vals[cust_col] = customer_name
     db_vals[serial_col] = serial_no
 
     where_sql, where_params, err = _installbase_serial_where(cols, serial_no)
     if err:
         return jsonify({"ok": False, "message": err}), 400
-
-    created_col = _find_col(cols, aliases=["CreatedAt", "Created At"], must_contain=["created"])
-    updated_col = _find_col(cols, aliases=["UpdatedAt", "Updated At", "ModifiedAt", "Modified At"], must_contain=["updated"])
-
-    # ✅ UPDATE ONLY THESE DB COLUMNS (your list)
-    UPDATE_ALLOWED = set(_norm(x) for x in [
-        "ZONE",
-        "SALES ENGR",
-        "SERVICE ENGR",
-        "Cluster No",
-        "CUSTOMER NAME",
-        "LOCATION",
-        "STATE",
-        "Address",
-        "Contact Person1",
-        "Designation",
-        "Contact No.",
-        "Email Id",
-        "Contact Person2",
-        "Designation (2)",
-        "Contact No. (2)",
-        "Email Id (2)",
-        "Segment",
-        "Sub-Segment",
-        "Machine Type",
-        "Model",
-        "Serial No.",
-        "Ink type",
-        "Active Status",
-        "Mc Status",
-        "Sales Invoice No",
-        "Invoice Date",
-        "Installed On",
-        "AMC Invoice Date",
-        "AMC From",
-        "AMC To",
-        "No. of Visits",
-        "AMC Amount",
-        "Filter Invoice Date",
-        "Cluster Visit Plan",
-        "Actual Visit",
-        "Remarks",
-        "Teritory No",
-        "NEXT TER2 PLAN",
-    ])
-
-    # ✅ NEVER UPDATE (formula/identity columns)
-    NEVER_UPDATE = set(_norm(x) for x in [
-        "ID",
-        "AMC Due Date",
-        "AMC Days Remaining",
-        "Next Filter Due Date",
-        "Filter Days Remaining",
-        "Cluster",
-    ])
 
     try:
         with get_conn() as conn:
@@ -1166,37 +1116,23 @@ def api_installbase_save():
             exists = cur.fetchone() is not None
 
             if exists:
+                # ================= UPDATE =================
                 sets = []
                 params = []
 
-                for dbcol, val in db_vals.items():
-                    ndb = _norm(dbcol)
+                for col, val in db_vals.items():
 
-                    # ❌ never update these
-                    if ndb in NEVER_UPDATE:
+                    if id_col and col == id_col:
                         continue
 
-                    # ❌ do not update serial key / createdAt
-                    if dbcol == serial_col:
-                        continue
-                    if created_col and dbcol == created_col:
+                    if col == serial_col:
                         continue
 
-                    # ✅ allow only whitelist
-                    if ndb not in UPDATE_ALLOWED:
+                    if val is None or str(val).strip() == "":
                         continue
 
-                    # ✅ skip blank/null updates
-                    if val is None:
-                        continue
-                    if isinstance(val, str) and val.strip() == "":
-                        continue
-
-                    sets.append(f"{_qcol(dbcol)} = ?")
+                    sets.append(f"{_qcol(col)} = ?")
                     params.append(val)
-
-                if updated_col:
-                    sets.append(f"{_qcol(updated_col)} = GETUTCDATE()")
 
                 if not sets:
                     return jsonify({"ok": False, "message": "Nothing to update"}), 400
@@ -1208,46 +1144,30 @@ def api_installbase_save():
                 return jsonify({"ok": True, "message": "InstallBase UPDATED successfully!"})
 
             else:
-                # INSERT: skip identity + computed columns
-                SKIP_INSERT = set(_norm(x) for x in [
-                    "ID",
-                    "AMC Due Date",
-                    "AMC Days Remaining",
-                    "Next Filter Due Date",
-                    "Filter Days Remaining",
-                    "Cluster",
-                    ])
+                # ================= INSERT =================
                 insert_cols = []
                 insert_vals = []
                 params = []
-                for dbcol, val in db_vals.items():
-                    ndb = _norm(dbcol)
-                    if ndb in SKIP_INSERT:
+
+                for col, val in db_vals.items():
+
+                    if id_col and col == id_col:
                         continue
-                    if val is None:
-                        continue
-                    if isinstance(val, str) and val.strip() == "":
-                        continue
-                    insert_cols.append(_qcol(dbcol))
+
+                    insert_cols.append(_qcol(col))
                     insert_vals.append("?")
                     params.append(val)
-                if created_col and created_col not in db_vals:
-                    insert_cols.append(_qcol(created_col))
-                    insert_vals.append("GETUTCDATE()")
-                if not insert_cols:
-                    return jsonify({"ok": False, "message": "No valid data to insert"}), 400
-                sql = f"""
-                INSERT INTO dbo.InstallBase
-                ({', '.join(insert_cols)})
-                VALUES
-                ({', '.join(insert_vals)})
-                """
+
+                sql = f"INSERT INTO dbo.InstallBase ({', '.join(insert_cols)}) VALUES ({', '.join(insert_vals)})"
                 cur.execute(sql, params)
                 conn.commit()
+
                 return jsonify({"ok": True, "message": "InstallBase INSERTED successfully!"})
 
     except Exception as e:
         return jsonify({"ok": False, "message": f"InstallBase save error: {e}"}), 500
+
+
 
 
 # ===================== INSTALLBASE DELETE =====================
@@ -3270,7 +3190,90 @@ def installbase_by_active_status():
             })
 
     except Exception as e:
-        return jsonify({"error": str(e)}), 500        
+        return jsonify({"error": str(e)}), 500   
+
+
+# ================= ZONE BASED ENGINEER API =================
+
+@app.get("/api/engineers")
+def api_zone_engineers():
+    print("🔥 ENGINEERS API HIT 🔥") 
+
+    
+
+    need = _require_login_json()
+    if need:
+        return need
+
+    zone = (request.args.get("zone") or "").strip().upper()
+
+    if not zone:
+        return jsonify({"sales": [], "service": []})
+
+    install_cols = _table_columns("dbo.InstallBase")
+    if not install_cols:
+        return jsonify({"sales": [], "service": []})
+
+    zone_col = _find_col(
+        install_cols,
+        aliases=["ZONE", "Zone"],
+        must_contain=["zone"]
+    )
+
+    sales_col = _find_col(
+        install_cols,
+        aliases=["SALES ENGR", "SALES_ENGR", "SALES ENGINEER"],
+        must_contain=["sales", "engr"]
+    )
+
+    service_col = _find_col(
+        install_cols,
+        aliases=["SERVICE ENGR", "SERVICE_ENGR", "SERVICE ENGINEER"],
+        must_contain=["service", "engr"]
+    )
+
+    if not zone_col:
+        return jsonify({"sales": [], "service": []})
+
+    try:
+        with get_conn() as conn:
+            cur = conn.cursor()
+
+            sql = f"""
+                SELECT DISTINCT
+                    {(_qcol(sales_col) if sales_col else "NULL")} AS sales,
+                    {(_qcol(service_col) if service_col else "NULL")} AS service
+                FROM dbo.InstallBase
+                WHERE {_cmp_ci_trim(zone_col)} = UPPER(?)
+            """
+
+            cur.execute(sql, (zone,))
+            rows = cur.fetchall()
+
+        sales = set()
+        service = set()
+
+        for r in rows:
+            if r[0]:
+                sales.add(str(r[0]).strip())
+            if r[1]:
+                service.add(str(r[1]).strip())
+
+        return jsonify({
+            "sales": sorted(list(sales)),
+            "service": sorted(list(service))
+        })
+
+    except Exception as e:
+        return jsonify({
+            "sales": [],
+            "service": [],
+            "error": str(e)
+        }), 500
+    
+
+   
+
 
 # ===================== RUN =====================
 if __name__ == "__main__":

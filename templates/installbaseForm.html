@@ -172,17 +172,22 @@
       <fieldset>
         <legend>Basic</legend>
         <div class="grid">
-          <div class="f">
+          <div class="f" style="position:relative;">
             <label for="zone">ZONE</label>
-            <input id="zone" name="zone" type="text" />
+            <input id="zone" name="zone" type="text" autocomplete="off" />
+            <div id="zoneSuggestBox" class="dd"></div>
           </div>
-          <div class="f">
+
+          <div class="f" style="position:relative;">
             <label for="sales_engr">SALES ENGR</label>
-            <input id="sales_engr" name="sales_engr" type="text" />
+            <input id="sales_engr" name="sales_engr" type="text" autocomplete="off" />
+            <div id="salesSuggestBox" class="dd"></div>
           </div>
-          <div class="f">
+
+          <div class="f" style="position:relative;">
             <label for="service_engr">SERVICE ENGR</label>
-            <input id="service_engr" name="service_engr" type="text" />
+            <input id="service_engr" name="service_engr" type="text" autocomplete="off" />
+            <div id="serviceSuggestBox" class="dd"></div>
           </div>
           <div class="f">
             <label for="cluster_no">Cluster No</label>
@@ -359,10 +364,6 @@
           <div class="f">
             <label for="filter_invoice_date">Filter Invoice Date</label>
             <input id="filter_invoice_date" name="filter_invoice_date" type="text" placeholder="YYYY-MM-DD" />
-          </div>
-          <div class="f">
-            <label for="filter_days">Filter Days</label>
-            <input id="filter_days" name="filter_days" type="text" readonly/>
           </div>
           <div class="f">
             <label for="next_filter_due_date">Next Filter Due Date</label>
@@ -545,8 +546,7 @@
     "amcdaysremaining":"amc_days_remaining",
 
     "filterinvoicedate":"filter_invoice_date",
-    "filterdays":"filter_days",
-    "nextfilterduedate":"next_filter_due_date",
+     "nextfilterduedate":"next_filter_due_date",
     "filterdaysremaining":"filter_days_remaining",
 
     "clustervisitplan":"cluster_visit_plan",
@@ -642,14 +642,7 @@
         await loadBySerial(sv, true);
       });
 
-      // auto pick first serial (optional)
-      if(serials.length > 0){
-        serial.value = serials[0];
-        await loadBySerial(serials[0], false);
-      }else{
-        // fallback fill first row data (if no serial)
-        fillFromDbRow(rows[0]);
-      }
+      serial.value = "";
     } finally {
       hideLoading();
     }
@@ -711,7 +704,7 @@
     "amc_invoice_date","amc_from","amc_to","no_of_visits","amc_amount",
     "filter_invoice_date",
     "cluster_visit_plan","actual_visit",
-    "remarks","teritory_no","next_ter2_plan"
+    "remarks","teritory_no",
   ]);
 
   // ✅ Insert me: sab bhejo (agar chahe to yaha bhi restrict kar sakte ho)
@@ -721,13 +714,29 @@
   function getFormPayload(restrictToUpdateFields=false){
     const payload = {};
     const els = Array.from(FORM.querySelectorAll("input[name], textarea[name]"));
+
     for(const el of els){
       const name = el.name;
+
+      // ❌ NEVER SEND THESE FIELDS TO BACKEND
+      if([
+        "amc_due_date",
+        "amc_days_remaining",
+        "next_filter_due_date",
+        "filter_days_remaining",
+        "next_ter2_plan"   // ✅ ADD THIS LINE
+      ].includes(name)){
+        continue;
+      }
+
       if(restrictToUpdateFields && !UPDATE_FIELDS.has(name)) continue;
+
       payload[name] = (el.value ?? "").trim();
     }
+
     return payload;
   }
+
 
   async function checkExists(serialNo){
     const j = await safeJson("/api/installbase/exists?serial=" + encodeURIComponent(serialNo));
@@ -735,45 +744,90 @@
   }
 
   FORM.addEventListener("submit", async (e)=>{
-    e.preventDefault();
+  e.preventDefault();
 
-    const customerName = cust.value.trim();
-    const serialNo = serial.value.trim();
-    if(!customerName || !serialNo){
-      showToast("Customer & Serial required");
+  const zoneValue = zone.value.trim().toUpperCase();
+  const salesValue = sales_engr.value.trim();
+  const serviceValue = service_engr.value.trim();
+  const customerName = cust.value.trim();
+  const serialNo = serial.value.trim();
+
+  if(!zoneValue){
+    showToast("Zone is required");
+    zone.focus();
+    return;
+  }
+
+  if(!salesValue){
+    showToast("Sales Engineer is required");
+    sales_engr.focus();
+    return;
+  }
+
+  if(!serviceValue){
+    showToast("Service Engineer is required");
+    service_engr.focus();
+    return;
+  }
+
+  if(!customerName || !serialNo){
+    showToast("Customer & Serial required");
+    return;
+  }
+
+  try {
+
+    // 🔥 FIRST check without loading
+    const exists = await checkExists(serialNo);
+
+    const actionText = exists
+      ? "Update existing record?"
+      : "Insert new record?";
+
+    // 🔥 Confirm BEFORE loading
+    if(!confirm(actionText + "\n\nSerial No: " + serialNo)){
       return;
     }
 
+    // 🔥 NOW show loading
     showLoading("Saving…");
-    try{
-      const exists = await checkExists(serialNo);
 
-      // exists => update payload restricted (formula fields not overwritten)
-      const payload = exists ? getFormPayload(true) : getFormPayload(false);
+    const payload = exists
+      ? getFormPayload(true)
+      : getFormPayload(false);
 
-      // always enforce required keys
-      payload.customer_name = customerName;
-      payload.serial_no = serialNo;
+    payload.customer_name = customerName;
+    payload.serial_no = serialNo;
 
-      const res = await safeJson("/api/installbase/save", {
-        method:"POST",
-        credentials:"include",
-        headers:{ "Content-Type":"application/json", "Accept":"application/json" },
-        body: JSON.stringify(payload)
-      });
+    const res = await safeJson("/api/installbase/save", {
+      method:"POST",
+      credentials:"include",
+      headers:{
+        "Content-Type":"application/json",
+        "Accept":"application/json"
+      },
+      body: JSON.stringify(payload)
+    });
 
-      if(res && res.ok){
-        showToast(res.message || "Saved");
-        FORM.reset();
-        clearDD(serialDD);
-        clearDD(custDD);
-      }else{
-        showToast((res && (res.message || res.error)) ? (res.message || res.error) : "Save failed");
-      }
-    } finally {
-      hideLoading();
+    if(res && res.ok){
+      
+      showToast(res.message || "Saved Successfully");
+       setTimeout(() => {
+        window.location.reload();
+      }, 500);
+
+      
+    }else{
+      showToast(res?.message || res?.error || "Save failed");
     }
-  });
+
+  } catch(err){
+    showToast("Unexpected error");
+  } finally {
+    hideLoading();
+  }
+});
+
 
   btnDelete.addEventListener("click", async ()=>{
     const serialNo = serial.value.trim();
@@ -804,6 +858,133 @@
       hideLoading();
     }
   });
+
+
+  /// ================= ZONE + ENGINEER CLEAN VERSION =================
+
+const zoneInput = document.getElementById("zone");
+const zoneSuggest = document.getElementById("zoneSuggestBox");
+
+const salesInput = document.getElementById("sales_engr");
+const serviceInput = document.getElementById("service_engr");
+
+const salesSuggest = document.getElementById("salesSuggestBox");
+const serviceSuggest = document.getElementById("serviceSuggestBox");
+
+const ZONES = ["EAST", "WEST", "NORTH", "SOUTH"];
+
+
+// -------- ZONE DROPDOWN --------
+zoneInput.addEventListener("focus", () => renderZoneSuggest(""));
+zoneInput.addEventListener("input", function(){
+  this.value = this.value.toUpperCase();
+  renderZoneSuggest(this.value);
+});
+
+function renderZoneSuggest(query){
+
+  zoneSuggest.innerHTML = "";
+
+  const filtered = ZONES.filter(z =>
+    z.includes((query || "").toUpperCase())
+  );
+
+  if(!filtered.length){
+    zoneSuggest.classList.remove("show");
+    return;
+  }
+
+  filtered.forEach(z => {
+
+    const div = document.createElement("div");
+    div.className = "item";
+    div.textContent = z;
+
+    div.addEventListener("mousedown", function(e){
+      e.preventDefault();
+      zoneInput.value = z;
+      zoneSuggest.classList.remove("show");
+      salesInput.value = "";
+      serviceInput.value = "";
+      // 🔥 ADD THIS LINE
+      fetchEngineers("");
+    });
+    zoneSuggest.appendChild(div);
+  });
+
+  zoneSuggest.classList.add("show");
+}
+
+document.addEventListener("click", function(e){
+  if(!zoneInput.contains(e.target) && !zoneSuggest.contains(e.target)){
+    zoneSuggest.classList.remove("show");
+  }
+});
+
+
+// -------- ENGINEER FETCH --------
+function fetchEngineers(query = ""){
+
+  const zoneValue = zoneInput.value.trim();
+  if(!zoneValue){
+    showToast("Select Zone first");
+    return;
+  }
+
+  fetch(`/api/engineers?zone=${encodeURIComponent(zoneValue)}`)
+    .then(res => res.json())
+    .then(data => {
+
+      salesSuggest.innerHTML = "";
+      serviceSuggest.innerHTML = "";
+
+      // 🔥 Backend direct array return kar raha hai
+      if(Array.isArray(data) && data.length){
+
+        data
+          .filter(name => 
+            name.toLowerCase().includes(query.toLowerCase())
+          )
+          .forEach(name => {
+
+            
+
+            // SERVICE dropdown
+            const div2 = document.createElement("div");
+            div2.className = "item";
+            div2.textContent = name;
+
+            div2.addEventListener("mousedown", e=>{
+              e.preventDefault();
+              serviceInput.value = name;
+              serviceSuggest.classList.remove("show");
+            });
+
+            serviceSuggest.appendChild(div2);
+          });
+
+       
+        serviceSuggest.classList.add("show");
+      }
+
+    });
+}
+
+
+salesInput.addEventListener("focus", ()=> fetchEngineers(""));
+salesInput.addEventListener("input", ()=> fetchEngineers(salesInput.value.trim()));
+
+serviceInput.addEventListener("focus", ()=> fetchEngineers(""));
+serviceInput.addEventListener("input", ()=> fetchEngineers(serviceInput.value.trim()));
+
+document.addEventListener("click", function(e){
+  if(!salesInput.contains(e.target) && !salesSuggest.contains(e.target)){
+    salesSuggest.classList.remove("show");
+  }
+  if(!serviceInput.contains(e.target) && !serviceSuggest.contains(e.target)){
+    serviceSuggest.classList.remove("show");
+  }
+});
 
 </script>
 
