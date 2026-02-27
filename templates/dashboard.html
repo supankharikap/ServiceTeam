@@ -429,12 +429,18 @@
              <div class="subInfo" id="kpiInstallSub"></div>
             </div>
             <div class="card" style="cursor:pointer;"
-            onclick="showSection('clusterSummarySection', null); loadClusterSummary();">
-            <div class="kpi" id="kpiMonth"></div>
-            <div class="label" id="kpiMonthLabel">
-              This Month Cluster Plan
+              onclick="showSection('clusterSummarySection', null); loadClusterSummary();">
+              <div class="label" style="font-weight:600; margin-bottom:8px;">
+                This Month Cluster
+              </div>
+              <div style="font-size:16px; color:#dc3545;">
+                Pending : <span id="kpiPending">0</span>
+              </div>
+              <div style="font-size:16px; color:#28a745;">
+                Completed : <span id="kpiCompleted">0</span>
+              </div>
             </div>
-          </div>
+          
             <div class="card">
               <div class="kpi" id="kpiPending">0</div>
               <div class="label">Breakdown Task Pending</div>
@@ -1307,36 +1313,26 @@ function loadKpis(){
     .finally(()=> hideLoading());
 }
 
-
 function loadClusterKpi(){
 
   fetch("/api/installbase/month-cluster-summary")
     .then(r => r.json())
     .then(cs => {
 
-      const total = Number(cs.total ?? 0);
+      const pending = Number(cs.total ?? 0);
       const completed = Number(cs.completed ?? 0);
+      
+      const pendingEl = document.getElementById("kpiPending");
+      const completedEl = document.getElementById("kpiCompleted");
 
-      const percent = total > 0
-        ? Math.round((completed / total) * 100)
-        : 0;
-
-      document.getElementById("kpiMonth").textContent =
-        `${total}/${completed}`;
-
-      const monthLbl = document.getElementById("kpiMonthLabel");
-      if(monthLbl){
-        monthLbl.innerHTML =
-          `This Month Cluster Plan - <span class="kpiPercent">${percent}%</span>`;
-      }
+      if(pendingEl) pendingEl.textContent = pending;
+      if(completedEl) completedEl.textContent = completed;
 
     })
     .catch(err => {
       console.error("Cluster KPI error:", err);
-      document.getElementById("kpiMonth").textContent = "0 / 0";
     });
 }
-
 
 /* ===========================
    USERS (SECURE: NO PASSWORD COLUMN)
@@ -1971,7 +1967,7 @@ async function exportReport(){
 
   showLoading("Exporting report...");
   try{
-    const res = await fetch("/api/wsr-report?" + params.toString());
+    const res = await fetch("/api/wsr-report/export?" + params.toString());
     const data = await res.json();
     if(!res.ok || data.error) throw new Error(data.error || "Export failed");
 
