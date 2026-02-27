@@ -1937,7 +1937,7 @@ def api_wsr_report():
     except Exception as e:
         return _json_err(f"WSR report error: {e}", 500)
     
-    
+
 @app.get("/api/wsr-report/export")
 def api_wsr_report_export():
 
@@ -3041,9 +3041,6 @@ def api_installbase_excel_upload():
     if need:
         return need
 
-    role = (session.get("role") or "").strip().lower()
-
-    
     if "excel_file" not in request.files:
         return jsonify({"error": "No file selected"}), 400
 
@@ -3057,6 +3054,7 @@ def api_installbase_excel_upload():
         if df.empty:
             return jsonify({"error": "Excel is empty"}), 400
 
+        # Remove extra spaces from headers
         df.columns = df.columns.str.strip()
 
         install_cols = _table_columns("dbo.InstallBase")
@@ -3088,9 +3086,13 @@ def api_installbase_excel_upload():
                 if not serial_value:
                     continue
 
-                # 🔎 Duplicate Check
+                # 🔎 Duplicate Check (Strong Trim + Upper)
                 cur.execute(
-                    f"SELECT TOP 1 1 FROM dbo.InstallBase WHERE {_cmp_ci_trim(serial_col)} = UPPER(?)",
+                    f"""
+                    SELECT TOP 1 1 
+                    FROM dbo.InstallBase 
+                    WHERE {_cmp_ci_trim(serial_col)} = UPPER(?)
+                    """,
                     (serial_value,)
                 )
 
@@ -3098,7 +3100,6 @@ def api_installbase_excel_upload():
                     skipped_duplicates += 1
                     continue
 
-                # 🔄 Build Insert Data
                 insert_cols = []
                 insert_vals = []
                 params = []
@@ -3116,6 +3117,7 @@ def api_installbase_excel_upload():
                     ]:
                         continue
 
+                    # ✅ Extra Excel column skip automatically
                     if col not in df.columns:
                         continue
 
@@ -3124,6 +3126,14 @@ def api_installbase_excel_upload():
                     if pd.isna(value):
                         continue
 
+                    # ================= CLEAN EXCEL SPECIAL CHARACTERS =================
+                    if isinstance(value, str):
+                        value = value.replace("_x0002_", "") \
+                                     .replace("_x0003_", "") \
+                                     .replace("_x000D_", "") \
+                                     .strip()
+
+                    # ================= TYPE CONVERSION =================
                     dtype = (col_types.get(col) or "").lower()
 
                     if dtype in ("date", "datetime", "datetime2", "smalldatetime"):
@@ -3150,6 +3160,20 @@ def api_installbase_excel_upload():
 
             conn.commit()
 
+            # ================= FINAL SAFETY CLEAN (DB LEVEL) =================
+            cur.execute("""
+                UPDATE dbo.InstallBase
+                SET [CUSTOMER NAME] =
+                    REPLACE(
+                        REPLACE(
+                            REPLACE([CUSTOMER NAME], '_x0002_', ''),
+                        '_x0003_', ''),
+                    '_x000D_', '')
+                WHERE [CUSTOMER NAME] LIKE '%_x000%'
+            """)
+
+            conn.commit()
+
         return jsonify({
             "message": "InstallBase Excel Uploaded Successfully ✅",
             "inserted": inserted,
@@ -3159,7 +3183,8 @@ def api_installbase_excel_upload():
     except Exception as e:
         print("INSTALLBASE UPLOAD ERROR:", str(e))
         return jsonify({"error": str(e)}), 500
-
+    
+    
 @app.get("/api/installbase/by-mc-status")
 def installbase_by_mc_status():
 
