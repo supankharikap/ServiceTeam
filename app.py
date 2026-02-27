@@ -308,12 +308,10 @@ def _is_manager_like(role: str) -> bool:
 
 # ✅✅ FINAL FIX: USER = zone + SERVICE ENGINEER ONLY (sales engineer removed)
 def _installbase_scope_where(install_cols):
-
     role = (session.get("role") or "").strip().lower()
     zone = (session.get("zone") or "").strip()
     eng  = (session.get("engineer") or "").strip()
 
-    # ✅ ADMIN = ALL DATA
     if role == "admin":
         return "", []
 
@@ -327,18 +325,14 @@ def _installbase_scope_where(install_cols):
     where = []
     params = []
 
-    # ✅ MANAGER / TEAM LEADER = ZONE ONLY
+    # Manager/Team Leader => only zone
     if _is_manager_like(role):
         if zone and zone_col:
             where.append(f"{_cmp_ci_trim(zone_col)} = UPPER(?)")
             params.append(zone)
         return (" WHERE " + " AND ".join(where)) if where else "", params
 
-    # ✅ NORMAL USER = ZONE + ENGINEER
-    if zone and zone_col:
-        where.append(f"{_cmp_ci_trim(zone_col)} = UPPER(?)")
-        params.append(zone)
-
+    # User => zone + service engineer
     if eng and svc_col:
         where.append(f"{_cmp_ci_trim(svc_col)} = UPPER(?)")
         params.append(eng)
@@ -346,6 +340,29 @@ def _installbase_scope_where(install_cols):
     return (" WHERE " + " AND ".join(where)) if where else "", params
 
 
+def _wsr_scope_where(wsr_cols):
+    role = (session.get("role") or "").strip().lower()
+    zone = (session.get("zone") or "").strip()
+    eng  = (session.get("engineer") or "").strip()
+
+    if role == "admin":
+        return "", []
+
+    zone_col = _find_col(wsr_cols, aliases=["Zone", "ZONE"], must_contain=["zone"])
+    eng_col  = _find_col(wsr_cols, aliases=["EngineerName", "Engineer Name", "ENGINEER_NAME"], must_contain=["engineer", "name"])
+
+    where = []
+    params = []
+
+    if zone and zone_col:
+        where.append(f"{_cmp_ci_trim(zone_col)} = UPPER(?)")
+        params.append(zone)
+
+    if (not _is_manager_like(role)) and eng and eng_col:
+        where.append(f"{_cmp_ci_trim(eng_col)} = UPPER(?)")
+        params.append(eng)
+
+    return (" WHERE " + " AND ".join(where)) if where else "", params
 
 
 # ===================== SEARCH BUILDERS =====================
@@ -3190,90 +3207,7 @@ def installbase_by_active_status():
             })
 
     except Exception as e:
-        return jsonify({"error": str(e)}), 500   
-
-
-# ================= ZONE BASED ENGINEER API =================
-
-@app.get("/api/engineers")
-def api_zone_engineers():
-    print("🔥 ENGINEERS API HIT 🔥") 
-
-    
-
-    need = _require_login_json()
-    if need:
-        return need
-
-    zone = (request.args.get("zone") or "").strip().upper()
-
-    if not zone:
-        return jsonify({"sales": [], "service": []})
-
-    install_cols = _table_columns("dbo.InstallBase")
-    if not install_cols:
-        return jsonify({"sales": [], "service": []})
-
-    zone_col = _find_col(
-        install_cols,
-        aliases=["ZONE", "Zone"],
-        must_contain=["zone"]
-    )
-
-    sales_col = _find_col(
-        install_cols,
-        aliases=["SALES ENGR", "SALES_ENGR", "SALES ENGINEER"],
-        must_contain=["sales", "engr"]
-    )
-
-    service_col = _find_col(
-        install_cols,
-        aliases=["SERVICE ENGR", "SERVICE_ENGR", "SERVICE ENGINEER"],
-        must_contain=["service", "engr"]
-    )
-
-    if not zone_col:
-        return jsonify({"sales": [], "service": []})
-
-    try:
-        with get_conn() as conn:
-            cur = conn.cursor()
-
-            sql = f"""
-                SELECT DISTINCT
-                    {(_qcol(sales_col) if sales_col else "NULL")} AS sales,
-                    {(_qcol(service_col) if service_col else "NULL")} AS service
-                FROM dbo.InstallBase
-                WHERE {_cmp_ci_trim(zone_col)} = UPPER(?)
-            """
-
-            cur.execute(sql, (zone,))
-            rows = cur.fetchall()
-
-        sales = set()
-        service = set()
-
-        for r in rows:
-            if r[0]:
-                sales.add(str(r[0]).strip())
-            if r[1]:
-                service.add(str(r[1]).strip())
-
-        return jsonify({
-            "sales": sorted(list(sales)),
-            "service": sorted(list(service))
-        })
-
-    except Exception as e:
-        return jsonify({
-            "sales": [],
-            "service": [],
-            "error": str(e)
-        }), 500
-    
-
-   
-
+        return jsonify({"error": str(e)}), 500        
 
 # ===================== RUN =====================
 if __name__ == "__main__":
