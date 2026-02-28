@@ -96,32 +96,32 @@
     @media (max-width:1100px){ .donutGrid{ grid-template-columns: 1fr;} }
 
     .main{padding:18px 18px 28px;}
-    .topbar{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);padding:14px 16px;display:flex;gap:14px;justify-content:space-between;align-items:center;}
+    .topbar{background:rgb(19, 76, 200);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);padding:14px 16px;display:flex;gap:14px;justify-content:space-between;align-items:center;}
     .topbar .title{display:flex;flex-direction:column;}
     .topbar h1{margin:0;font-size:18px}
     .topbar .sub{color:var(--muted);font-size:13px}
     .userBox{display:flex;align-items:center;gap:12px;}
-    .pill{padding:8px 10px;border-radius:999px;background:#f1f5ff;border:1px solid #dbe6ff;font-size:13px;}
-    .logout{background:#fff;border:1px solid var(--border);padding:8px 12px;border-radius:10px;cursor:pointer;}
+    .pill{padding:8px 10px;border-radius:999px;background:#fcfff1;border:1px solid #dbe6ff;font-size:13px;}
+    .logout{background:#eb6a13;border:1px solid var(--border);padding:8px 12px;border-radius:10px;cursor:pointer;}
 
     .cards{background-color:transparent; margin-top:14px; display:grid;grid-template-columns:repeat(4,1fr); gap:12px;}
-    .card{background:rgb(187, 236, 123);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);padding:14px;}
+    .card{background:rgba(113, 238, 213, 0.698);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);padding:14px;}
     .card .kpi{font-size:22px;font-weight:800}
     .card .label{color:var(--muted);font-size:13px;}
-    .section{margin-top:14px;background:rgb(151, 231, 90);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);padding:16px;display:none;}
+    .section{margin-top:14px;background:rgb(211, 235, 192);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);padding:16px;display:none;}
     .section.active{display:block;}
     .sectionHeader{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;}
     .sectionHeader h2{margin:0;font-size:16px}
-    .sectionHeader small{color:var(--muted)}
+    .sectionHeader small{color:rgb(20, 44, 226)}
 
     .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;}
-    label{font-size:12px;color:var(--muted);display:block;margin-bottom:6px}
+    label{font-size:15px;color:black;display:block;margin-bottom:8px}
 
-    input,select,textarea{width:100%;padding:10px;border:1px solid var(--border);border-radius:12px;font-size:14px;outline:none;background:#fff;}
+    input,select,textarea{width:100%;padding:10px;border:1px solid var(--border);background-color: #0c58c4;border-radius:12px;font-size:14px;outline:none;background:#fff;}
     textarea{min-height:90px;resize:vertical;}
     .actions{margin-top:12px;display:flex;gap:10px;justify-content:flex-end;}
     .btn{border:none;padding:10px 14px;border-radius:12px;cursor:pointer;font-weight:700;}
-    .btn.primary{background:var(--primary);color:#fff;}
+    .btn.primary{background:var(--primary);color:#f0e8e8;}
     .btn.gray{background:#f1f5f9;border:1px solid var(--border);}
 
     .tableWrap{overflow:auto;border:1px solid var(--border);border-radius:12px;}
@@ -769,7 +769,7 @@
             <div><label>Call Logged Date</label><input type="date" name="callLoggedDate"></div>
             <div><label>Problem reported</label><input name="problemReported"></div>
 
-            <div><label>AMC Status</label><input id="wsr_amcStatus" name="amcStatus"></div>
+            <div>  <label>Machine Status</label>  <input id="wsr_machineStatus" name="machineStatus"></div>
 
 
 
@@ -2295,11 +2295,62 @@ function getFilterKitDueFromRow(r){
     ["filterkitdue","filterdue","filterkit","kitdue"]
   );
 }
-function getAmcDueDateFromRow(r){
-  return getField(r,
-    ["AMC Due Date","amcDueDate","AMC_DUE_DATE","AMC Due"],
-    ["amcdue"]
-  );
+async function exportWeeklyPlanReport(){
+
+  const q = (document.getElementById("wpReportSearch")?.value || "").trim();
+  const from = document.getElementById("wpFromDate")?.value || "";
+  const to   = document.getElementById("wpToDate")?.value || "";
+
+  const params = new URLSearchParams();
+  params.set("limit","5000");
+  if(q) params.set("q", q);
+  if(from) params.set("from", from);
+  if(to) params.set("to", to);
+
+  showLoading("Exporting weekly plan...");
+
+  try{
+
+    const res = await fetch("/api/weeklyplan/report?" + params.toString());
+    const data = await res.json();
+    if(!res.ok || data.error) throw new Error(data.error || "Export failed");
+
+    function norm(s){
+      return String(s||"").toLowerCase().replace(/[^a-z0-9]+/g,"");
+    }
+
+    const apiCols = Array.isArray(data.columns) ? data.columns : [];
+    let rows = Array.isArray(data.rows) ? data.rows : [];
+
+    // ================= SORT BY visit_date ASC =================
+    rows.sort((a,b)=>{
+      const d1 = new Date(a.visit_date || "");
+      const d2 = new Date(b.visit_date || "");
+      return d1 - d2; // ASCENDING
+    });
+
+    const desired = [
+      "zone","engineerName","clusterCode","visit_date","customerName","location",
+      "contact_person_name","phoneNumber","email","localOutstation","distance_km",
+      "mode_of_transport","expectedExpense","printerModel","printer_sr_no",
+      "printerStatus","visitType","lastVisitDate","tot","pot","ink","solvent","cnc",
+      "amcDueDate","filter_due_date_hrs","sms_expiry_date","outstandingAmount","filterChange",
+      "smsUpdate","paymentCollected","inkexpiryfollowup","amcFollowup",
+      "filterKitFollowup","stockCheck","other","visitCompleteDate","remarks"
+    ];
+
+    const map = new Map(apiCols.map(c => [norm(c), c]));
+    const desiredActual = desired.map(d => map.get(norm(d))).filter(Boolean);
+    const cols = desiredActual.length ? desiredActual : apiCols;
+
+    const fname = `WeeklyPlan_${from || "ALL"}_to_${to || "ALL"}.csv`;
+    downloadCSV(fname, cols, rows);
+
+  }catch(e){
+    alert(String(e));
+  }finally{
+    hideLoading();
+  }
 }
 
 function getFilterDueFromRow(r){
@@ -2721,7 +2772,7 @@ function setupCascades(){
     contactPersonId: "wsr_contactPerson",
     contactNumberId: "wsr_contactNumber",
     emailId: "wsr_email",
-    machineStatusId: "wsr_amcStatus",
+    machineStatusId: "wsr_machineStatus",
 
     mcNoId: "wsr_mcNo",
     inkTypeId: "wsr_inkType",

@@ -1637,7 +1637,8 @@ def _wsr_payload_to_db(cols, payload: dict):
         "email": "E-mail id",
         "callLoggedDate": "Call Logged Date",
         "problemReported": "Problem reported",
-        "machineStatus": "Machine Status",
+        
+        "amcStatus": "Machine Status",
         "visitCode1": "Visit Code 1",
         "visitCode2": "Visit Code 2",
         "printerModel": "Printer Model",
@@ -1654,8 +1655,6 @@ def _wsr_payload_to_db(cols, payload: dict):
         "workEnd": "Work End (HH:MM)",
         "workTime": "WORK TIME",
         "actionTaken": "Action Taken (in brief)",
-
-        # 🔥 CRITICAL FIX
         "ink": "INK",
         "solvent": "Solvent",
         "cnc": "CNC",
@@ -1674,25 +1673,35 @@ def _wsr_payload_to_db(cols, payload: dict):
         if form_key not in FIELD_MAP:
             continue
 
-        dbcol = FIELD_MAP[form_key]
-        val = _clean_val(raw_val)
+        mapped_name = FIELD_MAP[form_key]
 
+        # ✅ Detect real column name dynamically
+        dbcol = _find_col(cols, aliases=[mapped_name])
+
+        if not dbcol:
+            print("COLUMN NOT FOUND:", mapped_name)
+            continue
+
+        val = _clean_val(raw_val)
         dtype = (col_types.get(dbcol) or "").lower()
 
         if dtype in ("date", "datetime", "datetime2", "smalldatetime"):
             val = _parse_iso_date(val)
+
         elif dtype in ("time",):
             val = _parse_time_any(val)
+
         elif dtype in ("int", "bigint", "smallint", "tinyint"):
             val = _to_int(val)
+
         elif dtype in ("decimal", "numeric", "float", "real", "money", "smallmoney"):
             val = _to_decimal(val)
 
         out[dbcol] = val
 
+    print("FINAL DB VALS:", out)   # 🔍 Debug
+
     return out
-
-
 
 def _wsr_date_col(cols):
     return _find_col(
@@ -1888,24 +1897,113 @@ def api_wsr_report_export():
     if need:
         return need
 
+    # ================= GET PARAMETERS =================
+    q = (request.args.get("q") or "").strip()
+    from_s = (request.args.get("from") or "").strip()
+    to_s   = (request.args.get("to") or "").strip()
+    visit_type = (request.args.get("visitType") or "").strip()
+    engineer = (request.args.get("engineer") or "").strip()
+
     cols = _wsr_cols()
     if not cols:
         return _json_err(f"{WSR_TABLE} not found", 400)
 
-    where_sql, params = _wsr_scope_where(cols)
+    dcol = _wsr_date_col(cols)
+    vcol = _wsr_visit_code1_col(cols)
+    eng_col = _find_col(
+        cols,
+        aliases=["Engineer Name", "EngineerName", "ENGINEER_NAME"],
+        must_contain=["engineer", "name"]
+    )
+
+    where_parts = []
+    params = []
+
+    # ================= ROLE BASED SCOPE =================
+    scope_where, scope_params = _wsr_scope_where(cols)
+    if scope_where:
+        where_parts.append(scope_where.replace(" WHERE ", "", 1))
+        params += scope_params
+
+    # ================= ENGINEER FILTER =================
+    # If engineer provided → filter by engineer
+    if engineer and eng_col:
+        where_parts.append(f"{_cmp_ci_trim(eng_col)} = UPPER(?)")
+        params.append(engineer)
+
+    # ================= DATE FILTER =================
+    if dcol and (from_s or to_s):
+
+        fd = _parse_iso_date(from_s) if from_s else None
+        td = _parse_iso_date(to_s) if to_s else None
+
+        date_expr = (
+            f"COALESCE("
+            f"TRY_CONVERT(date, {_qcol(dcol)}, 23),"
+            f"TRY_CONVERT(date, {_qcol(dcol)}, 105),"
+            f"TRY_CONVERT(date, {_qcol(dcol)})"
+            f")"
+        )
+
+        if fd:
+            where_parts.append(f"{date_expr} >= ?")
+            params.append(fd)
+
+        if td:
+            where_parts.append(f"{date_expr} <= ?")
+            params.append(td)
+
+    # ================= VISIT TYPE FILTER =================
+    if visit_type and vcol:
+        where_parts.append(f"{_cmp_ci_trim(vcol)} = UPPER(?)")
+        params.append(visit_type)
+
+    # ================= SEARCH FILTER =================
+    if q:
+        preferred = [
+            "Customer Name",
+            "Engineer Name",
+            "Zone",
+            "Serial No",
+            "Printer Model",
+            "Location"
+        ]
+        search_where, search_params = _build_token_search_where(q, cols, preferred)
+        if search_where:
+            where_parts.append(search_where)
+            params += search_params
+
+    where_sql = (" WHERE " + " AND ".join(where_parts)) if where_parts else ""
+
+    # ================= ASCENDING SORT =================
+    travel_col = _find_col(
+        cols,
+        aliases=["Travel Start (HH:MM)", "Travel Start", "travel_start"],
+        must_contain=["travel", "start"]
+    )
+
+    date_expr_order = (
+        f"COALESCE("
+        f"TRY_CONVERT(date, {_qcol(dcol)}, 23),"
+        f"TRY_CONVERT(date, {_qcol(dcol)}, 105),"
+        f"TRY_CONVERT(date, {_qcol(dcol)})"
+        f")"
+    )
+
+    if travel_col:
+        order_by = f"""
+            ORDER BY
+                {date_expr_order} ASC,
+                CASE
+                    WHEN TRY_CONVERT(time, {_qcol(travel_col)}) IS NOT NULL
+                        THEN TRY_CONVERT(time, {_qcol(travel_col)})
+                    ELSE CAST('23:59:59' AS time)
+                END ASC
+        """
+    else:
+        order_by = f" ORDER BY {date_expr_order} ASC "
 
     select_cols = ", ".join([_qcol(c) for c in cols])
-
-    # ✅ FINAL SORTING LOGIC (Same as SQL working one)
-    order_by = """
-        ORDER BY 
-            TRY_CONVERT(date, [Visit Date], 105) ASC,
-            CASE 
-                WHEN TRY_CONVERT(time, [Travel Start (HH:MM)]) IS NOT NULL 
-                    THEN TRY_CONVERT(time, [Travel Start (HH:MM)])
-                ELSE CAST('23:59:59' AS time)
-            END ASC
-    """
 
     sql = f"""
         SELECT {select_cols}
@@ -1930,9 +2028,7 @@ def api_wsr_report_export():
         return jsonify({"columns": cols, "rows": out_rows})
 
     except Exception as e:
-        return _json_err(f"WSR export error: {e}", 500)
-    
-    
+        return _json_err(f"WSR export error: {e}", 500)    
 
 @app.get("/api/wsr/summary_month")
 @app.get("/api/wsr/summary_month/")
@@ -2057,21 +2153,16 @@ def api_wsr_save():
             insert_cols = []
             insert_vals = []
             params = []
-
-            for c in cols:
-                if _norm(c) == "id":
+            for col, val in db_vals.items():
+                if _norm(col) == "id":
                     continue
-
-                if c in db_vals:
-                    v = db_vals.get(c)
-                    if v is None:
-                        continue
-                    if isinstance(v, str) and v.strip() == "":
-                        continue
-
-                    insert_cols.append(_qcol(c))
-                    insert_vals.append("?")
-                    params.append(v)
+                if val is None:
+                    continue
+                if isinstance(val, str) and val.strip() == "":
+                    continue
+                insert_cols.append(_qcol(col))
+                insert_vals.append("?")
+                params.append(val)
 
             if not insert_cols:
                 return jsonify({"ok": False, "error": "No data to insert"}), 400
