@@ -1356,8 +1356,8 @@ def api_weeklyplan_report():
     if need:
         return need
 
-    limit = int(request.args.get("limit", "2000"))
-    limit = max(1, min(limit, 5000))
+    limit = int(request.args.get("limit", "20000"))
+    limit = max(1, min(limit, 50000))
 
     q = (request.args.get("q") or "").strip()
     from_s = (request.args.get("from") or "").strip()
@@ -1482,18 +1482,24 @@ def api_weeklyplan_summary_14():
         sql_where_parts.append(scope_where.replace(" WHERE ", "", 1))
         params += scope_params
 
-    sql_where_parts.append(f"{date_expr} >= DATEADD(day, -7, CAST(GETDATE() AS date))")
+    sql_where_parts.append(f"{date_expr} >= DATEADD(day, -30, CAST(GETDATE() AS date))")
     sql_where_parts.append(f"{date_expr} <= DATEADD(day, 17, CAST(GETDATE() AS date))")
 
     where_sql = " WHERE " + " AND ".join(sql_where_parts)
 
     bucket_expr = f"""
-      CASE
-        WHEN UPPER(LTRIM(RTRIM(CAST({_qcol(tcol)} AS NVARCHAR(200))))) IN ('CLUSTER') THEN 'cluster'
-        WHEN UPPER(LTRIM(RTRIM(CAST({_qcol(tcol)} AS NVARCHAR(200))))) IN ('BREAKDOWN') THEN 'breakdown'
-        WHEN UPPER(LTRIM(RTRIM(CAST({_qcol(tcol)} AS NVARCHAR(200))))) IN ('SALES SUPPORT','SALES SUPPORTS') THEN 'sales_support'
-        ELSE 'other'
-      END
+        CASE
+            WHEN UPPER(REPLACE(REPLACE(LTRIM(RTRIM(CAST({_qcol(tcol)} AS NVARCHAR(200)))), ' ', ''), '-', ''))
+                LIKE '%CLUSTER%' THEN 'cluster'
+
+            WHEN UPPER(REPLACE(REPLACE(LTRIM(RTRIM(CAST({_qcol(tcol)} AS NVARCHAR(200)))), ' ', ''), '-', ''))
+                LIKE '%BREAKDOWN%' THEN 'breakdown'
+
+            WHEN UPPER(LTRIM(RTRIM(CAST({_qcol(tcol)} AS NVARCHAR(200)))))
+                LIKE '%SALES%' THEN 'sales_support'
+
+            ELSE 'other'
+        END
     """
 
     sql = f"""
@@ -2663,10 +2669,7 @@ def api_sms_upload():
     need = _require_login_json()
     if need:
         return need
-
-    role = (session.get("role") or "").strip().lower()
-    if "admin" not in role:
-        return jsonify({"error": "Only Admin allowed"}), 403
+    
 
     if "excel_file" not in request.files:
         return jsonify({"error": "No file selected"}), 400
@@ -3207,7 +3210,10 @@ def installbase_by_active_status():
             })
 
     except Exception as e:
-        return jsonify({"error": str(e)}), 500        
+        return jsonify({"error": str(e)}), 500  
+
+
+
 
 # ===================== RUN =====================
 if __name__ == "__main__":
