@@ -633,22 +633,27 @@
               <label>Local / Outstation</label>
               <select name="localOutstation">
                 <option value="">--Select--</option>
+                <option value="Local">N/A</option>
                 <option value="Local">Local</option>
                 <option value="Outstation">Outstation</option>
               </select>
             </div>
 
-            <div><label>Distance from Base / Last Customer (KM)</label> <input name="distance_km"></div>
+            <div><label>Distance from Base / Last Customer (KM)</label> <input type="number" id="distanceKM" name="distance_km"></div>
 
             <div>
               <label>Mode of Transport</label>
-              <select name="mode_of_transport">
+              <select name="mode_of_transport" id="modeOfTransport" onchange="handleTransportChange()">
                 <option value="">--Select--</option>
-                <option>Bike</option><option>Car</option><option>Bus</option><option>Train</option><option>Flight</option>
+                <option>N/A</option><option>Bike</option><option>Auto</option><option>Car</option><option>Bus</option><option>Train</option><option>Flight</option>
               </select>
             </div>
+            <div id="bikeExtraBox" style="display:none; margin-top:10px;">
+              <label> Per KM Rate</label>
+              <input type="number" id="perKmRate" placeholder="Enter Per KM Rate" oninput="calculateExpense()">
+            </div>
 
-            <div><label>Expected Expense (Travel + Lodging)</label><input name="expectedExpense"></div>
+            <div><label>Expected Expense (Travel + Lodging)</label><input type="number" id="expectedExpense" name="expectedExpense"></div>
 
             <div style="position:relative;">
               <label>Printer Model</label>
@@ -668,7 +673,7 @@
               <label>Visit Type</label>
               <select name="visitType" required>
                 <option value="">--Select--</option>
-                <option>Cluster</option><option>Breakdown</option><option>Sales Support</option><option>Other</option>
+                <option>N/A</option><option>Cluster</option><option>Breakdown</option><option>Sales Support</option><option>Other</option>
               </select>
             </div>
 
@@ -682,7 +687,7 @@
 
 
             <div><label>AMC Due Date</label><input type="date" name="amcDueDate" id="wp_amcDueDate"></div>
-            <div><label>Filter Due Date / Hrs</label><input name="filter_due_date_hrs" id="wp_filterDue"></div>
+            <div><label>Filter Due Date / Hrs</label><input type="date" name="filter_due_date_hrs" id="wp_filterDue"></div>
 
             <div><label>SMS Expiry Date</label><input type="date" name="sms_expiry_date" id="wp_smsExpiry"></div>
 
@@ -881,6 +886,7 @@
           <button class="tb-btn" onclick="reportClear()">✖ Clear</button>
           <button class="tb-btn" onclick="loadReport()">🔄 Refresh</button>
           <button class="tb-btn tb-export" onclick="exportReport()">⬇️Report Export</button>
+          
         </div>
         <div id="reportSuggest" class="suggestBox"></div>
         <div id="reportErr" class="err"></div>
@@ -2353,12 +2359,71 @@ async function exportWeeklyPlanReport(){
   }
 }
 
-function getFilterDueFromRow(r){
-  return getField(r,
-    ["Filter Due Date / Hrs","filterDue","FILTER DUE","Filter Due"],
-    ["filterdue"]
+function getAmcDueDateFromRow(r){
+
+  let v = getField(r,
+    ["AMC Due Date","amcduedate","amcDueDate"," amc Due Date "],
+    ["amcduedate"]
   );
+
+  if(!v) return "";
+
+  // If already YYYY-MM-DD
+  if(/^\d{4}-\d{2}-\d{2}$/.test(v)) return v;
+
+  // Convert DD-MM-YYYY or DD/MM/YYYY → YYYY-MM-DD
+  const parts = v.split(/[-\/]/);
+
+  if(parts.length === 3){
+    const dd = parts[0].padStart(2,"0");
+    const mm = parts[1].padStart(2,"0");
+    const yyyy = parts[2];
+
+    return `${yyyy}-${mm}-${dd}`;
+  }
+
+  return "";
 }
+
+function getFilterDueFromRow(r){
+
+  let v = getField(
+    r,
+    [
+      "Filter Due Date / Hrs",
+      "Filter Due Date",
+      "Next Filter Due Date",
+      "filterDue",
+      "FILTER DUE"
+    ],
+    [
+      "filterduedate",
+      "nextfilter",
+      "filterdue"
+    ]
+  );
+
+  if(!v) return "";
+
+  v = String(v).trim();
+
+  // If already YYYY-MM-DD
+  if(/^\d{4}-\d{2}-\d{2}$/.test(v)) return v;
+
+  // Convert DD-MM-YYYY or DD/MM/YYYY → YYYY-MM-DD
+  const parts = v.split(/[-\/]/);
+
+  if(parts.length === 3){
+    const dd = parts[0].padStart(2,"0");
+    const mm = parts[1].padStart(2,"0");
+    const yyyy = parts[2];
+    return `${yyyy}-${mm}-${dd}`;
+  }
+
+  return v; // if hrs format like 1200 Hrs
+}
+
+
 function getClusterCodeFromRow(r){
   return getField(
     r,
@@ -2939,7 +3004,7 @@ document.addEventListener("DOMContentLoaded", function(){
       if(res.ok){
         const again = confirm(
           (out.message || " Weekly Plan Saved Successfully") +
-          "\n\nDo you want to add another WSR for the same customer?"
+          "\n\nDo you want to add another paning for the same customer?"
         );
         if (!again) {
           this.reset();
@@ -3509,6 +3574,37 @@ function uploadInstallExcel(input) {
     xhr.send(formData);
 }
 
+
+// ==========================
+// TRANSPORT AUTO CALCULATION
+// ==========================
+
+function handleTransportChange(){
+  const mode = document.getElementById("modeOfTransport").value;
+  const bikeBox = document.getElementById("bikeExtraBox");
+
+  if(mode === "Bike"){
+    bikeBox.style.display = "block";
+  } else {
+    bikeBox.style.display = "none";
+    document.getElementById("perKmRate").value = "";
+    calculateExpense();
+  }
+}
+
+function calculateExpense(){
+
+  const distance = parseFloat(document.getElementById("distanceKM").value) || 0;
+  const rate = parseFloat(document.getElementById("perKmRate").value) || 0;
+
+  const total = distance * rate;
+
+  document.getElementById("expectedExpense").value =
+    total > 0 ? total : "";
+}
+
+// Auto calculate when distance changes
+document.getElementById("distanceKM").addEventListener("input", calculateExpense);
 
 
 </script>
